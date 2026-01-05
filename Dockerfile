@@ -1,7 +1,7 @@
 # ==========================================
 # 1. Base Image: Dependencias
 # ==========================================
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 
 # Instalar dependencias necesarias para libc (a veces requeridas por librerías de Next.js)
 RUN apk add --no-cache libc6-compat
@@ -11,7 +11,7 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 
 # Instalar dependencias (npm ci es más rápido y seguro para CI/CD)
-RUN npm ci
+RUN npm install
 
 # ==========================================
 # 2. Builder Image: Construcción
