@@ -1,0 +1,27 @@
+{
+  "name": "marketing_system_web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "js-cookie": "^3.0.5",
+    "next": "16.0.5",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "recharts": "^3.6.0",
+    "sweetalert2": "^11.26.4",
+    "sweetalert2-react-content": "^5.1.0",
+    "swr": "^2.3.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.5",
+    "tailwindcss": "^4"
+  }
+}
