@@ -23,14 +23,14 @@ const fetcher = async (url, token) => {
 export function useDashboardData() {
     const { basicAuthHeader } = useContext(AuthContext);
 
-    // SWR gestiona el caché, reintentos y reconexión
-    const { data, error, isLoading } = useSWR(
+    const { data, error, isLoading, mutate } = useSWR( // Importante: desestructurar mutate aquí también
         basicAuthHeader ? [`${API_BASE_URL}${ADMIN_PANEL_ENDPOINT}`, basicAuthHeader] : null,
         ([url, token]) => fetcher(url, token),
         {
-            refreshInterval: 30000, // Refresca cada 30s automáticamente
-            revalidateOnFocus: true, // Refresca si el usuario vuelve a la pestaña
-            dedupingInterval: 5000,  // Evita duplicar peticiones muy seguidas
+            refreshInterval: 10000, // CAMBIO: Bajar a 10s para ver cambios externos más rápido
+            revalidateOnFocus: true, // Si cambias de pestaña y vuelves, refresca inmediato
+            dedupingInterval: 2000,
+            keepPreviousData: true   // Evita parpadeos de carga mientras refresca
         }
     );
 
@@ -38,7 +38,7 @@ export function useDashboardData() {
         data,
         loading: isLoading,
         error,
-        // Función para forzar recarga (ej: después de aprobar una campaña)
-        refresh: () => mutate([`${API_BASE_URL}${ADMIN_PANEL_ENDPOINT}`, basicAuthHeader])
+        // Exponemos la función mutate directa para actualizaciones instantáneas
+        refresh: () => mutate() 
     };
 }

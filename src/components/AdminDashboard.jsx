@@ -32,12 +32,43 @@ const AdminDashboard = () => {
 
     // Handlers
     const handleApprove = async (campaignId) => {
+        // 1. Mostrar estado de "Procesando" inmediato para mejor UX
+        Swal.fire({
+            title: 'Activando Campaña...',
+            text: 'Sincronizando con la plataforma de anuncios (Meta/Google/LinkedIn)...',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
         try {
+            // 2. Petición al Servidor (Backend)
+            // Esto cambia el estado en tu DB y activa el anuncio en la API externa
             await campaignService.approve(campaignId, basicAuthHeader);
-            Swal.fire({ title: '¡Aprobada!', text: 'Campaña activada.', icon: 'success', timer: 1500, showConfirmButton: false });
-            refresh();
+
+            // 3. Feedback de Éxito
+            Swal.fire({ 
+                title: '¡Aprobada!', 
+                text: 'Campaña activada correctamente.', 
+                icon: 'success', 
+                timer: 1500, 
+                showConfirmButton: false 
+            });
+
+            // 4. ACTUALIZACIÓN DE LA TABLA (CRÍTICO)
+            // Esto obliga a React a pedir los datos nuevos a la DB inmediatamente
+            await refresh(); 
+
         } catch (err) {
-            Swal.fire('Error', err.message, 'error');
+            console.error(err);
+            Swal.fire({
+                title: 'Error de Activación',
+                text: err.message || 'No se pudo activar la campaña. Revisa los logs del servidor.',
+                icon: 'error'
+            });
+            // Refrescamos de todos modos por si el estado cambió parcialmente
+            refresh();
         }
     };
 
