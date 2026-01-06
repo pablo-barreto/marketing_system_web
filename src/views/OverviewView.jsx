@@ -1,6 +1,6 @@
 import React from 'react';
 
-// Iconos SVG (Mismos que tenías)
+// Iconos SVG (Sin cambios)
 const Icons = {
     Users: () => <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
     TrendingUp: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>,
@@ -11,8 +11,39 @@ const Icons = {
 };
 
 const OverviewView = ({ data }) => {
-    // --- CÁLCULOS ---
-    const totalVisits = data.service_visits?.reduce((a, b) => a + b.total_visits, 0) || 1;
+    
+    // ========================================================================
+    // 1. LÓGICA DE AGRUPACIÓN Y LIMPIEZA (FIX DUPLICADOS)
+    // ========================================================================
+    const processedServices = React.useMemo(() => {
+        if (!data.service_visits) return [];
+
+        // A. Crear diccionario para sumar visitas por nombre único
+        const aggregationMap = data.service_visits.reduce((acc, curr) => {
+            // Normalizamos el nombre: Mayúsculas y quitamos guiones extraños
+            const normalizedName = curr.service_name.toUpperCase().replace(/-/g, ' ').trim();
+            
+            if (!acc[normalizedName]) {
+                acc[normalizedName] = 0;
+            }
+            // Sumamos las visitas
+            acc[normalizedName] += curr.total_visits;
+            return acc;
+        }, {});
+
+        // B. Convertir de vuelta a array y ordenar por mayor tráfico
+        return Object.entries(aggregationMap)
+            .map(([name, count]) => ({
+                service_name: name,
+                total_visits: count
+            }))
+            .sort((a, b) => b.total_visits - a.total_visits); // Orden Descendente
+    }, [data.service_visits]);
+
+    // ========================================================================
+    // 2. CÁLCULOS KPI (Usando los datos ya procesados)
+    // ========================================================================
+    const totalVisits = processedServices.reduce((a, b) => a + b.total_visits, 0) || 1;
     const totalLeads = data.crm_leads?.length || 0;
     const conversionRate = ((totalLeads / (totalVisits === 0 ? 1 : totalVisits)) * 100).toFixed(1);
     const activeCampaigns = data.campaigns?.filter(c => c.status === 'active').length || 0;
@@ -35,10 +66,10 @@ const OverviewView = ({ data }) => {
                 </div>
             </div>
 
-            {/* --- GRID PRINCIPAL OPTIMIZADO --- */}
+            {/* --- GRID PRINCIPAL --- */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 auto-rows-fr">
                 
-                {/* 1. KPI PRINCIPAL (Ocupa 2 Columnas) */}
+                {/* 1. KPI PRINCIPAL */}
                 <div className="col-span-1 lg:col-span-2 bg-slate-900 text-white rounded-2xl p-8 shadow-xl shadow-slate-200/50 relative overflow-hidden flex flex-col justify-between group h-full min-h-[220px]">
                     <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-blue-600 rounded-full blur-[100px] opacity-20 group-hover:opacity-30 transition-opacity"></div>
                     
@@ -61,7 +92,7 @@ const OverviewView = ({ data }) => {
                     </div>
                 </div>
 
-                {/* 2. SALUD DEL SISTEMA (1 Columna) */}
+                {/* 2. SALUD DEL SISTEMA */}
                 <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-lg shadow-slate-100/50 flex flex-col justify-center h-full">
                     <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-50">
                         <div className="text-emerald-500"><Icons.Server /></div>
@@ -74,9 +105,9 @@ const OverviewView = ({ data }) => {
                     </div>
                 </div>
 
-                {/* 3. COLUMNA DE MÉTRICAS RÁPIDAS (1 Columna - APILADAS) */}
+                {/* 3. COLUMNA DE MÉTRICAS RÁPIDAS */}
                 <div className="flex flex-col gap-6 h-full">
-                    {/* Tarjeta Superior: Ads */}
+                    {/* Ads */}
                     <div className="flex-1 bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-5 border border-emerald-100 shadow-sm hover:shadow-md transition-all flex flex-col justify-center relative overflow-hidden">
                         <div className="flex justify-between items-center relative z-10">
                             <div>
@@ -87,7 +118,7 @@ const OverviewView = ({ data }) => {
                         </div>
                     </div>
 
-                    {/* Tarjeta Inferior: SEO */}
+                    {/* SEO */}
                     <div className="flex-1 bg-gradient-to-br from-amber-50 to-white rounded-2xl p-5 border border-amber-100 shadow-sm hover:shadow-md transition-all flex flex-col justify-center relative overflow-hidden">
                         <div className="flex justify-between items-center relative z-10">
                             <div>
@@ -101,40 +132,46 @@ const OverviewView = ({ data }) => {
 
                 {/* --- SEGUNDA FILA --- */}
 
-                {/* 4. TRÁFICO (2 Columnas) */}
+                {/* 4. TRÁFICO (MODIFICADO PARA USAR LISTA SIN DUPLICADOS) */}
                 <div className="col-span-1 lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-100 shadow-lg shadow-slate-100/50 h-full max-h-[350px]">
                     <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-2">
                             <div className="text-blue-500"><Icons.TrendingUp /></div>
                             <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Interés (Tráfico)</h4>
                         </div>
+                        <span className="text-xs text-slate-400">Total: {totalVisits} visitas</span>
                     </div>
                     
                     <div className="flex flex-col gap-5 overflow-y-auto pr-2 max-h-[240px] custom-scrollbar">
-                        {data.service_visits?.slice(0, 4).map((svc, index) => {
-                            const percent = Math.round((svc.total_visits / totalVisits) * 100);
-                            const barColors = ['bg-blue-500', 'bg-indigo-500', 'bg-violet-500', 'bg-fuchsia-500'];
-                            
-                            return (
-                                <div key={svc.service_name} className="group">
-                                    <div className="flex justify-between mb-1 text-sm">
-                                        <span className="font-bold text-slate-700 truncate max-w-[70%]">
-                                            {svc.service_name.toUpperCase().replace(/-/g, ' ')}
-                                        </span>
-                                        <span className="text-slate-500 font-mono text-xs bg-slate-50 px-2 py-0.5 rounded">
-                                            {svc.total_visits}
-                                        </span>
+                        {/* AQUÍ USAMOS LA LISTA PROCESADA 'processedServices' */}
+                        {processedServices.length > 0 ? (
+                            processedServices.map((svc, index) => {
+                                const percent = Math.round((svc.total_visits / totalVisits) * 100);
+                                const barColors = ['bg-blue-500', 'bg-indigo-500', 'bg-violet-500', 'bg-fuchsia-500'];
+                                
+                                return (
+                                    <div key={svc.service_name} className="group">
+                                        <div className="flex justify-between mb-1 text-sm">
+                                            <span className="font-bold text-slate-700 truncate max-w-[70%]">
+                                                {svc.service_name}
+                                            </span>
+                                            <span className="text-slate-500 font-mono text-xs bg-slate-50 px-2 py-0.5 rounded">
+                                                {svc.total_visits}
+                                            </span>
+                                        </div>
+                                        <div className="w-full h-2 bg-slate-50 rounded-full overflow-hidden">
+                                            <div style={{ width: `${percent}%` }} className={`h-full rounded-full ${barColors[index % 4]}`}></div>
+                                        </div>
                                     </div>
-                                    <div className="w-full h-2 bg-slate-50 rounded-full overflow-hidden">
-                                        <div style={{ width: `${percent}%` }} className={`h-full rounded-full ${barColors[index % 4]}`}></div>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })
+                        ) : (
+                            <p className="text-slate-400 text-sm text-center py-4">No hay datos de tráfico aún.</p>
+                        )}
                     </div>
                 </div>
 
-                {/* 5. ACTIVIDAD (2 Columnas - ¡AHORA MÁS ANCHO!) */}
+                {/* 5. ACTIVIDAD (Sin cambios, solo ajuste de layout) */}
                 <div className="col-span-1 lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-100 shadow-lg shadow-slate-100/50 h-full max-h-[350px] flex flex-col">
                     <div className="flex items-center gap-2 mb-4">
                         <div className="text-blue-500 animate-pulse"><Icons.Activity /></div>
@@ -142,17 +179,14 @@ const OverviewView = ({ data }) => {
                     </div>
 
                     <div className="relative pl-2 overflow-y-auto pr-2 flex-1 custom-scrollbar">
-                        {/* Línea vertical de fondo */}
                         <div className="absolute left-[11px] top-2 bottom-0 w-0.5 bg-slate-100"></div>
 
                         <div className="flex flex-col gap-6 pb-2">
                             {data.notifications?.slice(0, 8).map((notif, idx) => (
                                 <div key={idx} className="flex gap-4 relative group">
-                                    {/* Punto del timeline */}
                                     <div className="w-6 h-6 rounded-full bg-white border-[3px] border-blue-500 z-10 flex-shrink-0 shadow-sm group-hover:border-blue-600 transition-colors mt-0.5"></div>
                                     
-                                    <div className="flex-1 min-w-0"> {/* min-w-0 ayuda a que el truncate funcione en flex items */}
-                                        {/* TEXTO TRUNCADO: line-clamp-2 corta el texto si es muy largo */}
+                                    <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium text-slate-600 leading-snug line-clamp-2 hover:line-clamp-none transition-all cursor-default" title={notif.message}>
                                             {notif.message}
                                         </p>
@@ -166,7 +200,6 @@ const OverviewView = ({ data }) => {
 
             </div>
             
-            {/* Estilo local para scrollbar invisible o bonito */}
             <style jsx>{`
                 .custom-scrollbar::-webkit-scrollbar {
                     width: 4px;
