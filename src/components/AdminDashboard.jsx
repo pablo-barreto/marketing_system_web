@@ -10,6 +10,7 @@ import OverviewView from '../views/OverviewView';
 import CampaignsView from '../views/CampaignsView';
 import SeoView from '../views/SeoView';
 import CrmView from '../views/CrmView';
+import GalleryView from '../views/GalleryView';
 
 const AdminDashboard = () => {
     const { data, loading, error, refresh } = useDashboardData();
@@ -113,6 +114,7 @@ const AdminDashboard = () => {
             case 'overview': return <OverviewView data={data} />;
             case 'campaigns': return <CampaignsView campaigns={data.campaigns} isCreating={isCreating} availableServices={availableServices} selectedService={selectedService} setSelectedService={setSelectedService} selectedPlatform={selectedPlatform} setSelectedPlatform={setSelectedPlatform} handleCreateOnDemand={handleCreateOnDemand} handleApprove={handleApprove} />;
             case 'seo': return <SeoView rankings={data.seo_rankings} content={data.published_content} />;
+            case 'gallery': return <GalleryView />;
             case 'crm': return <CrmView leads={data.crm_leads} />;
             default: return null;
         }
@@ -152,6 +154,7 @@ const AdminDashboard = () => {
                 <nav className="flex-1 py-6 flex flex-col gap-1 overflow-y-auto">
                     <SidebarItem icon="📊" label="Visión General" active={activeView === 'overview'} onClick={() => handleNavClick('overview')} />
                     <SidebarItem icon="🚀" label="Gestión de Ads" active={activeView === 'campaigns'} onClick={() => handleNavClick('campaigns')} />
+                    <SidebarItem icon="🖼️" label="Galería Activos" active={activeView === 'gallery'} onClick={() => handleNavClick('gallery')} />
                     <SidebarItem icon="🌍" label="SEO & Contenido" active={activeView === 'seo'} onClick={() => handleNavClick('seo')} />
                     <SidebarItem icon="👥" label="CRM Leads" active={activeView === 'crm'} onClick={() => handleNavClick('crm')} />
                 </nav>
