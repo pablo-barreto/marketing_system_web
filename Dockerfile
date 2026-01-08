@@ -24,6 +24,7 @@ COPY . .
 # --- CONFIGURACIÓN DEL BACKEND ---
 # Definimos la URL de tu Cloud Run aquí para que Next.js la compile en el frontend
 ENV NEXT_PUBLIC_API_URL="https://marketing-system-848362500920.us-central1.run.app"
+ENV NEXT_PUBLIC_URL_IMAGES="https://storage.googleapis.com/marketing-system-assets-prod"
 
 # Deshabilitar telemetría de Next.js para acelerar el build
 ENV NEXT_TELEMETRY_DISABLED 1

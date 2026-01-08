@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import StatusBadge from './StatusBadge';
 import Swal from 'sweetalert2';
 import AudienceModal from './AudienceModal';
-import { API_BASE_URL } from '../app/config'; // <--- 1. IMPORTAR LA CONFIGURACIÓN
+import { URL_IMAGES } from '../app/config'; // <--- 1. IMPORTAR LA CONFIGURACIÓN
 
 // =============================================================================
 // 1. SUB-COMPONENTES DE PREVISUALIZACIÓN (LIMPIOS)
@@ -134,7 +134,7 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove }) => {
         const filename = content.local_image_path.split('\\').pop().split('/').pop();
         
         // Usamos la API_BASE_URL configurada
-        previewImage = `${API_BASE_URL}/static/images/uploads/${filename}`;
+        previewImage = `${URL_IMAGES}/uploads/${filename}`;
         
     } else if (content.image) {
         previewImage = content.image;
