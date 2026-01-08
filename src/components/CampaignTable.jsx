@@ -1,18 +1,17 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import StatusBadge from './StatusBadge';
 import Swal from 'sweetalert2';
 import AudienceModal from './AudienceModal';
-import { URL_IMAGES } from '../app/config';
+import { URL_IMAGES, API_BASE_URL } from '../app/config';
 
 // =============================================================================
-// 1. SUB-COMPONENTES DE PREVISUALIZACIÓN (AMBOS ESTILOS)
+// 1. SUB-COMPONENTES DE PREVISUALIZACIÓN (MANTENIDOS IGUAL)
 // =============================================================================
 
 // --- VISTA FACEBOOK (Feed) ---
-const FacebookPreview = ({ content, service, imageUrl }) => (
+const FacebookPreview = ({ service, imageUrl }) => (
     <div className="bg-white rounded-lg shadow-sm border border-gray-300 overflow-hidden w-[320px] font-sans flex-shrink-0">
-        {/* Header FB */}
         <div className="p-3 flex items-start gap-2">
             <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-[10px] border border-slate-200">CR</div>
             <div>
@@ -20,28 +19,16 @@ const FacebookPreview = ({ content, service, imageUrl }) => (
                 <div className="text-[10px] text-[#65676b] flex items-center gap-1">Publicidad · 🌎</div>
             </div>
         </div>
-
-        {/* Image FB */}
         <div className="bg-slate-100 relative h-[320px] border-t border-b border-gray-100">
-             <img 
-                src={imageUrl} 
-                alt={service} 
-                className="w-full h-full object-cover"
-                onError={(e) => { e.target.style.display = 'none'; }} 
-             />
+             <img src={imageUrl} alt={service} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
         </div>
-        
-        {/* CTA Bar FB */}
         <div className="bg-[#f0f2f5] p-2 flex items-center justify-between">
             <div className="flex-1 min-w-0 pr-2">
                 <div className="text-[10px] text-[#65676b] uppercase truncate">crconsultores.com</div>
                 <div className="text-[13px] font-bold text-[#050505] truncate">{service}</div>
             </div>
-            {/* BOTÓN WHATSAPP REALISTA */}
             <button className="bg-[#e4e6eb] hover:bg-[#d8dadf] text-[#050505] text-[12px] font-bold px-3 py-1.5 rounded border border-[#ced0d4] flex items-center gap-1.5 transition-colors">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="#6e7771ff" className="flex-shrink-0">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                </svg>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="#25D366" className="flex-shrink-0"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
                 WhatsApp
             </button>
         </div>
@@ -49,9 +36,8 @@ const FacebookPreview = ({ content, service, imageUrl }) => (
 );
 
 // --- VISTA INSTAGRAM (Feed) ---
-const InstagramPreview = ({ content, service, imageUrl }) => (
+const InstagramPreview = ({ service, imageUrl }) => (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-[320px] font-sans flex-shrink-0">
-        {/* Header IG */}
         <div className="p-3 flex items-center justify-between border-b border-gray-50">
             <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 to-purple-600 p-[2px]">
@@ -64,18 +50,9 @@ const InstagramPreview = ({ content, service, imageUrl }) => (
             </div>
             <div className="text-slate-900 text-xs">•••</div>
         </div>
-
-        {/* Image IG */}
         <div className="bg-slate-100 h-[320px] relative">
-             <img 
-                src={imageUrl} 
-                alt={service} 
-                className="w-full h-full object-cover"
-                onError={(e) => { e.target.style.display = 'none'; }} 
-             />
+             <img src={imageUrl} alt={service} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
         </div>
-
-        {/* CTA Strip IG */}
         <div className="bg-blue-50 px-3 py-2 flex justify-between items-center border-b border-blue-100">
             <span className="text-[12px] font-bold text-blue-900">Enviar mensaje de WhatsApp</span>
             <span className="text-blue-900 text-xs">›</span>
@@ -122,10 +99,10 @@ const LinkedInPreview = ({ content, service, imageUrl }) => (
 );
 
 // =============================================================================
-// 2. MODAL PRINCIPAL
+// 2. MODAL PRINCIPAL (CON BOTONES DE ACCIÓN)
 // =============================================================================
 
-const CampaignPreviewModal = ({ campaign, onClose, onApprove }) => {
+const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus }) => {
     if (!campaign) return null;
 
     const getContent = (c) => {
@@ -136,7 +113,6 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove }) => {
 
     const content = getContent(campaign.content);
     
-    // Logic Imagen
     let previewImage = '/static/images/servicios 1.jpg'; 
     if (content.local_image_path) {
         const filename = content.local_image_path.split('\\').pop().split('/').pop();
@@ -154,17 +130,16 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove }) => {
         if (platform.includes('google')) return <GooglePreview content={content} />;
         if (platform.includes('linkedin')) return <LinkedInPreview content={content} service={campaign.service} imageUrl={previewImage} />;
         
-        // [CAMBIO CLAVE]: Si es Meta, renderiza AMBOS uno al lado del otro
         if (isMeta) {
             return (
                 <div className="flex flex-col md:flex-row gap-6 items-center justify-center">
                     <div className="flex flex-col items-center gap-2">
                         <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Vista Facebook</span>
-                        <FacebookPreview content={content} service={campaign.service} imageUrl={previewImage} />
+                        <FacebookPreview service={campaign.service} imageUrl={previewImage} content={{ title: content.title }} />
                     </div>
                     <div className="flex flex-col items-center gap-2">
                         <span className="text-xs font-bold text-pink-600 uppercase tracking-wider">Vista Instagram</span>
-                        <InstagramPreview content={content} service={campaign.service} imageUrl={previewImage} />
+                        <InstagramPreview service={campaign.service} imageUrl={previewImage} />
                     </div>
                 </div>
             );
@@ -176,7 +151,7 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove }) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm animate-fade-in font-sans">
             <div className="bg-white w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[95vh]">
                 
-                {/* IZQUIERDA: PREVIEW VISUAL (Agrandada para caber dos) */}
+                {/* IZQUIERDA: PREVIEW VISUAL */}
                 <div className="w-full md:w-[70%] bg-[#eef0f4] p-6 flex flex-col items-center justify-center border-r border-slate-200 overflow-y-auto relative custom-scrollbar">
                     <div className="absolute top-4 left-4 bg-white/90 backdrop-blur border border-slate-200 text-slate-700 text-xs px-3 py-1.5 rounded-full shadow-sm font-bold uppercase tracking-wide flex items-center gap-2 z-10">
                         <span className={`w-2 h-2 rounded-full ${isMeta ? 'bg-indigo-600' : platform.includes('google') ? 'bg-orange-500' : 'bg-blue-700'}`}></span>
@@ -226,21 +201,12 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove }) => {
                                 </div>
                             </div>
                         </div>
-                        
-                        <div className="bg-slate-50 rounded-lg p-2 border border-slate-100 flex items-center gap-3">
-                            <div className="w-12 h-12 bg-white rounded border border-slate-200 overflow-hidden flex-shrink-0 relative">
-                                <img src={previewImage} alt="mini" className="w-full h-full object-cover" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="text-[10px] font-bold text-slate-500 uppercase">Imagen Base</div>
-                                <div className="text-[10px] text-slate-700 truncate" title={previewImage}>
-                                    {previewImage.startsWith('http') ? 'Cloud Storage' : previewImage.split('/').pop()}
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
                     <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col gap-2">
+                        {/* --- BOTONES DE ACCIÓN DENTRO DEL MODAL --- */}
+                        
+                        {/* 1. Si está pendiente -> Botón APROBAR */}
                         {campaign.status === 'pending_approval' && (
                             <button 
                                 onClick={() => { onApprove(campaign.id, campaign.service); onClose(); }} 
@@ -249,6 +215,27 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove }) => {
                                 Aprobar Campaña
                             </button>
                         )}
+
+                        {/* 2. Si está ACTIVA -> Botón PAUSAR */}
+                        {(campaign.status === 'ACTIVE' || campaign.status === 'LOW PERFORMANCE') && (
+                            <button 
+                                onClick={() => { onToggleStatus(campaign.id, 'ACTIVE'); onClose(); }} 
+                                className="w-full py-3 bg-amber-500 text-white rounded-lg font-bold hover:bg-amber-600 shadow-md shadow-amber-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                            >
+                                ⏸️ Pausar Campaña
+                            </button>
+                        )}
+
+                        {/* 3. Si está PAUSADA -> Botón ACTIVAR */}
+                        {campaign.status === 'PAUSED' && (
+                            <button 
+                                onClick={() => { onToggleStatus(campaign.id, 'PAUSED'); onClose(); }} 
+                                className="w-full py-3 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 shadow-md shadow-emerald-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                            >
+                                ▶️ Activar Campaña
+                            </button>
+                        )}
+
                         <button onClick={onClose} className="w-full py-3 border border-slate-300 rounded-lg font-bold text-slate-600 hover:bg-slate-50 transition-colors">
                             Cerrar
                         </button>
@@ -263,7 +250,10 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove }) => {
 // 3. COMPONENTE DE TABLA
 // =============================================================================
 
-const CampaignTable = ({ campaigns, onApprove }) => {
+const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
+    // 1. Estado Local para actualizaciones automáticas sin recargar
+    const [localCampaigns, setLocalCampaigns] = useState(initialCampaigns || []);
+    
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(5);
     const [searchTerm, setSearchTerm] = useState('');
@@ -273,29 +263,153 @@ const CampaignTable = ({ campaigns, onApprove }) => {
 
     const ESTIMATED_LEAD_VALUE = 15;
 
+    // Sincronizar props con estado local
+    useEffect(() => {
+        if(initialCampaigns) setLocalCampaigns(initialCampaigns);
+    }, [initialCampaigns]);
+
     const handlePageSizeChange = (e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); };
     
-    // --- RENDERIZADO DE LA COLUMNA PLATAFORMA ---
+    // --- AUTH HELPER (Cookies) ---
+    const getAuthToken = () => {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; auth_token=`);
+        if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
+        return null;
+    };
+
+    // --- ACTUALIZAR ESTADO EN MEMORIA ---
+    const updateCampaignStatusInState = (campaignId, newStatus) => {
+        setLocalCampaigns(prev => prev.map(c => 
+            c.id === campaignId ? { ...c, status: newStatus } : c
+        ));
+    };
+
+    // --- VERIFICACIÓN AUTOMÁTICA (SILENCIOSA) ---
+    useEffect(() => {
+        const checkVisibleCampaigns = async () => {
+            const campaignsToCheck = currentItems.filter(c => 
+                c.platform && (c.platform.toLowerCase().includes('facebook') || c.platform.toLowerCase().includes('instagram'))
+            );
+
+            if (campaignsToCheck.length === 0) return;
+            const token = getAuthToken();
+            if (!token) return; 
+
+            campaignsToCheck.forEach(async (campaign) => {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaign.id}/real-status`, {
+                        headers: { 'Authorization': token }
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.status && data.status !== campaign.status) {
+                            updateCampaignStatusInState(campaign.id, data.status);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Auto-check failed", e);
+                }
+            });
+        };
+        checkVisibleCampaigns();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentPage, searchTerm, statusFilter]);
+
+    // --- ACCIÓN: VERIFICACIÓN MANUAL (Sin recargar) ---
+    const handleVerifyMetaStatus = async (campaignId) => {
+        Swal.fire({
+            title: 'Verificando...',
+            text: 'Consultando Meta...',
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        try {
+            const token = getAuthToken();
+            if (!token) throw new Error("No hay sesión activa.");
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/real-status`, {
+                headers: { 'Authorization': token }
+            });
+            
+            const data = await response.json();
+
+            if (response.ok) {
+                updateCampaignStatusInState(campaignId, data.status); // Actualiza visualmente
+                Swal.fire({
+                    title: 'Sincronizado',
+                    text: `Estado real: ${data.status}`,
+                    icon: data.status === 'ACTIVE' ? 'success' : 'info',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            } else {
+                throw new Error(data.error || 'Error API');
+            }
+        } catch (error) {
+            Swal.fire({ title: 'Error', text: error.message, icon: 'warning' });
+        }
+    };
+
+    // --- ACCIÓN: TOGGLE STATUS (Sin recargar) ---
+    const handleToggleStatus = async (campaignId, currentStatus) => {
+        const isPaused = currentStatus === 'PAUSED';
+        const actionVerb = isPaused ? 'Activar' : 'Pausar';
+        const targetStatus = isPaused ? 'ACTIVE' : 'PAUSED';
+        const confirmColor = isPaused ? '#10b981' : '#f59e0b';
+
+        Swal.fire({
+            title: `¿${actionVerb} Campaña?`,
+            text: `Se cambiará el estado en Meta.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: confirmColor,
+            confirmButtonText: `Sí, ${actionVerb}`
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    const token = getAuthToken();
+                    if (!token) throw new Error("No hay sesión activa.");
+
+                    const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/status`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': token
+                        },
+                        body: JSON.stringify({ status: targetStatus })
+                    });
+
+                    if (response.ok) {
+                        updateCampaignStatusInState(campaignId, targetStatus); // Actualiza visualmente
+                        Swal.fire({
+                            title: '¡Listo!',
+                            text: `Campaña ${targetStatus === 'ACTIVE' ? 'activada' : 'pausada'}.`,
+                            icon: 'success',
+                            timer: 1500,
+                            showConfirmButton: false
+                        });
+                    } else {
+                        throw new Error('Error servidor');
+                    }
+                } catch (error) {
+                    Swal.fire('Error', error.message, 'error');
+                }
+            }
+        });
+    };
+
+    // --- ESTILO DE PLATAFORMA ---
     const renderPlatformBadge = (platform) => {
         const p = (platform || '').toLowerCase();
+        if (p.includes('google')) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border bg-orange-50 text-orange-700 border-orange-100">G Google Ads</span>;
+        if (p.includes('linkedin')) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border bg-sky-50 text-sky-700 border-sky-100">in LinkedIn</span>;
         
-        if (p.includes('google')) {
-            return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border bg-orange-50 text-orange-700 border-orange-100">G Google Ads</span>;
-        }
-        if (p.includes('linkedin')) {
-            return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border bg-sky-50 text-sky-700 border-sky-100">in LinkedIn</span>;
-        }
-        
-        // META (FB + IG) - DISEÑO SOLICITADO
         return (
             <div className="flex items-center gap-1">
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border bg-blue-50 text-blue-700 border-blue-100">
-                    f Facebook
-                </span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border bg-blue-50 text-blue-700 border-blue-100">Facebook</span>
                 <span className="text-slate-300 text-[10px]">/</span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border bg-pink-50 text-pink-700 border-pink-100">
-                    Instagram
-                </span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border bg-pink-50 text-pink-700 border-pink-100">Instagram</span>
             </div>
         );
     };
@@ -307,20 +421,21 @@ const CampaignTable = ({ campaigns, onApprove }) => {
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#10b981',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: 'Sí, Activar',
-            cancelButtonText: 'Cancelar'
+            confirmButtonText: 'Sí, Activar'
         }).then((result) => {
-            if (result.isConfirmed) onApprove(campaignId);
+            if (result.isConfirmed) {
+                onApprove(campaignId);
+                updateCampaignStatusInState(campaignId, 'ACTIVE');
+            }
         });
     };
 
-    const filteredCampaigns = campaigns?.filter((campaign) => {
+    const filteredCampaigns = localCampaigns.filter((campaign) => {
         const search = searchTerm.toLowerCase();
         const matchesSearch = (campaign.service || '').toLowerCase().includes(search) || (campaign.platform || '').toLowerCase().includes(search);
         const matchesStatus = statusFilter === 'all' || campaign.status === statusFilter;
         return matchesSearch && matchesStatus;
-    }) || [];
+    });
 
     const totalPages = Math.ceil(filteredCampaigns.length / itemsPerPage);
     const currentItems = filteredCampaigns.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -363,9 +478,12 @@ const CampaignTable = ({ campaigns, onApprove }) => {
                     <button onClick={() => setSelectedCampaign(c)} className="flex-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-bold py-2.5 rounded-lg shadow-sm flex items-center justify-center gap-2 transition-colors">
                         👁️ Ver
                     </button>
-                    <button onClick={() => setSelectedAudienceCampaign(c)} className="flex-1 bg-white border border-slate-200 hover:bg-purple-50 text-slate-600 hover:text-purple-600 text-sm font-bold py-2.5 rounded-lg shadow-sm flex items-center justify-center gap-2 transition-colors">
-                        👥 Users
-                    </button>
+                    {c.status === 'ACTIVE' && (
+                        <button onClick={() => handleToggleStatus(c.id, c.status)} className="flex-1 bg-amber-50 border border-amber-200 text-amber-700 text-sm font-bold py-2.5 rounded-lg">⏸️ Pausar</button>
+                    )}
+                    {c.status === 'PAUSED' && (
+                        <button onClick={() => handleToggleStatus(c.id, c.status)} className="flex-1 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-bold py-2.5 rounded-lg">▶️ Activar</button>
+                    )}
                 </div>
             </div>
         );
@@ -378,6 +496,7 @@ const CampaignTable = ({ campaigns, onApprove }) => {
                     campaign={selectedCampaign} 
                     onClose={() => setSelectedCampaign(null)} 
                     onApprove={handleConfirmApprove}
+                    onToggleStatus={handleToggleStatus} // <--- PASAMOS LA FUNCIÓN AL MODAL
                 />
             )}
 
@@ -430,12 +549,28 @@ const CampaignTable = ({ campaigns, onApprove }) => {
                                         <div className="text-xs text-slate-400 font-mono mt-0.5">ID: {c.id.substring(0,6)}...</div>
                                     </td>
                                     
-                                    {/* COLUMNA PLATAFORMA PERSONALIZADA */}
                                     <td className="px-6 py-4">
                                         {renderPlatformBadge(c.platform)}
                                     </td>
 
-                                    <td className="px-6 py-4"><StatusBadge status={c.status} /></td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-2">
+                                            <StatusBadge status={c.status} />
+                                            {/* BOTÓN DE VERIFICACIÓN MANUAL */}
+                                            {(c.platform && (c.platform.toLowerCase().includes('facebook') || c.platform.toLowerCase().includes('instagram'))) && (
+                                                <button 
+                                                    onClick={() => handleVerifyMetaStatus(c.id)}
+                                                    className="p-1 text-slate-400 hover:text-blue-500 transition-colors rounded-full hover:bg-blue-50"
+                                                    title="Sincronizar ahora"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </td>
+
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col gap-1">
                                             <div className="text-xs font-bold text-slate-700">${spend.toFixed(0)} <span className="text-slate-400 font-normal">/ ${budget.toLocaleString()}</span></div>
@@ -458,6 +593,22 @@ const CampaignTable = ({ campaigns, onApprove }) => {
                                             </button>
                                             {c.status === 'pending_approval' ? (
                                                 <button onClick={() => handleConfirmApprove(c.id, c.service)} className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-1.5 px-3 rounded-lg shadow-sm active:scale-95 transition-all">APROBAR</button>
+                                            ) : (c.status === 'ACTIVE' || c.status === 'LOW PERFORMANCE') ? (
+                                                <button 
+                                                    onClick={() => handleToggleStatus(c.id, 'ACTIVE')} 
+                                                    className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors"
+                                                    title="Pausar Campaña"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                </button>
+                                            ) : (c.status === 'PAUSED') ? (
+                                                <button 
+                                                    onClick={() => handleToggleStatus(c.id, 'PAUSED')} 
+                                                    className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors"
+                                                    title="Reactivar Campaña"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                </button>
                                             ) : (
                                                 <span className="text-slate-300 px-3 cursor-not-allowed" title="Gestionado automáticamente">🔒</span>
                                             )}
