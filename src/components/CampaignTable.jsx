@@ -9,7 +9,6 @@ import { URL_IMAGES, API_BASE_URL } from '../app/config';
 // 1. SUB-COMPONENTES DE PREVISUALIZACIÓN (MANTENIDOS IGUAL)
 // =============================================================================
 
-// --- VISTA FACEBOOK (Feed) ---
 const FacebookPreview = ({ service, imageUrl }) => (
     <div className="bg-white rounded-lg shadow-sm border border-gray-300 overflow-hidden w-[320px] font-sans flex-shrink-0">
         <div className="p-3 flex items-start gap-2">
@@ -35,7 +34,6 @@ const FacebookPreview = ({ service, imageUrl }) => (
     </div>
 );
 
-// --- VISTA INSTAGRAM (Feed) ---
 const InstagramPreview = ({ service, imageUrl }) => (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-[320px] font-sans flex-shrink-0">
         <div className="p-3 flex items-center justify-between border-b border-gray-50">
@@ -60,7 +58,6 @@ const InstagramPreview = ({ service, imageUrl }) => (
     </div>
 );
 
-// --- VISTA GOOGLE ---
 const GooglePreview = ({ content }) => {
     const title = (content.headlines && content.headlines[0]) ? content.headlines[0] : (content.title || "Servicio Profesional");
     const desc = (content.descriptions && content.descriptions[0]) ? content.descriptions[0] : "Soluciones profesionales.";
@@ -78,7 +75,6 @@ const GooglePreview = ({ content }) => {
     );
 };
 
-// --- VISTA LINKEDIN ---
 const LinkedInPreview = ({ content, service, imageUrl }) => (
     <div className="bg-white rounded-lg shadow-sm border border-gray-300 overflow-hidden w-[320px] mx-auto font-sans">
         <div className="p-3 flex gap-2 border-b border-gray-50">
@@ -99,7 +95,7 @@ const LinkedInPreview = ({ content, service, imageUrl }) => (
 );
 
 // =============================================================================
-// 2. MODAL PRINCIPAL (CON BOTONES DE ACCIÓN)
+// 2. MODAL PRINCIPAL
 // =============================================================================
 
 const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus }) => {
@@ -204,9 +200,6 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus }) 
                     </div>
 
                     <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col gap-2">
-                        {/* --- BOTONES DE ACCIÓN DENTRO DEL MODAL --- */}
-                        
-                        {/* 1. Si está pendiente -> Botón APROBAR */}
                         {campaign.status === 'pending_approval' && (
                             <button 
                                 onClick={() => { onApprove(campaign.id, campaign.service); onClose(); }} 
@@ -216,7 +209,6 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus }) 
                             </button>
                         )}
 
-                        {/* 2. Si está ACTIVA -> Botón PAUSAR */}
                         {(campaign.status === 'ACTIVE' || campaign.status === 'LOW PERFORMANCE') && (
                             <button 
                                 onClick={() => { onToggleStatus(campaign.id, 'ACTIVE'); onClose(); }} 
@@ -226,7 +218,6 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus }) 
                             </button>
                         )}
 
-                        {/* 3. Si está PAUSADA -> Botón ACTIVAR */}
                         {campaign.status === 'PAUSED' && (
                             <button 
                                 onClick={() => { onToggleStatus(campaign.id, 'PAUSED'); onClose(); }} 
@@ -247,11 +238,11 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus }) 
 };
 
 // =============================================================================
-// 3. COMPONENTE DE TABLA
+// 3. COMPONENTE DE TABLA (LÓGICA AUTOMÁTICA CORREGIDA)
 // =============================================================================
 
 const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
-    // 1. Estado Local para actualizaciones automáticas sin recargar
+    // 1. Estado Local para actualizaciones automáticas
     const [localCampaigns, setLocalCampaigns] = useState(initialCampaigns || []);
     
     const [currentPage, setCurrentPage] = useState(1);
@@ -263,14 +254,12 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
 
     const ESTIMATED_LEAD_VALUE = 15;
 
-    // Sincronizar props con estado local
     useEffect(() => {
         if(initialCampaigns) setLocalCampaigns(initialCampaigns);
     }, [initialCampaigns]);
 
     const handlePageSizeChange = (e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); };
     
-    // --- AUTH HELPER (Cookies) ---
     const getAuthToken = () => {
         const value = `; ${document.cookie}`;
         const parts = value.split(`; auth_token=`);
@@ -278,18 +267,68 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
         return null;
     };
 
-    // --- ACTUALIZAR ESTADO EN MEMORIA ---
-    const updateCampaignStatusInState = (campaignId, newStatus) => {
+    // --- HELPER DE ACTUALIZACIÓN ---
+    const updateLocalCampaignData = (campaignId, newData) => {
         setLocalCampaigns(prev => prev.map(c => 
-            c.id === campaignId ? { ...c, status: newStatus } : c
+            c.id === campaignId ? { ...c, ...newData } : c
         ));
     };
 
-    // --- VERIFICACIÓN AUTOMÁTICA (SILENCIOSA) ---
+    // --- HELPER PARA EDITAR PRESUPUESTO (RE-INTEGRADO) ---
+    const handleEditBudget = async (campaign, currentBudget) => {
+        const { value: newBudget } = await Swal.fire({
+            title: 'Editar Presupuesto Diario',
+            text: `Actual: $${currentBudget.toLocaleString()}`,
+            input: 'number',
+            inputValue: currentBudget,
+            inputLabel: 'Nuevo valor (COP)',
+            inputPlaceholder: 'Ej: 50000',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            confirmButtonText: 'Guardar',
+            inputValidator: (value) => {
+                if (!value || value < 20000) { // LinkedIn tiene mínimos altos, ojo.
+                    return 'El presupuesto mínimo recomendado es $40.000 COP';
+                }
+            }
+        });
+
+        if (newBudget) {
+            Swal.fire({ title: 'Actualizando...', didOpen: () => Swal.showLoading() });
+            
+            try {
+                const token = getAuthToken();
+                const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaign.id}/budget`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': token
+                    },
+                    body: JSON.stringify({ budget: newBudget })
+                });
+
+                if (response.ok) {
+                    updateLocalCampaignData(campaign.id, { budget: parseFloat(newBudget) });
+                    Swal.fire('¡Actualizado!', `Nuevo presupuesto: $${parseFloat(newBudget).toLocaleString()}`, 'success');
+                } else {
+                    throw new Error('Error al actualizar en plataforma');
+                }
+            } catch (error) {
+                Swal.fire('Error', 'No se pudo actualizar el presupuesto.', 'error');
+            }
+        }
+    };
+
+    // --- VERIFICACIÓN AUTOMÁTICA (AUTO-CHECK) ---
     useEffect(() => {
         const checkVisibleCampaigns = async () => {
+            // [MODIFICADO] AHORA INCLUYE LINKEDIN
             const campaignsToCheck = currentItems.filter(c => 
-                c.platform && (c.platform.toLowerCase().includes('facebook') || c.platform.toLowerCase().includes('instagram'))
+                c.platform && (
+                    c.platform.toLowerCase().includes('facebook') || 
+                    c.platform.toLowerCase().includes('instagram') ||
+                    c.platform.toLowerCase().includes('linkedin') 
+                )
             );
 
             if (campaignsToCheck.length === 0) return;
@@ -303,8 +342,22 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
                     });
                     if (response.ok) {
                         const data = await response.json();
+                        
+                        const updates = {};
+                        let hasChanges = false;
+
                         if (data.status && data.status !== campaign.status) {
-                            updateCampaignStatusInState(campaign.id, data.status);
+                            updates.status = data.status;
+                            hasChanges = true;
+                        }
+
+                        if (data.budget && Math.abs(data.budget - campaign.budget) > 1) {
+                            updates.budget = data.budget;
+                            hasChanges = true;
+                        }
+
+                        if (hasChanges) {
+                            updateLocalCampaignData(campaign.id, updates);
                         }
                     }
                 } catch (e) {
@@ -316,29 +369,35 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentPage, searchTerm, statusFilter]);
 
-    // --- ACCIÓN: VERIFICACIÓN MANUAL (Sin recargar) ---
+    // --- ACCIÓN: VERIFICACIÓN MANUAL (LUPA) ---
     const handleVerifyMetaStatus = async (campaignId) => {
         Swal.fire({
             title: 'Verificando...',
-            text: 'Consultando Meta...',
+            text: 'Sincronizando estado y presupuesto...',
             didOpen: () => { Swal.showLoading(); }
         });
 
         try {
             const token = getAuthToken();
-            if (!token) throw new Error("No hay sesión activa.");
-
             const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/real-status`, {
                 headers: { 'Authorization': token }
             });
-            
             const data = await response.json();
 
             if (response.ok) {
-                updateCampaignStatusInState(campaignId, data.status); // Actualiza visualmente
+                updateLocalCampaignData(campaignId, { 
+                    status: data.status, 
+                    budget: data.budget 
+                });
+                
                 Swal.fire({
                     title: 'Sincronizado',
-                    text: `Estado real: ${data.status}`,
+                    html: `
+                        <div class="text-sm">
+                            <p><strong>Estado:</strong> ${data.status}</p>
+                            <p><strong>Presupuesto:</strong> $${data.budget?.toLocaleString()}</p>
+                        </div>
+                    `,
                     icon: data.status === 'ACTIVE' ? 'success' : 'info',
                     timer: 1500,
                     showConfirmButton: false
@@ -351,7 +410,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
         }
     };
 
-    // --- ACCIÓN: TOGGLE STATUS (Sin recargar) ---
+    // --- ACCIÓN: TOGGLE STATUS ---
     const handleToggleStatus = async (campaignId, currentStatus) => {
         const isPaused = currentStatus === 'PAUSED';
         const actionVerb = isPaused ? 'Activar' : 'Pausar';
@@ -360,7 +419,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
 
         Swal.fire({
             title: `¿${actionVerb} Campaña?`,
-            text: `Se cambiará el estado en Meta.`,
+            text: `Se cambiará el estado en la plataforma.`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: confirmColor,
@@ -369,8 +428,6 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
             if (result.isConfirmed) {
                 try {
                     const token = getAuthToken();
-                    if (!token) throw new Error("No hay sesión activa.");
-
                     const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/status`, {
                         method: 'PUT',
                         headers: {
@@ -381,7 +438,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
                     });
 
                     if (response.ok) {
-                        updateCampaignStatusInState(campaignId, targetStatus); // Actualiza visualmente
+                        updateLocalCampaignData(campaignId, { status: targetStatus }); 
                         Swal.fire({
                             title: '¡Listo!',
                             text: `Campaña ${targetStatus === 'ACTIVE' ? 'activada' : 'pausada'}.`,
@@ -399,7 +456,6 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
         });
     };
 
-    // --- ESTILO DE PLATAFORMA ---
     const renderPlatformBadge = (platform) => {
         const p = (platform || '').toLowerCase();
         if (p.includes('google')) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border bg-orange-50 text-orange-700 border-orange-100">G Google Ads</span>;
@@ -425,7 +481,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
         }).then((result) => {
             if (result.isConfirmed) {
                 onApprove(campaignId);
-                updateCampaignStatusInState(campaignId, 'ACTIVE');
+                updateLocalCampaignData(campaignId, { status: 'ACTIVE' });
             }
         });
     };
@@ -496,7 +552,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
                     campaign={selectedCampaign} 
                     onClose={() => setSelectedCampaign(null)} 
                     onApprove={handleConfirmApprove}
-                    onToggleStatus={handleToggleStatus} // <--- PASAMOS LA FUNCIÓN AL MODAL
+                    onToggleStatus={handleToggleStatus} 
                 />
             )}
 
@@ -542,6 +598,13 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
                             const conversions = c.conversions || 0;
                             const roi = spend > 0 ? (((conversions * ESTIMATED_LEAD_VALUE) - spend) / spend) * 100 : 0;
                             
+                            // [MODIFICADO] Helper para saber si la campaña soporta sincronización
+                            const isSyncSupported = c.platform && (
+                                c.platform.toLowerCase().includes('facebook') || 
+                                c.platform.toLowerCase().includes('instagram') ||
+                                c.platform.toLowerCase().includes('linkedin') 
+                            );
+
                             return (
                                 <tr key={c.id} className="hover:bg-slate-50 transition-colors">
                                     <td className="px-6 py-4">
@@ -556,8 +619,8 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
                                             <StatusBadge status={c.status} />
-                                            {/* BOTÓN DE VERIFICACIÓN MANUAL */}
-                                            {(c.platform && (c.platform.toLowerCase().includes('facebook') || c.platform.toLowerCase().includes('instagram'))) && (
+                                            {/* BOTÓN LUPA (FB/IG/LINKEDIN) */}
+                                            {isSyncSupported && (
                                                 <button 
                                                     onClick={() => handleVerifyMetaStatus(c.id)}
                                                     className="p-1 text-slate-400 hover:text-blue-500 transition-colors rounded-full hover:bg-blue-50"
@@ -573,7 +636,21 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
 
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col gap-1">
-                                            <div className="text-xs font-bold text-slate-700">${spend.toFixed(0)} <span className="text-slate-400 font-normal">/ ${budget.toLocaleString()}</span></div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-bold text-slate-700">
+                                                    ${spend.toFixed(0)} <span className="text-slate-400 font-normal">/ ${budget.toLocaleString()}</span>
+                                                </span>
+                                                {/* BOTÓN EDITAR PRESUPUESTO */}
+                                                {isSyncSupported && (
+                                                    <button 
+                                                        onClick={() => handleEditBudget(c, budget)}
+                                                        className="text-slate-300 hover:text-blue-500 transition-colors"
+                                                        title="Editar Presupuesto"
+                                                    >
+                                                        ✏️
+                                                    </button>
+                                                )}
+                                            </div>
                                             <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                                 <div style={{ width: `${spendPercent}%` }} className={`h-full ${spendPercent > 90 ? 'bg-red-500' : 'bg-blue-500'}`}></div>
                                             </div>
@@ -591,6 +668,8 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
                                             <button onClick={() => setSelectedAudienceCampaign(c)} className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors border border-transparent hover:border-purple-100" title="Ver Audiencia Asignada">
                                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
                                             </button>
+                                            
+                                            {/* BOTONES INTERACTIVOS */}
                                             {c.status === 'pending_approval' ? (
                                                 <button onClick={() => handleConfirmApprove(c.id, c.service)} className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-1.5 px-3 rounded-lg shadow-sm active:scale-95 transition-all">APROBAR</button>
                                             ) : (c.status === 'ACTIVE' || c.status === 'LOW PERFORMANCE') ? (
