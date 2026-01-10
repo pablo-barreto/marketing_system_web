@@ -274,7 +274,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
         ));
     };
 
-    // --- HELPER PARA EDITAR PRESUPUESTO (RE-INTEGRADO) ---
+    // --- HELPER PARA EDITAR PRESUPUESTO (OPTIMIZADO) ---
     const handleEditBudget = async (campaign, currentBudget) => {
         const { value: newBudget } = await Swal.fire({
             title: 'Editar Presupuesto Diario',
@@ -287,7 +287,8 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
             confirmButtonColor: '#3085d6',
             confirmButtonText: 'Guardar',
             inputValidator: (value) => {
-                if (!value || value < 20000) { // LinkedIn tiene mínimos altos, ojo.
+                // Validación de seguridad para LinkedIn y Meta
+                if (!value || value < 20000) {
                     return 'El presupuesto mínimo recomendado es $40.000 COP';
                 }
             }
@@ -298,6 +299,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
             
             try {
                 const token = getAuthToken();
+                // Llamada al endpoint que acabamos de crear en Python
                 const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaign.id}/budget`, {
                     method: 'PUT',
                     headers: {
@@ -307,14 +309,27 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
                     body: JSON.stringify({ budget: newBudget })
                 });
 
+                const data = await response.json();
+
                 if (response.ok) {
-                    updateLocalCampaignData(campaign.id, { budget: parseFloat(newBudget) });
-                    Swal.fire('¡Actualizado!', `Nuevo presupuesto: $${parseFloat(newBudget).toLocaleString()}`, 'success');
+                    // Usamos el valor confirmado por el servidor
+                    const confirmedBudget = data.new_budget ? parseFloat(data.new_budget) : parseFloat(newBudget);
+                    
+                    // Actualizamos la tabla localmente sin recargar
+                    updateLocalCampaignData(campaign.id, { budget: confirmedBudget });
+                    
+                    Swal.fire({
+                        title: '¡Actualizado!', 
+                        text: `Nuevo presupuesto: $${confirmedBudget.toLocaleString()}`, 
+                        icon: 'success',
+                        timer: 2000
+                    });
                 } else {
-                    throw new Error('Error al actualizar en plataforma');
+                    throw new Error(data.error || 'Error al actualizar en plataforma');
                 }
             } catch (error) {
-                Swal.fire('Error', 'No se pudo actualizar el presupuesto.', 'error');
+                console.error(error);
+                Swal.fire('Error', error.message || 'No se pudo conectar con el servidor.', 'error');
             }
         }
     };
