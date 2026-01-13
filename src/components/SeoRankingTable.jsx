@@ -1,15 +1,29 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 
 const SeoRankingTable = ({ rankings }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(5);
+    const [activeTab, setActiveTab] = useState('nacional'); // 'nacional' o 'internacional'
 
     const safeRankings = rankings || [];
-    const totalPages = Math.ceil(safeRankings.length / itemsPerPage);
+
+    // --- FILTRADO DE DATOS (NACIONAL VS INTERNACIONAL) ---
+    const filteredRankings = useMemo(() => {
+        return safeRankings.filter(r => {
+            if (activeTab === 'nacional') {
+                return r.country === 'CO'; // Solo Colombia
+            } else {
+                return r.country !== 'CO'; // Todo lo que NO sea Colombia
+            }
+        });
+    }, [safeRankings, activeTab]);
+
+    // --- PAGINACIÓN SOBRE DATOS FILTRADOS ---
+    const totalPages = Math.ceil(filteredRankings.length / itemsPerPage);
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentItems = safeRankings.slice(indexOfFirstItem, indexOfLastItem);
+    const currentItems = filteredRankings.slice(indexOfFirstItem, indexOfLastItem);
 
     const handlePageSizeChange = (e) => {
         setItemsPerPage(Number(e.target.value));
@@ -25,6 +39,31 @@ const SeoRankingTable = ({ rankings }) => {
 
     return (
         <div className="flex flex-col h-full w-full">
+            
+            {/* --- PESTAÑAS DE NAVEGACIÓN --- */}
+            <div className="flex gap-4 mb-4 border-b border-slate-100 pb-1">
+                <button 
+                    onClick={() => { setActiveTab('nacional'); setCurrentPage(1); }}
+                    className={`pb-2 px-1 text-sm font-bold transition-all ${
+                        activeTab === 'nacional' 
+                        ? 'text-blue-600 border-b-2 border-blue-600' 
+                        : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                >
+                    🇨🇴 Nacional (Colombia)
+                </button>
+                <button 
+                    onClick={() => { setActiveTab('internacional'); setCurrentPage(1); }}
+                    className={`pb-2 px-1 text-sm font-bold transition-all ${
+                        activeTab === 'internacional' 
+                        ? 'text-blue-600 border-b-2 border-blue-600' 
+                        : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                >
+                    🌍 Internacional (Global)
+                </button>
+            </div>
+
             {/* --- VISTA MÓVIL (CARDS) --- */}
             <div className="md:hidden space-y-3 p-1">
                 {currentItems.length > 0 ? (
@@ -37,14 +76,15 @@ const SeoRankingTable = ({ rankings }) => {
                                     {r.country}
                                 </span>
                             </div>
-                            {/* Color dinámico aplicado aquí */}
                             <div className={`text-2xl font-black ${getRankingColor(r.ranking)}`}>
                                 #{r.ranking}
                             </div>
                         </div>
                     ))
                 ) : (
-                    <div className="text-center text-slate-400 py-8 text-sm italic">No hay datos SEO disponibles.</div>
+                    <div className="text-center text-slate-400 py-8 text-sm italic">
+                        No hay datos SEO {activeTab === 'nacional' ? 'nacionales' : 'internacionales'} disponibles.
+                    </div>
                 )}
             </div>
 
@@ -72,7 +112,6 @@ const SeoRankingTable = ({ rankings }) => {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
-                                        {/* AQUI ESTABA EL ERROR: Ahora usa la función de color */}
                                         <span className={`text-lg font-bold ${getRankingColor(r.ranking)}`}>
                                             #{r.ranking}
                                         </span>
@@ -81,7 +120,9 @@ const SeoRankingTable = ({ rankings }) => {
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="3" className="px-6 py-12 text-center text-slate-400 italic">No hay datos SEO disponibles.</td>
+                                <td colSpan="3" className="px-6 py-12 text-center text-slate-400 italic">
+                                    No hay datos SEO {activeTab === 'nacional' ? 'nacionales' : 'internacionales'} disponibles.
+                                </td>
                             </tr>
                         )}
                     </tbody>
@@ -89,7 +130,7 @@ const SeoRankingTable = ({ rankings }) => {
             </div>
             
             {/* --- PAGINACIÓN --- */}
-            {safeRankings.length > 0 && (
+            {filteredRankings.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
                         <span>Filas:</span>
