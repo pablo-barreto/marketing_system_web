@@ -98,8 +98,43 @@ const LinkedInPreview = ({ content, service, imageUrl }) => (
 // 2. MODAL PRINCIPAL
 // =============================================================================
 
-const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus }) => {
+// =============================================================================
+// 2. MODAL PRINCIPAL (CON EDICIÓN DE PRESUPUESTO)
+// =============================================================================
+
+const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, onUpdateBudget }) => { // <--- Nueva prop onUpdateBudget
     if (!campaign) return null;
+
+    // --- HELPER PARA EDITAR PRESUPUESTO DESDE EL MODAL ---
+    const handleEditBudgetInModal = async () => {
+        const currentBudget = campaign.budget || 0;
+        
+        const { value: newBudget } = await Swal.fire({
+            title: 'Editar Presupuesto Diario',
+            text: `Actual: $${currentBudget.toLocaleString()}`,
+            input: 'number',
+            inputValue: currentBudget,
+            inputLabel: 'Nuevo valor (COP)',
+            inputPlaceholder: 'Ej: 50000',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            confirmButtonText: 'Guardar',
+            inputValidator: (value) => {
+                if (!value || value < 20000) {
+                    return 'El presupuesto mínimo recomendado es $40.000 COP';
+                }
+            }
+        });
+
+        if (newBudget) {
+            // Llamamos a la función que pasaremos desde el componente padre (CampaignTable)
+            if (onUpdateBudget) {
+                await onUpdateBudget(campaign, parseFloat(newBudget));
+                // Nota: El modal no se cierra, pero los datos se actualizan "por debajo" si React re-renderiza
+                // O podemos forzar un cierre si prefieres: onClose();
+            }
+        }
+    };
 
     const getContent = (c) => {
         if (!c) return {};
@@ -121,6 +156,9 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus }) 
     
     const platform = (campaign.platform || '').toLowerCase();
     const isMeta = platform.includes('facebook') || platform.includes('instagram');
+    
+    // Verificamos si la plataforma soporta sincronización para mostrar el botón
+    const isSyncSupported = platform.includes('facebook') || platform.includes('instagram') || platform.includes('linkedin');
 
     const renderPreview = () => {
         if (platform.includes('google')) return <GooglePreview content={content} />;
@@ -184,9 +222,24 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus }) 
                                     <span className="font-bold text-slate-800 text-sm block leading-tight">{campaign.service}</span>
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
-                                    <div className="p-2 border border-slate-100 rounded-lg">
+                                    {/* SECCIÓN DE PRESUPUESTO CON EDICIÓN */}
+                                    <div className="p-2 border border-slate-100 rounded-lg relative group">
                                         <span className="block text-slate-400 text-[10px]">Presupuesto</span>
-                                        <span className="font-bold text-slate-800 text-sm">${campaign.budget?.toLocaleString()}</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-slate-800 text-sm">${campaign.budget?.toLocaleString()}</span>
+                                            
+                                            {isSyncSupported && (
+                                                <button 
+                                                    onClick={handleEditBudgetInModal}
+                                                    className="p-1 text-slate-300 hover:text-blue-500 transition-colors rounded hover:bg-blue-50"
+                                                    title="Editar Presupuesto"
+                                                >
+                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="p-2 border border-slate-100 rounded-lg">
                                         <span className="block text-slate-400 text-[10px]">ROI Est.</span>
@@ -200,6 +253,7 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus }) 
                     </div>
 
                     <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col gap-2">
+                        {/* Botones de acción existentes (sin cambios) */}
                         {campaign.status === 'pending_approval' && (
                             <button 
                                 onClick={() => { onApprove(campaign.id, campaign.service); onClose(); }} 
