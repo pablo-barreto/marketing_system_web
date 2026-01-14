@@ -31,10 +31,10 @@ const CampaignsView = ({
     const [previewImage, setPreviewImage] = useState(null);
     const fileInputRef = useRef(null);
 
-    // --- FUNCIÓN 1: ANALIZAR Y DISPARAR CREACIÓN (AUTOMÁTICO) ---
+    // --- FUNCIÓN 1: ANALIZAR Y DISPARAR CREACIÓN (VERSIÓN FINAL) ---
     const analyzeAndAutoCreate = async (file) => {
         setIsProcessing(true);
-        setStatusMessage("🧠 La IA está analizando tu imagen...");
+        setStatusMessage("🧠 Leyendo texto de la imagen...");
         
         try {
             const formData = new FormData();
@@ -47,49 +47,43 @@ const CampaignsView = ({
                 body: formData
             });
 
-            let detectedService = selectedService; // Fallback al actual
+            let detectedService = "";
             let platformToUse = 'all';
 
             if (response.ok) {
                 const result = await response.json();
                 
                 if (result.status === 'success' && result.data) {
-                    const { service: aiServiceName } = result.data;
+                    // El backend ya hizo el trabajo sucio y garantizó que este servicio existe en la lista
+                    const aiServiceName = result.data.service; 
                     
-                    // --- NORMALIZACIÓN ROBUSTA ---
-                    const normalize = (text) => {
-                        if (!text || typeof text !== 'string') return ""; 
-                        return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-                    };
+                    console.log("🤖 IA Detectó:", aiServiceName);
 
-                    const aiClean = normalize(String(aiServiceName || ""));
-
-                    // ESTRATEGIA: Búsqueda flexible (contiene o está contenido)
-                    const bestMatch = availableServices.find(s => {
-                        const sClean = normalize(String(s || ""));
-                        if (!aiClean || !sClean) return false;
-                        return aiClean.includes(sClean) || sClean.includes(aiClean);
-                    });
-
-                    if (bestMatch) {
-                        detectedService = bestMatch;
-                        setSelectedService(bestMatch);
+                    // Verificación final simple
+                    if (availableServices.includes(aiServiceName)) {
+                        detectedService = aiServiceName;
+                        
+                        // Actualizamos la UI
+                        setSelectedService(aiServiceName);
                         setSelectedPlatform('all');
-                        setStatusMessage(`✅ Detectado: ${bestMatch}. Creando campañas...`);
+                        setStatusMessage(`✅ Texto detectado: ${aiServiceName}`);
                     } else {
-                        console.warn("⚠️ No hubo coincidencia exacta. Usando default o fallback.");
-                        // Si la IA devolvió algo pero no match, usamos el primero de la lista por seguridad
-                        if (availableServices.length > 0) detectedService = availableServices[0];
+                        // Si por alguna razón extrema falla, tomamos el primero
+                        detectedService = availableServices[0];
+                        setSelectedService(detectedService);
+                        console.warn("⚠️ Fallback activado en frontend");
                     }
                 }
             }
 
-            // 2. CREACIÓN AUTOMÁTICA INMEDIATA
-            await executeCreation(file, detectedService, platformToUse, budget);
+            // 2. CREACIÓN AUTOMÁTICA
+            setTimeout(() => {
+                executeCreation(file, detectedService, platformToUse, budget);
+            }, 800); // Pequeña pausa para que el usuario vea qué servicio se eligió
 
         } catch (error) {
-            console.error("Error en flujo automático:", error);
-            Swal.fire('Error', 'Falló el análisis automático.', 'error');
+            console.error("Error flujo automático:", error);
+            Swal.fire('Error', 'Falló el análisis.', 'error');
             setIsProcessing(false);
         }
     };
