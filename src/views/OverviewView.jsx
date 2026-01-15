@@ -14,42 +14,37 @@ const Icons = {
 
 const OverviewView = ({ data }) => {
 
-    // ========================================================================
-    // 1. LÓGICA DE AGRUPACIÓN Y LIMPIEZA (FIX DUPLICADOS)
-    // ========================================================================
+    // 1. LÓGICA DE SERVICIOS (Sin cambios)
     const processedServices = React.useMemo(() => {
         if (!data.service_visits) return [];
-
-        // A. Crear diccionario para sumar visitas por nombre único
         const aggregationMap = data.service_visits.reduce((acc, curr) => {
-            // Normalizamos el nombre: Mayúsculas y quitamos guiones extraños
             const normalizedName = curr.service_name.toUpperCase().replace(/-/g, ' ').trim();
-
-            if (!acc[normalizedName]) {
-                acc[normalizedName] = 0;
-            }
-            // Sumamos las visitas
+            if (!acc[normalizedName]) acc[normalizedName] = 0;
             acc[normalizedName] += curr.total_visits;
             return acc;
         }, {});
-
-        // B. Convertir de vuelta a array y ordenar por mayor tráfico
         return Object.entries(aggregationMap)
-            .map(([name, count]) => ({
-                service_name: name,
-                total_visits: count
-            }))
-            .sort((a, b) => b.total_visits - a.total_visits); // Orden Descendente
+            .map(([name, count]) => ({ service_name: name, total_visits: count }))
+            .sort((a, b) => b.total_visits - a.total_visits);
     }, [data.service_visits]);
 
     // ========================================================================
-    // 2. CÁLCULOS KPI (Usando los datos ya procesados)
+    // 2. CÁLCULOS KPI CORREGIDOS
     // ========================================================================
     const totalVisits = processedServices.reduce((a, b) => a + b.total_visits, 0) || 1;
     const totalLeads = data.crm_leads?.length || 0;
-    const conversionRate = ((totalLeads / (totalVisits === 0 ? 1 : totalVisits)) * 100).toFixed(1);
-    const activeCampaigns = data.campaigns?.filter(c => c.status === 'active').length || 0;
+    const conversionRate = ((totalLeads / totalVisits) * 100).toFixed(1);
+    
+    // CORRECCIÓN: Conteo flexible de campañas (Mayúsculas/Minúsculas)
+    const activeCampaigns = data.campaigns?.filter(c => 
+        c.status?.toLowerCase() === 'active' || c.status?.toLowerCase() === 'activa'
+    ).length || 0;
+
     const topRankings = data.seo_rankings?.filter(r => r.ranking <= 10).length || 0;
+
+    // CORRECCIÓN: Estado de APIs basado en la respuesta real del servidor
+    // No debe depender de si hay campañas, sino del campo de estatus de la API
+    const isAdsApiConnected = data.system_status?.ads_api === 'active' || data.system_status?.ads_api === 'online';
 
     const today = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -72,46 +67,40 @@ const OverviewView = ({ data }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 auto-rows-fr">
 
                 {/* 1. KPI PRINCIPAL */}
-                <div className="col-span-1 lg:col-span-2 bg-slate-900 text-white rounded-2xl p-8 shadow-xl shadow-slate-200/50 relative overflow-hidden flex flex-col justify-between group h-full min-h-[220px]">
-                    <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-blue-600 rounded-full blur-[100px] opacity-20 group-hover:opacity-30 transition-opacity"></div>
-
+                <div className="col-span-1 lg:col-span-2 bg-slate-900 text-white rounded-2xl p-8 shadow-xl relative overflow-hidden flex flex-col justify-between group h-full">
                     <div className="relative z-10 flex justify-between items-start h-full">
                         <div className="flex flex-col justify-between h-full">
                             <div className="flex items-center gap-2 mb-2">
-                                <div className="p-1.5 bg-white/10 rounded-md backdrop-blur-sm">
-                                    <Icons.Users />
-                                </div>
                                 <span className="text-xs font-bold text-slate-300 uppercase tracking-widest">Prospectos CRM</span>
                             </div>
                             <div>
                                 <div className="text-7xl font-black tracking-tighter">{totalLeads}</div>
-                                <div className="mt-2 inline-flex items-center px-3 py-1 bg-white/10 rounded-full text-sm backdrop-blur-sm border border-white/5">
+                                <div className="mt-2 inline-flex items-center px-3 py-1 bg-white/10 rounded-full text-sm">
                                     🚀 Tasa de Conversión: <span className="text-emerald-400 font-bold ml-2">{conversionRate}%</span>
                                 </div>
                             </div>
                         </div>
-                        <div className="text-8xl opacity-10 grayscale group-hover:scale-110 transition-transform duration-700 absolute bottom-[-20px] right-[-20px]">👥</div>
                     </div>
                 </div>
 
                 {/* 2. SALUD DEL SISTEMA */}
-                <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-lg shadow-slate-100/50 flex flex-col justify-center h-full">
+                <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-lg flex flex-col justify-center h-full">
                     <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-50">
                         <div className="text-emerald-500"><Icons.Server /></div>
                         <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Estado Técnico</h4>
                     </div>
                     <div className="space-y-4 flex-1 flex flex-col justify-center">
-                        <HealthItem label="Worker IA" active={true} />
-                        <HealthItem label="Base de Datos" active={true} />
-                        <HealthItem label="Ads API" active={activeCampaigns > 0} />
+                        <HealthItem label="Worker IA" active={data.system_status?.worker_ia === 'active'} />
+                        <HealthItem label="Base de Datos" active={data.system_status?.database === 'active'} />
+                        {/* Ahora cambia a verde si la API está conectada, no si hay campañas */}
+                        <HealthItem label="Ads API" active={isAdsApiConnected} />
                     </div>
                 </div>
 
                 {/* 3. COLUMNA DE MÉTRICAS RÁPIDAS */}
                 <div className="flex flex-col gap-6 h-full">
-                    {/* Ads */}
-                    <div className="flex-1 bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-5 border border-emerald-100 shadow-sm hover:shadow-md transition-all flex flex-col justify-center relative overflow-hidden">
-                        <div className="flex justify-between items-center relative z-10">
+                    <div className="flex-1 bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-5 border border-emerald-100 shadow-sm flex flex-col justify-center">
+                        <div className="flex justify-between items-center">
                             <div>
                                 <div className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Ads Activos</div>
                                 <div className="text-3xl font-black text-emerald-600 leading-none">{activeCampaigns}</div>
@@ -120,9 +109,8 @@ const OverviewView = ({ data }) => {
                         </div>
                     </div>
 
-                    {/* SEO */}
-                    <div className="flex-1 bg-gradient-to-br from-amber-50 to-white rounded-2xl p-5 border border-amber-100 shadow-sm hover:shadow-md transition-all flex flex-col justify-center relative overflow-hidden">
-                        <div className="flex justify-between items-center relative z-10">
+                    <div className="flex-1 bg-gradient-to-br from-amber-50 to-white rounded-2xl p-5 border border-amber-100 shadow-sm flex flex-col justify-center">
+                        <div className="flex justify-between items-center">
                             <div>
                                 <div className="text-[10px] font-bold text-amber-600 uppercase mb-1">Top Rankings</div>
                                 <div className="text-3xl font-black text-amber-500 leading-none">{topRankings}</div>
