@@ -1,3 +1,5 @@
+'use client';
+import SystemLogs from '@/components/SystemLogs';
 import React from 'react';
 
 // Iconos SVG (Sin cambios)
@@ -11,7 +13,7 @@ const Icons = {
 };
 
 const OverviewView = ({ data }) => {
-    
+
     // ========================================================================
     // 1. LÓGICA DE AGRUPACIÓN Y LIMPIEZA (FIX DUPLICADOS)
     // ========================================================================
@@ -22,7 +24,7 @@ const OverviewView = ({ data }) => {
         const aggregationMap = data.service_visits.reduce((acc, curr) => {
             // Normalizamos el nombre: Mayúsculas y quitamos guiones extraños
             const normalizedName = curr.service_name.toUpperCase().replace(/-/g, ' ').trim();
-            
+
             if (!acc[normalizedName]) {
                 acc[normalizedName] = 0;
             }
@@ -48,7 +50,7 @@ const OverviewView = ({ data }) => {
     const conversionRate = ((totalLeads / (totalVisits === 0 ? 1 : totalVisits)) * 100).toFixed(1);
     const activeCampaigns = data.campaigns?.filter(c => c.status === 'active').length || 0;
     const topRankings = data.seo_rankings?.filter(r => r.ranking <= 10).length || 0;
-    
+
     const today = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
     return (
@@ -68,11 +70,11 @@ const OverviewView = ({ data }) => {
 
             {/* --- GRID PRINCIPAL --- */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 auto-rows-fr">
-                
+
                 {/* 1. KPI PRINCIPAL */}
                 <div className="col-span-1 lg:col-span-2 bg-slate-900 text-white rounded-2xl p-8 shadow-xl shadow-slate-200/50 relative overflow-hidden flex flex-col justify-between group h-full min-h-[220px]">
                     <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-blue-600 rounded-full blur-[100px] opacity-20 group-hover:opacity-30 transition-opacity"></div>
-                    
+
                     <div className="relative z-10 flex justify-between items-start h-full">
                         <div className="flex flex-col justify-between h-full">
                             <div className="flex items-center gap-2 mb-2">
@@ -141,14 +143,14 @@ const OverviewView = ({ data }) => {
                         </div>
                         <span className="text-xs text-slate-400">Total: {totalVisits} visitas</span>
                     </div>
-                    
+
                     <div className="flex flex-col gap-5 overflow-y-auto pr-2 max-h-[240px] custom-scrollbar">
                         {/* AQUÍ USAMOS LA LISTA PROCESADA 'processedServices' */}
                         {processedServices.length > 0 ? (
                             processedServices.map((svc, index) => {
                                 const percent = Math.round((svc.total_visits / totalVisits) * 100);
                                 const barColors = ['bg-blue-500', 'bg-indigo-500', 'bg-violet-500', 'bg-fuchsia-500'];
-                                
+
                                 return (
                                     <div key={svc.service_name} className="group">
                                         <div className="flex justify-between mb-1 text-sm">
@@ -185,7 +187,7 @@ const OverviewView = ({ data }) => {
                             {data.notifications?.slice(0, 8).map((notif, idx) => (
                                 <div key={idx} className="flex gap-4 relative group">
                                     <div className="w-6 h-6 rounded-full bg-white border-[3px] border-blue-500 z-10 flex-shrink-0 shadow-sm group-hover:border-blue-600 transition-colors mt-0.5"></div>
-                                    
+
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium text-slate-600 leading-snug line-clamp-2 hover:line-clamp-none transition-all cursor-default" title={notif.message}>
                                             {notif.message}
@@ -198,8 +200,13 @@ const OverviewView = ({ data }) => {
                     </div>
                 </div>
 
+                {/* 6. CONSOLA DE SISTEMA */}
+                <div className="col-span-1 lg:col-span-4 mt-6">
+                    <SystemLogs />
+                </div>
+
             </div>
-            
+
             <style jsx>{`
                 .custom-scrollbar::-webkit-scrollbar {
                     width: 4px;
