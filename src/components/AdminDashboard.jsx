@@ -110,7 +110,7 @@ const AdminDashboard = () => {
             case 'campaigns': return <CampaignsView campaigns={data.campaigns} isCreating={isCreating} availableServices={availableServices} selectedService={selectedService} setSelectedService={setSelectedService} selectedPlatform={selectedPlatform} setSelectedPlatform={setSelectedPlatform} handleCreateOnDemand={handleCreateOnDemand} handleApprove={handleApprove} />;
             case 'seo': return <SeoView rankings={data.seo_rankings} content={data.published_content} />;
             case 'gallery': return <GalleryView />;
-            case 'crm': return <CrmView leads={data.crm_leads} />;
+            case 'crm': return <CrmView leads={data.crm_leads} performance={data.lead_performance} />;
             default: return null;
         }
     };
