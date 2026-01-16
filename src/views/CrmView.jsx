@@ -2,11 +2,15 @@
 import React, { useState } from 'react';
 import StatusBadge from '../components/StatusBadge';
 
-const CrmView = ({ leads }) => {
+// Recibimos la nueva prop 'performance'
+const CrmView = ({ leads, performance }) => {
     const [activeFilter, setActiveFilter] = useState('Todos');
-    const [selectedLead, setSelectedLead] = useState(null); // Controla qué lead mostrar en detalle
+    const [selectedLead, setSelectedLead] = useState(null);
 
-    // Mapeo de estilos por procedencia
+    // Valores por defecto seguros (porsiaca el backend tarda)
+    const stats = performance || { total_accumulated: 0, generated_today: 0, weekly_trend: [] };
+
+    // ... (Mantén tu función getPlatformInfo igual) ...
     const getPlatformInfo = (platform) => {
         const p = (platform || 'web').toLowerCase();
         if (p.includes('facebook')) return { name: 'Facebook', icon: '👥', color: 'text-blue-600', bg: 'bg-blue-50' };
@@ -21,6 +25,60 @@ const CrmView = ({ leads }) => {
 
     return (
         <div className="animate-fade-in-up">
+            
+            {/* --- NUEVA SECCIÓN: TABLERO DE RENDIMIENTO (LO QUE PIDE EL CLIENTE) --- */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                
+                {/* 1. Tarjeta Récord de Hoy */}
+                <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm relative overflow-hidden">
+                    <div className="relative z-10">
+                        <p className="text-xs font-bold text-blue-500 uppercase tracking-widest mb-1">Récord Diario</p>
+                        <h3 className="text-4xl font-black text-slate-800">{stats.generated_today}</h3>
+                        <p className="text-xs text-slate-400 mt-1">Leads nuevos desde las 00:00h</p>
+                    </div>
+                    <div className="absolute right-[-10px] top-[-10px] text-9xl opacity-5 select-none">📅</div>
+                </div>
+
+                {/* 2. Tarjeta Acumulado Total */}
+                <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-lg text-white relative overflow-hidden">
+                    <div className="relative z-10">
+                        <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-1">Histórico Total</p>
+                        <h3 className="text-4xl font-black">{stats.total_accumulated}</h3>
+                        <p className="text-xs text-slate-400 mt-1">Base de datos acumulada</p>
+                    </div>
+                    <div className="absolute right-[-10px] top-[-10px] text-9xl opacity-10 select-none">👥</div>
+                </div>
+
+                {/* 3. Gráfica de Tendencia (CSS Puro) */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-end">
+                    <p className="text-xs font-bold text-slate-400 uppercase mb-3">Rendimiento 7 Días</p>
+                    <div className="flex items-end justify-between h-16 gap-2">
+                        {stats.weekly_trend?.map((day, i) => {
+                            // Calculamos altura relativa (max 100%)
+                            const maxVal = Math.max(...stats.weekly_trend.map(d => d.count), 1);
+                            const height = Math.max((day.count / maxVal) * 100, 15); // Mínimo 15% para que se vea
+                            return (
+                                <div key={i} className="flex flex-col items-center gap-1 w-full group">
+                                    <div 
+                                        className="w-full bg-blue-100 rounded-t-sm hover:bg-blue-500 transition-colors relative"
+                                        style={{ height: `${height}%` }}
+                                    >
+                                        {/* Tooltip simple */}
+                                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                            {day.count} leads
+                                        </div>
+                                    </div>
+                                    <span className="text-[9px] text-slate-400 font-mono">{day.date.slice(5)}</span>
+                                </div>
+                            )
+                        })}
+                        {(!stats.weekly_trend || stats.weekly_trend.length === 0) && (
+                            <p className="text-xs text-slate-300 w-full text-center self-center">Sin datos suficientes</p>
+                        )}
+                    </div>
+                </div>
+            </div>
+            
             {/* Barra de Filtros */}
             <div className="flex gap-3 mb-8 pb-2 overflow-x-auto">
                 {['Todos', 'Facebook', 'Instagram', 'Google'].map(f => (
