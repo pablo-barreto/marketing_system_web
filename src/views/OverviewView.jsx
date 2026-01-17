@@ -1,6 +1,7 @@
 'use client';
-import SystemLogs from '@/components/SystemLogs';
-import React from 'react';
+import SystemLogs from '../components/SystemLogs';
+import React, { useState } from 'react'; // <--- CAMBIO: Importar useState
+import ServiceTrafficModal from '../components/ServiceTrafficModal'; // <--- CAMBIO: Importar Modal
 
 // Iconos SVG (Sin cambios)
 const Icons = {
@@ -13,37 +14,58 @@ const Icons = {
 };
 
 const OverviewView = ({ data }) => {
+    // <--- CAMBIO: Estado para controlar el Modal
+    const [selectedTraffic, setSelectedTraffic] = useState(null);
 
-    // 1. LÓGICA DE SERVICIOS (Sin cambios)
+    // <--- CAMBIO: Lógica mejorada para NO perder los visitantes al agrupar
     const processedServices = React.useMemo(() => {
         if (!data.service_visits) return [];
+        
         const aggregationMap = data.service_visits.reduce((acc, curr) => {
             const normalizedName = curr.service_name.toUpperCase().replace(/-/g, ' ').trim();
-            if (!acc[normalizedName]) acc[normalizedName] = 0;
-            acc[normalizedName] += curr.total_visits;
+            
+            // Si no existe, inicializamos el objeto completo
+            if (!acc[normalizedName]) {
+                acc[normalizedName] = { 
+                    total_visits: 0, 
+                    visitors: [] // <--- Guardamos array vacío
+                }; 
+            }
+            
+            // Acumulamos el total
+            acc[normalizedName].total_visits += curr.total_visits;
+            
+            // Concatenamos los visitantes si vienen en la respuesta
+            if (curr.visitors && Array.isArray(curr.visitors)) {
+                acc[normalizedName].visitors = [...acc[normalizedName].visitors, ...curr.visitors];
+            }
+
             return acc;
         }, {});
+
+        // Convertimos el mapa a array para renderizar
         return Object.entries(aggregationMap)
-            .map(([name, count]) => ({ service_name: name, total_visits: count }))
+            .map(([name, obj]) => ({ 
+                service_name: name, 
+                total_visits: obj.total_visits,
+                visitors: obj.visitors // <--- Pasamos la lista al componente
+            }))
             .sort((a, b) => b.total_visits - a.total_visits);
+
     }, [data.service_visits]);
 
     // ========================================================================
-    // 2. CÁLCULOS KPI CORREGIDOS
+    // CÁLCULOS KPI
     // ========================================================================
     const totalVisits = processedServices.reduce((a, b) => a + b.total_visits, 0) || 1;
     const totalLeads = data.crm_leads?.length || 0;
     const conversionRate = ((totalLeads / totalVisits) * 100).toFixed(1);
     
-    // CORRECCIÓN: Conteo flexible de campañas (Mayúsculas/Minúsculas)
     const activeCampaigns = data.campaigns?.filter(c => 
         c.status?.toLowerCase() === 'active' || c.status?.toLowerCase() === 'activa'
     ).length || 0;
 
     const topRankings = data.seo_rankings?.filter(r => r.ranking <= 10).length || 0;
-
-    // CORRECCIÓN: Estado de APIs basado en la respuesta real del servidor
-    // No debe depender de si hay campañas, sino del campo de estatus de la API
     const isAdsApiConnected = data.system_status?.ads_api === 'active' || data.system_status?.ads_api === 'online';
 
     const today = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -92,7 +114,6 @@ const OverviewView = ({ data }) => {
                     <div className="space-y-4 flex-1 flex flex-col justify-center">
                         <HealthItem label="Worker IA" active={data.system_status?.worker_ia === 'active'} />
                         <HealthItem label="Base de Datos" active={data.system_status?.database === 'active'} />
-                        {/* Ahora cambia a verde si la API está conectada, no si hay campañas */}
                         <HealthItem label="Ads API" active={isAdsApiConnected} />
                     </div>
                 </div>
@@ -122,7 +143,7 @@ const OverviewView = ({ data }) => {
 
                 {/* --- SEGUNDA FILA --- */}
 
-                {/* 4. TRÁFICO (MODIFICADO PARA USAR LISTA SIN DUPLICADOS) */}
+                {/* 4. TRÁFICO (MODIFICADO PARA SER CLICABLE) */}
                 <div className="col-span-1 lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-100 shadow-lg shadow-slate-100/50 h-full max-h-[350px]">
                     <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-2">
@@ -133,24 +154,36 @@ const OverviewView = ({ data }) => {
                     </div>
 
                     <div className="flex flex-col gap-5 overflow-y-auto pr-2 max-h-[240px] custom-scrollbar">
-                        {/* AQUÍ USAMOS LA LISTA PROCESADA 'processedServices' */}
                         {processedServices.length > 0 ? (
                             processedServices.map((svc, index) => {
                                 const percent = Math.round((svc.total_visits / totalVisits) * 100);
                                 const barColors = ['bg-blue-500', 'bg-indigo-500', 'bg-violet-500', 'bg-fuchsia-500'];
 
                                 return (
-                                    <div key={svc.service_name} className="group">
+                                    // <--- CAMBIO: Elemento Clicable
+                                    <div 
+                                        key={svc.service_name} 
+                                        className="group cursor-pointer hover:bg-slate-50 p-2 -mx-2 rounded-lg transition-all duration-200 select-none"
+                                        onClick={() => setSelectedTraffic(svc)} // Guardamos el servicio seleccionado
+                                        title="Haz clic para ver qué páginas están visitando"
+                                    >
                                         <div className="flex justify-between mb-1 text-sm">
-                                            <span className="font-bold text-slate-700 truncate max-w-[70%]">
-                                                {svc.service_name}
-                                            </span>
-                                            <span className="text-slate-500 font-mono text-xs bg-slate-50 px-2 py-0.5 rounded">
+                                            <div className="flex items-center gap-2 max-w-[70%]">
+                                                {/* Icono de ojo al pasar el mouse */}
+                                                <span className="opacity-0 group-hover:opacity-100 text-xs transition-opacity duration-200">👁️</span>
+                                                <span className="font-bold text-slate-700 truncate group-hover:text-blue-600 transition-colors">
+                                                    {svc.service_name}
+                                                </span>
+                                            </div>
+                                            <span className="text-slate-500 font-mono text-xs bg-slate-50 px-2 py-0.5 rounded group-hover:bg-blue-100 group-hover:text-blue-700 transition-colors">
                                                 {svc.total_visits}
                                             </span>
                                         </div>
-                                        <div className="w-full h-2 bg-slate-50 rounded-full overflow-hidden">
-                                            <div style={{ width: `${percent}%` }} className={`h-full rounded-full ${barColors[index % 4]}`}></div>
+                                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                            <div 
+                                                style={{ width: `${percent}%` }} 
+                                                className={`h-full rounded-full ${barColors[index % 4]} opacity-80 group-hover:opacity-100 transition-opacity`}
+                                            ></div>
                                         </div>
                                     </div>
                                 );
@@ -161,7 +194,7 @@ const OverviewView = ({ data }) => {
                     </div>
                 </div>
 
-                {/* 5. ACTIVIDAD (Sin cambios, solo ajuste de layout) */}
+                {/* 5. ACTIVIDAD (Sin cambios) */}
                 <div className="col-span-1 lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-100 shadow-lg shadow-slate-100/50 h-full max-h-[350px] flex flex-col">
                     <div className="flex items-center gap-2 mb-4">
                         <div className="text-blue-500 animate-pulse"><Icons.Activity /></div>
@@ -170,12 +203,10 @@ const OverviewView = ({ data }) => {
 
                     <div className="relative pl-2 overflow-y-auto pr-2 flex-1 custom-scrollbar">
                         <div className="absolute left-[11px] top-2 bottom-0 w-0.5 bg-slate-100"></div>
-
                         <div className="flex flex-col gap-6 pb-2">
                             {data.notifications?.slice(0, 8).map((notif, idx) => (
                                 <div key={idx} className="flex gap-4 relative group">
                                     <div className="w-6 h-6 rounded-full bg-white border-[3px] border-blue-500 z-10 flex-shrink-0 shadow-sm group-hover:border-blue-600 transition-colors mt-0.5"></div>
-
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium text-slate-600 leading-snug line-clamp-2 hover:line-clamp-none transition-all cursor-default" title={notif.message}>
                                             {notif.message}
@@ -194,6 +225,15 @@ const OverviewView = ({ data }) => {
                 </div>
 
             </div>
+
+            {/* <--- CAMBIO: Renderizar el Modal si hay un servicio seleccionado */}
+            {selectedTraffic && (
+                <ServiceTrafficModal 
+                    serviceName={selectedTraffic.service_name}
+                    visitors={selectedTraffic.visitors || []} 
+                    onClose={() => setSelectedTraffic(null)} 
+                />
+            )}
 
             <style jsx>{`
                 .custom-scrollbar::-webkit-scrollbar {
