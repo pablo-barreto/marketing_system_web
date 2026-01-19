@@ -14,6 +14,7 @@ import GalleryView from '../views/GalleryView';
 
 // Importar componente de Logs
 import SystemLogs from './SystemLogs';
+import LaunchView from '@/views/LaunchView';
 
 const AdminDashboard = () => {
     const { data, loading, error, refresh } = useDashboardData();
@@ -25,7 +26,7 @@ const AdminDashboard = () => {
     const [isCreating, setIsCreating] = useState(false);
     const [selectedService, setSelectedService] = useState('asesoria-financiera');
     const [selectedPlatform, setSelectedPlatform] = useState('facebook');
-    
+
     // --- ESTADO PARA VISIBILIDAD DE LOGS ---
     const [showLogs, setShowLogs] = useState(false);
 
@@ -108,6 +109,7 @@ const AdminDashboard = () => {
         switch (activeView) {
             case 'overview': return <OverviewView data={data} />;
             case 'campaigns': return <CampaignsView campaigns={data.campaigns} isCreating={isCreating} availableServices={availableServices} selectedService={selectedService} setSelectedService={setSelectedService} selectedPlatform={selectedPlatform} setSelectedPlatform={setSelectedPlatform} handleCreateOnDemand={handleCreateOnDemand} handleApprove={handleApprove} />;
+            case 'launch': return <LaunchView crmData={data.crm_leads} />;
             case 'seo': return <SeoView rankings={data.seo_rankings} content={data.published_content} />;
             case 'gallery': return <GalleryView />;
             case 'crm': return <CrmView leads={data.crm_leads} performance={data.lead_performance} />;
@@ -117,7 +119,7 @@ const AdminDashboard = () => {
 
     return (
         <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900 overflow-x-hidden">
-            
+
             {/* --- 1. VENTANA FLOTANTE DE LOGS (GLOBAL) --- */}
             <SystemLogs isOpen={showLogs} onClose={() => setShowLogs(false)} />
 
@@ -154,16 +156,18 @@ const AdminDashboard = () => {
                     <SidebarItem icon="🖼️" label="Galería Activos" active={activeView === 'gallery'} onClick={() => handleNavClick('gallery')} />
                     <SidebarItem icon="🌍" label="SEO & Contenido" active={activeView === 'seo'} onClick={() => handleNavClick('seo')} />
                     <SidebarItem icon="👥" label="CRM Leads" active={activeView === 'crm'} onClick={() => handleNavClick('crm')} />
+                    <SidebarItem icon={<span>🚀</span>} label="Lanzamiento & IA" active={activeView === 'launch'} onClick={() => handleNavClick('launch')}
+                    />
                 </nav>
 
                 <div className="p-8 border-t border-slate-800 bg-slate-900/50">
-                    
+
                     {/* --- 2. BOTÓN PARA ABRIR/CERRAR LOGS --- */}
-                    <button 
+                    <button
                         onClick={() => setShowLogs(!showLogs)}
                         className={`w-full mb-4 py-2 px-3 rounded-lg flex items-center gap-3 text-xs font-bold transition-all border ${showLogs ? 'bg-slate-800 text-emerald-400 border-emerald-500/30' : 'bg-transparent text-slate-400 border-slate-700 hover:border-slate-500 hover:text-white'}`}
                     >
-                        <span className="text-base">cmd_</span> 
+                        <span className="text-base">cmd_</span>
                         {showLogs ? 'Ocultar Terminal' : 'Abrir Terminal'}
                         {showLogs && <span className="ml-auto w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>}
                     </button>
@@ -174,7 +178,7 @@ const AdminDashboard = () => {
                             Modo: <span className="text-emerald-400 font-bold tracking-wide">{data.system_mode?.toUpperCase()}</span>
                         </div>
                     </div>
-                    
+
                     <button onClick={logout} className="w-full py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:shadow-red-600/30 hover:scale-[1.02] transition-all duration-200 text-sm">
                         Cerrar Sesión
                     </button>

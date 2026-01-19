@@ -65,3 +65,48 @@ export const campaignService = {
         return response.json();
     }
 };
+
+export const launchService = {
+  // 1. Lanzamiento Masivo (Global Launch) [1]
+  executeGlobalLaunch: async (formData, token) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/launch/global`, {
+      method: 'POST',
+      headers: { 'Authorization': token }, // No poner Content-Type, el navegador pone el boundary
+      body: formData
+    });
+    
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.message || 'Error en lanzamiento global');
+    }
+    return response.json();
+  },
+
+  // 2. SEO Boost Manual [2]
+  triggerSeoBoost: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/seo/force-boost`, {
+      method: 'POST',
+      headers: { 
+        'Authorization': token,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) throw new Error('Error al iniciar SEO Boost');
+    return response.json();
+  },
+
+  // 3. Sincronizar Lookalikes (Gemelos) [3]
+  syncLookalikes: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/audiences/sync-lookalikes`, {
+      method: 'POST',
+      headers: { 
+        'Authorization': token,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) throw new Error('Error sincronizando audiencias');
+    return response.json();
+  }
+};
