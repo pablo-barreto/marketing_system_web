@@ -59,20 +59,39 @@ const InstagramPreview = ({ service, imageUrl }) => (
 );
 
 const GooglePreview = ({ content }) => {
-    const title = (content.headlines && content.headlines[0]) ? content.headlines[0] : (content.title || "Servicio Profesional");
-    const desc = (content.descriptions && content.descriptions[0]) ? content.descriptions[0] : "Soluciones profesionales.";
-    return (
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-transparent max-w-[600px] mx-auto font-arial">
-            <div className="flex items-center gap-2 mb-1">
-                <span className="text-[12px] font-bold text-slate-900">Anuncio</span>
-                <span className="text-[12px] text-[#202124]">· crconsultores.com</span>
-            </div>
-            <div className="text-[20px] text-[#1a0dab] font-medium leading-snug hover:underline cursor-pointer mb-1">
-                {title}
-            </div>
-            <div className="text-[14px] text-[#4d5156] leading-relaxed">{desc}</div>
-        </div>
-    );
+  const title = (content.headlines && content.headlines) 
+    ? content.headlines 
+    : (content.title || "Servicio Profesional");
+    
+  const desc = (content.descriptions && content.descriptions) 
+    ? content.descriptions 
+    : "Asesoría experta y soluciones profesionales en Colombia. Contáctanos hoy.";
+
+  return (
+    <div className="bg-white p-4 rounded border border-slate-200 font-sans max-w-sm">
+      {/* URL Simulada */}
+      <div className="flex items-center gap-1 mb-1">
+        <span className="font-bold text-xs text-slate-800">Anuncio</span>
+        <span className="text-xs text-slate-500">· www.crconsultorescolombia.com/servicios</span>
+      </div>
+
+      {/* Título Azul Grande */}
+      <div className="text-xl text-[#1a0dab] hover:underline cursor-pointer font-medium leading-tight mb-1">
+        {title}
+      </div>
+
+      {/* Descripción Gris */}
+      <div className="text-sm text-[#4d5156] leading-snug">
+        {desc}
+      </div>
+      
+      {/* Extensiones (Simuladas) */}
+      <div className="mt-2 flex gap-2 text-xs text-[#1a0dab]">
+        <span className="hover:underline cursor-pointer">Cotizar Ahora</span> · 
+        <span className="hover:underline cursor-pointer">Ver Servicios</span>
+      </div>
+    </div>
+  );
 };
 
 const LinkedInPreview = ({ content, service, imageUrl }) => (
