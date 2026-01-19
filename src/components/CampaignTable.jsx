@@ -6,7 +6,25 @@ import AudienceModal from './AudienceModal';
 import { URL_IMAGES, API_BASE_URL } from '../app/config';
 
 // =============================================================================
-// 1. SUB-COMPONENTES DE PREVISUALIZACIÓN (MANTENIDOS IGUAL)
+// HELPER: NORMALIZADOR DE IMÁGENES (Soporta GCS y Local Windows/Linux)
+// =============================================================================
+const normalizeImagePath = (path) => {
+    // 1. Si es nulo o vacío, devolver imagen por defecto
+    if (!path) return '/static/images/default.jpg';
+    
+    // 2. Si es una URL de Google Cloud Storage (o cualquier nube), devolverla intacta
+    // Tu URL ejemplo: "https://storage.googleapis.com/..." entra aquí y retorna directo.
+    if (path.startsWith('http')) return path; 
+    
+    // 3. Si es local antigua, limpiar las barras invertidas de Windows (\)
+    const filename = path.replace(/\\/g, '/').split('/').pop();
+    
+    // 4. Construir la URL final apuntando a tu servidor local
+    return `${URL_IMAGES}/static/images/uploads/${filename}`;
+};
+
+// =============================================================================
+// 1. SUB-COMPONENTES DE PREVISUALIZACIÓN
 // =============================================================================
 
 const FacebookPreview = ({ service, imageUrl }) => (
@@ -69,23 +87,16 @@ const GooglePreview = ({ content }) => {
 
   return (
     <div className="bg-white p-4 rounded border border-slate-200 font-sans max-w-sm">
-      {/* URL Simulada */}
       <div className="flex items-center gap-1 mb-1">
         <span className="font-bold text-xs text-slate-800">Anuncio</span>
         <span className="text-xs text-slate-500">· www.crconsultorescolombia.com/servicios</span>
       </div>
-
-      {/* Título Azul Grande */}
       <div className="text-xl text-[#1a0dab] hover:underline cursor-pointer font-medium leading-tight mb-1">
         {title}
       </div>
-
-      {/* Descripción Gris */}
       <div className="text-sm text-[#4d5156] leading-snug">
         {desc}
       </div>
-      
-      {/* Extensiones (Simuladas) */}
       <div className="mt-2 flex gap-2 text-xs text-[#1a0dab]">
         <span className="hover:underline cursor-pointer">Cotizar Ahora</span> · 
         <span className="hover:underline cursor-pointer">Ver Servicios</span>
@@ -117,17 +128,11 @@ const LinkedInPreview = ({ content, service, imageUrl }) => (
 // 2. MODAL PRINCIPAL
 // =============================================================================
 
-// =============================================================================
-// 2. MODAL PRINCIPAL (CON EDICIÓN DE PRESUPUESTO)
-// =============================================================================
-
-const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, onUpdateBudget }) => { // <--- Nueva prop onUpdateBudget
+const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, onUpdateBudget }) => {
     if (!campaign) return null;
 
-    // --- HELPER PARA EDITAR PRESUPUESTO DESDE EL MODAL ---
     const handleEditBudgetInModal = async () => {
         const currentBudget = campaign.budget || 0;
-        
         const { value: newBudget } = await Swal.fire({
             title: 'Editar Presupuesto Diario',
             text: `Actual: $${currentBudget.toLocaleString()}`,
@@ -145,13 +150,8 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, on
             }
         });
 
-        if (newBudget) {
-            // Llamamos a la función que pasaremos desde el componente padre (CampaignTable)
-            if (onUpdateBudget) {
-                await onUpdateBudget(campaign, parseFloat(newBudget));
-                // Nota: El modal no se cierra, pero los datos se actualizan "por debajo" si React re-renderiza
-                // O podemos forzar un cierre si prefieres: onClose();
-            }
+        if (newBudget && onUpdateBudget) {
+            await onUpdateBudget(campaign, parseFloat(newBudget));
         }
     };
 
@@ -163,21 +163,16 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, on
 
     const content = getContent(campaign.content);
     
-    let previewImage = '/static/images/servicios 1.jpg'; 
-    if (content.local_image_path) {
-        const filename = content.local_image_path.split('\\').pop().split('/').pop();
-        previewImage = `${URL_IMAGES}/uploads/${filename}`;
-    } else if (content.image) {
-        previewImage = content.image;
-    } else if (content.preview_image) {
-        previewImage = content.preview_image;
-    }
+    // --- LÓGICA DE IMAGEN CORREGIDA ---
+    // Usamos el helper normalizeImagePath para soportar URL de Google Cloud y locales
+    const previewImage = normalizeImagePath(
+        content.local_image_path || content.image || content.preview_image
+    );
+    // ----------------------------------
     
     const platform = (campaign.platform || '').toLowerCase();
     const isMeta = platform.includes('facebook') || platform.includes('instagram');
-    
-    // Verificamos si la plataforma soporta sincronización para mostrar el botón
-    const isSyncSupported = platform.includes('facebook') || platform.includes('instagram') || platform.includes('linkedin');
+    const isSyncSupported = isMeta || platform.includes('linkedin');
 
     const renderPreview = () => {
         if (platform.includes('google')) return <GooglePreview content={content} />;
@@ -204,7 +199,7 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, on
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm animate-fade-in font-sans">
             <div className="bg-white w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[95vh]">
                 
-                {/* IZQUIERDA: PREVIEW VISUAL */}
+                {/* IZQUIERDA: PREVIEW */}
                 <div className="w-full md:w-[70%] bg-[#eef0f4] p-6 flex flex-col items-center justify-center border-r border-slate-200 overflow-y-auto relative custom-scrollbar">
                     <div className="absolute top-4 left-4 bg-white/90 backdrop-blur border border-slate-200 text-slate-700 text-xs px-3 py-1.5 rounded-full shadow-sm font-bold uppercase tracking-wide flex items-center gap-2 z-10">
                         <span className={`w-2 h-2 rounded-full ${isMeta ? 'bg-indigo-600' : platform.includes('google') ? 'bg-orange-500' : 'bg-blue-700'}`}></span>
@@ -215,7 +210,7 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, on
                     </div>
                 </div>
 
-                {/* DERECHA: DATOS TÉCNICOS */}
+                {/* DERECHA: DATOS */}
                 <div className="w-full md:w-[30%] p-6 flex flex-col h-full bg-white overflow-y-auto">
                     <div className="flex justify-between items-start mb-6">
                         <div>
@@ -241,18 +236,12 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, on
                                     <span className="font-bold text-slate-800 text-sm block leading-tight">{campaign.service}</span>
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
-                                    {/* SECCIÓN DE PRESUPUESTO CON EDICIÓN */}
                                     <div className="p-2 border border-slate-100 rounded-lg relative group">
                                         <span className="block text-slate-400 text-[10px]">Presupuesto</span>
                                         <div className="flex items-center gap-2">
                                             <span className="font-bold text-slate-800 text-sm">${campaign.budget?.toLocaleString()}</span>
-                                            
                                             {isSyncSupported && (
-                                                <button 
-                                                    onClick={handleEditBudgetInModal}
-                                                    className="p-1 text-slate-300 hover:text-blue-500 transition-colors rounded hover:bg-blue-50"
-                                                    title="Editar Presupuesto"
-                                                >
+                                                <button onClick={handleEditBudgetInModal} className="p-1 text-slate-300 hover:text-blue-500 transition-colors rounded hover:bg-blue-50" title="Editar Presupuesto">
                                                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                                     </svg>
@@ -272,37 +261,16 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, on
                     </div>
 
                     <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col gap-2">
-                        {/* Botones de acción existentes (sin cambios) */}
                         {campaign.status === 'pending_approval' && (
-                            <button 
-                                onClick={() => { onApprove(campaign.id, campaign.service); onClose(); }} 
-                                className="w-full py-3 bg-emerald-500 text-white rounded-lg font-bold hover:bg-emerald-600 shadow-md shadow-emerald-200 transition-all active:scale-[0.98]"
-                            >
-                                Aprobar Campaña
-                            </button>
+                            <button onClick={() => { onApprove(campaign.id, campaign.service); onClose(); }} className="w-full py-3 bg-emerald-500 text-white rounded-lg font-bold hover:bg-emerald-600 shadow-md shadow-emerald-200 transition-all active:scale-[0.98]">Aprobar Campaña</button>
                         )}
-
                         {(campaign.status === 'ACTIVE' || campaign.status === 'LOW PERFORMANCE') && (
-                            <button 
-                                onClick={() => { onToggleStatus(campaign.id, 'ACTIVE'); onClose(); }} 
-                                className="w-full py-3 bg-amber-500 text-white rounded-lg font-bold hover:bg-amber-600 shadow-md shadow-amber-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                            >
-                                ⏸️ Pausar Campaña
-                            </button>
+                            <button onClick={() => { onToggleStatus(campaign.id, 'ACTIVE'); onClose(); }} className="w-full py-3 bg-amber-500 text-white rounded-lg font-bold hover:bg-amber-600 shadow-md shadow-amber-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2">⏸️ Pausar Campaña</button>
                         )}
-
                         {campaign.status === 'PAUSED' && (
-                            <button 
-                                onClick={() => { onToggleStatus(campaign.id, 'PAUSED'); onClose(); }} 
-                                className="w-full py-3 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 shadow-md shadow-emerald-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                            >
-                                ▶️ Activar Campaña
-                            </button>
+                            <button onClick={() => { onToggleStatus(campaign.id, 'PAUSED'); onClose(); }} className="w-full py-3 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 shadow-md shadow-emerald-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2">▶️ Activar Campaña</button>
                         )}
-
-                        <button onClick={onClose} className="w-full py-3 border border-slate-300 rounded-lg font-bold text-slate-600 hover:bg-slate-50 transition-colors">
-                            Cerrar
-                        </button>
+                        <button onClick={onClose} className="w-full py-3 border border-slate-300 rounded-lg font-bold text-slate-600 hover:bg-slate-50 transition-colors">Cerrar</button>
                     </div>
                 </div>
             </div>
@@ -311,13 +279,11 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, on
 };
 
 // =============================================================================
-// 3. COMPONENTE DE TABLA (LÓGICA AUTOMÁTICA CORREGIDA)
+// 3. COMPONENTE DE TABLA
 // =============================================================================
 
 const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
-    // 1. Estado Local para actualizaciones automáticas
     const [localCampaigns, setLocalCampaigns] = useState(initialCampaigns || []);
-    
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(5);
     const [searchTerm, setSearchTerm] = useState('');
@@ -340,14 +306,12 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
         return null;
     };
 
-    // --- HELPER DE ACTUALIZACIÓN ---
     const updateLocalCampaignData = (campaignId, newData) => {
         setLocalCampaigns(prev => prev.map(c => 
             c.id === campaignId ? { ...c, ...newData } : c
         ));
     };
 
-    // --- HELPER PARA EDITAR PRESUPUESTO (OPTIMIZADO) ---
     const handleEditBudget = async (campaign, currentBudget) => {
         const { value: newBudget } = await Swal.fire({
             title: 'Editar Presupuesto Diario',
@@ -360,7 +324,6 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
             confirmButtonColor: '#3085d6',
             confirmButtonText: 'Guardar',
             inputValidator: (value) => {
-                // Validación de seguridad para LinkedIn y Meta
                 if (!value || value < 20000) {
                     return 'El presupuesto mínimo recomendado es $40.000 COP';
                 }
@@ -369,56 +332,32 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
 
         if (newBudget) {
             Swal.fire({ title: 'Actualizando...', didOpen: () => Swal.showLoading() });
-            
             try {
                 const token = getAuthToken();
-                // Llamada al endpoint que acabamos de crear en Python
                 const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaign.id}/budget`, {
                     method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': token
-                    },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': token },
                     body: JSON.stringify({ budget: newBudget })
                 });
-
                 const data = await response.json();
-
                 if (response.ok) {
-                    // Usamos el valor confirmado por el servidor
                     const confirmedBudget = data.new_budget ? parseFloat(data.new_budget) : parseFloat(newBudget);
-                    
-                    // Actualizamos la tabla localmente sin recargar
                     updateLocalCampaignData(campaign.id, { budget: confirmedBudget });
-                    
-                    Swal.fire({
-                        title: '¡Actualizado!', 
-                        text: `Nuevo presupuesto: $${confirmedBudget.toLocaleString()}`, 
-                        icon: 'success',
-                        timer: 2000
-                    });
+                    Swal.fire({ title: '¡Actualizado!', text: `Nuevo presupuesto: $${confirmedBudget.toLocaleString()}`, icon: 'success', timer: 2000 });
                 } else {
                     throw new Error(data.error || 'Error al actualizar en plataforma');
                 }
             } catch (error) {
-                console.error(error);
-                Swal.fire('Error', error.message || 'No se pudo conectar con el servidor.', 'error');
+                Swal.fire('Error', error.message, 'error');
             }
         }
     };
 
-    // --- VERIFICACIÓN AUTOMÁTICA (AUTO-CHECK) ---
     useEffect(() => {
         const checkVisibleCampaigns = async () => {
-            // [MODIFICADO] AHORA INCLUYE LINKEDIN
             const campaignsToCheck = currentItems.filter(c => 
-                c.platform && (
-                    c.platform.toLowerCase().includes('facebook') || 
-                    c.platform.toLowerCase().includes('instagram') ||
-                    c.platform.toLowerCase().includes('linkedin') 
-                )
+                c.platform && (c.platform.toLowerCase().includes('facebook') || c.platform.toLowerCase().includes('instagram') || c.platform.toLowerCase().includes('linkedin'))
             );
-
             if (campaignsToCheck.length === 0) return;
             const token = getAuthToken();
             if (!token) return; 
@@ -430,62 +369,36 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
                     });
                     if (response.ok) {
                         const data = await response.json();
-                        
                         const updates = {};
                         let hasChanges = false;
-
                         if (data.status && data.status !== campaign.status) {
                             updates.status = data.status;
                             hasChanges = true;
                         }
-
                         if (data.budget && Math.abs(data.budget - campaign.budget) > 1) {
                             updates.budget = data.budget;
                             hasChanges = true;
                         }
-
-                        if (hasChanges) {
-                            updateLocalCampaignData(campaign.id, updates);
-                        }
+                        if (hasChanges) updateLocalCampaignData(campaign.id, updates);
                     }
-                } catch (e) {
-                    console.error("Auto-check failed", e);
-                }
+                } catch (e) { console.error("Auto-check failed", e); }
             });
         };
         checkVisibleCampaigns();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentPage, searchTerm, statusFilter]);
 
-    // --- ACCIÓN: VERIFICACIÓN MANUAL (LUPA) ---
     const handleVerifyMetaStatus = async (campaignId) => {
-        Swal.fire({
-            title: 'Verificando...',
-            text: 'Sincronizando estado y presupuesto...',
-            didOpen: () => { Swal.showLoading(); }
-        });
-
+        Swal.fire({ title: 'Verificando...', text: 'Sincronizando estado y presupuesto...', didOpen: () => { Swal.showLoading(); } });
         try {
             const token = getAuthToken();
-            const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/real-status`, {
-                headers: { 'Authorization': token }
-            });
+            const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/real-status`, { headers: { 'Authorization': token } });
             const data = await response.json();
-
             if (response.ok) {
-                updateLocalCampaignData(campaignId, { 
-                    status: data.status, 
-                    budget: data.budget 
-                });
-                
+                updateLocalCampaignData(campaignId, { status: data.status, budget: data.budget });
                 Swal.fire({
                     title: 'Sincronizado',
-                    html: `
-                        <div class="text-sm">
-                            <p><strong>Estado:</strong> ${data.status}</p>
-                            <p><strong>Presupuesto:</strong> $${data.budget?.toLocaleString()}</p>
-                        </div>
-                    `,
+                    html: `<div class="text-sm"><p><strong>Estado:</strong> ${data.status}</p><p><strong>Presupuesto:</strong> $${data.budget?.toLocaleString()}</p></div>`,
                     icon: data.status === 'ACTIVE' ? 'success' : 'info',
                     timer: 1500,
                     showConfirmButton: false
@@ -498,7 +411,6 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
         }
     };
 
-    // --- ACCIÓN: TOGGLE STATUS ---
     const handleToggleStatus = async (campaignId, currentStatus) => {
         const isPaused = currentStatus === 'PAUSED';
         const actionVerb = isPaused ? 'Activar' : 'Pausar';
@@ -518,22 +430,12 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
                     const token = getAuthToken();
                     const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/status`, {
                         method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': token
-                        },
+                        headers: { 'Content-Type': 'application/json', 'Authorization': token },
                         body: JSON.stringify({ status: targetStatus })
                     });
-
                     if (response.ok) {
                         updateLocalCampaignData(campaignId, { status: targetStatus }); 
-                        Swal.fire({
-                            title: '¡Listo!',
-                            text: `Campaña ${targetStatus === 'ACTIVE' ? 'activada' : 'pausada'}.`,
-                            icon: 'success',
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
+                        Swal.fire({ title: '¡Listo!', text: `Campaña ${targetStatus === 'ACTIVE' ? 'activada' : 'pausada'}.`, icon: 'success', timer: 1500, showConfirmButton: false });
                     } else {
                         throw new Error('Error servidor');
                     }
@@ -548,7 +450,6 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
         const p = (platform || '').toLowerCase();
         if (p.includes('google')) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border bg-orange-50 text-orange-700 border-orange-100">G Google Ads</span>;
         if (p.includes('linkedin')) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border bg-sky-50 text-sky-700 border-sky-100">in LinkedIn</span>;
-        
         return (
             <div className="flex items-center gap-1">
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border bg-blue-50 text-blue-700 border-blue-100">Facebook</span>
@@ -584,7 +485,6 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
     const totalPages = Math.ceil(filteredCampaigns.length / itemsPerPage);
     const currentItems = filteredCampaigns.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-    // --- CARD MÓVIL ---
     const MobileCard = ({ c }) => {
         const budget = c.budget || 0;
         const spend = c.spend || 0;
@@ -601,7 +501,6 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
                     </div>
                     <StatusBadge status={c.status} />
                 </div>
-
                 <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="bg-slate-50 p-2 rounded">
                         <div className="text-[10px] text-slate-500 uppercase font-bold">Gasto</div>
@@ -617,17 +516,10 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
                         </div>
                     </div>
                 </div>
-
                 <div className="flex gap-2">
-                    <button onClick={() => setSelectedCampaign(c)} className="flex-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-bold py-2.5 rounded-lg shadow-sm flex items-center justify-center gap-2 transition-colors">
-                        👁️ Ver
-                    </button>
-                    {c.status === 'ACTIVE' && (
-                        <button onClick={() => handleToggleStatus(c.id, c.status)} className="flex-1 bg-amber-50 border border-amber-200 text-amber-700 text-sm font-bold py-2.5 rounded-lg">⏸️ Pausar</button>
-                    )}
-                    {c.status === 'PAUSED' && (
-                        <button onClick={() => handleToggleStatus(c.id, c.status)} className="flex-1 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-bold py-2.5 rounded-lg">▶️ Activar</button>
-                    )}
+                    <button onClick={() => setSelectedCampaign(c)} className="flex-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-bold py-2.5 rounded-lg shadow-sm flex items-center justify-center gap-2 transition-colors">👁️ Ver</button>
+                    {c.status === 'ACTIVE' && <button onClick={() => handleToggleStatus(c.id, c.status)} className="flex-1 bg-amber-50 border border-amber-200 text-amber-700 text-sm font-bold py-2.5 rounded-lg">⏸️ Pausar</button>}
+                    {c.status === 'PAUSED' && <button onClick={() => handleToggleStatus(c.id, c.status)} className="flex-1 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-bold py-2.5 rounded-lg">▶️ Activar</button>}
                 </div>
             </div>
         );
@@ -635,21 +527,8 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
 
     return (
         <div className="w-full">
-            {selectedCampaign && (
-                <CampaignPreviewModal 
-                    campaign={selectedCampaign} 
-                    onClose={() => setSelectedCampaign(null)} 
-                    onApprove={handleConfirmApprove}
-                    onToggleStatus={handleToggleStatus} 
-                />
-            )}
-
-            {selectedAudienceCampaign && (
-                <AudienceModal 
-                    campaign={selectedAudienceCampaign} 
-                    onClose={() => setSelectedAudienceCampaign(null)} 
-                />
-            )}
+            {selectedCampaign && <CampaignPreviewModal campaign={selectedCampaign} onClose={() => setSelectedCampaign(null)} onApprove={handleConfirmApprove} onToggleStatus={handleToggleStatus} onUpdateBudget={handleEditBudget} />}
+            {selectedAudienceCampaign && <AudienceModal campaign={selectedAudienceCampaign} onClose={() => setSelectedAudienceCampaign(null)} />}
 
             <div className="p-4 md:p-5 border-b border-slate-200 bg-white flex flex-col md:flex-row gap-4 items-center justify-between">
                 <div className="relative w-full md:w-auto">
@@ -673,9 +552,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
                 <table className="min-w-full divide-y divide-slate-200">
                     <thead className="bg-slate-50">
                         <tr>
-                            {['Servicio', 'Plataforma', 'Estado', 'Gasto / Presupuesto', 'Rendimiento', 'Acción'].map(h => (
-                                <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
-                            ))}
+                            {['Servicio', 'Plataforma', 'Estado', 'Gasto / Presupuesto', 'Rendimiento', 'Acción'].map(h => <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>)}
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-200">
@@ -685,13 +562,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
                             const spendPercent = budget > 0 ? Math.min((spend / budget) * 100, 100) : 0;
                             const conversions = c.conversions || 0;
                             const roi = spend > 0 ? (((conversions * ESTIMATED_LEAD_VALUE) - spend) / spend) * 100 : 0;
-                            
-                            // [MODIFICADO] Helper para saber si la campaña soporta sincronización
-                            const isSyncSupported = c.platform && (
-                                c.platform.toLowerCase().includes('facebook') || 
-                                c.platform.toLowerCase().includes('instagram') ||
-                                c.platform.toLowerCase().includes('linkedin') 
-                            );
+                            const isSyncSupported = c.platform && (c.platform.toLowerCase().includes('facebook') || c.platform.toLowerCase().includes('instagram') || c.platform.toLowerCase().includes('linkedin'));
 
                             return (
                                 <tr key={c.id} className="hover:bg-slate-50 transition-colors">
@@ -699,45 +570,22 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
                                         <div className="text-sm font-bold text-slate-900">{c.service}</div>
                                         <div className="text-xs text-slate-400 font-mono mt-0.5">ID: {c.id.substring(0,6)}...</div>
                                     </td>
-                                    
-                                    <td className="px-6 py-4">
-                                        {renderPlatformBadge(c.platform)}
-                                    </td>
-
+                                    <td className="px-6 py-4">{renderPlatformBadge(c.platform)}</td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
                                             <StatusBadge status={c.status} />
-                                            {/* BOTÓN LUPA (FB/IG/LINKEDIN) */}
                                             {isSyncSupported && (
-                                                <button 
-                                                    onClick={() => handleVerifyMetaStatus(c.id)}
-                                                    className="p-1 text-slate-400 hover:text-blue-500 transition-colors rounded-full hover:bg-blue-50"
-                                                    title="Sincronizar ahora"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                                    </svg>
+                                                <button onClick={() => handleVerifyMetaStatus(c.id)} className="p-1 text-slate-400 hover:text-blue-500 transition-colors rounded-full hover:bg-blue-50" title="Sincronizar ahora">
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                                                 </button>
                                             )}
                                         </div>
                                     </td>
-
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col gap-1">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-xs font-bold text-slate-700">
-                                                    ${spend.toFixed(0)} <span className="text-slate-400 font-normal">/ ${budget.toLocaleString()}</span>
-                                                </span>
-                                                {/* BOTÓN EDITAR PRESUPUESTO */}
-                                                {isSyncSupported && (
-                                                    <button 
-                                                        onClick={() => handleEditBudget(c, budget)}
-                                                        className="text-slate-300 hover:text-blue-500 transition-colors"
-                                                        title="Editar Presupuesto"
-                                                    >
-                                                        ✏️
-                                                    </button>
-                                                )}
+                                                <span className="text-xs font-bold text-slate-700">${spend.toFixed(0)} <span className="text-slate-400 font-normal">/ ${budget.toLocaleString()}</span></span>
+                                                {isSyncSupported && <button onClick={() => handleEditBudget(c, budget)} className="text-slate-300 hover:text-blue-500 transition-colors" title="Editar Presupuesto">✏️</button>}
                                             </div>
                                             <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                                 <div style={{ width: `${spendPercent}%` }} className={`h-full ${spendPercent > 90 ? 'bg-red-500' : 'bg-blue-500'}`}></div>
@@ -756,24 +604,14 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
                                             <button onClick={() => setSelectedAudienceCampaign(c)} className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors border border-transparent hover:border-purple-100" title="Ver Audiencia Asignada">
                                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
                                             </button>
-                                            
-                                            {/* BOTONES INTERACTIVOS */}
                                             {c.status === 'pending_approval' ? (
                                                 <button onClick={() => handleConfirmApprove(c.id, c.service)} className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-1.5 px-3 rounded-lg shadow-sm active:scale-95 transition-all">APROBAR</button>
                                             ) : (c.status === 'ACTIVE' || c.status === 'LOW PERFORMANCE') ? (
-                                                <button 
-                                                    onClick={() => handleToggleStatus(c.id, 'ACTIVE')} 
-                                                    className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors"
-                                                    title="Pausar Campaña"
-                                                >
+                                                <button onClick={() => handleToggleStatus(c.id, 'ACTIVE')} className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors" title="Pausar Campaña">
                                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                                 </button>
                                             ) : (c.status === 'PAUSED') ? (
-                                                <button 
-                                                    onClick={() => handleToggleStatus(c.id, 'PAUSED')} 
-                                                    className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors"
-                                                    title="Reactivar Campaña"
-                                                >
+                                                <button onClick={() => handleToggleStatus(c.id, 'PAUSED')} className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors" title="Reactivar Campaña">
                                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                                 </button>
                                             ) : (
@@ -787,19 +625,18 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
                     </tbody>
                 </table>
             </div>
-            
-             {filteredCampaigns.length > 0 && (
+            {filteredCampaigns.length > 0 && (
                 <div className="bg-white px-4 py-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-                        <span>Filas por pág:</span>
+                        <span>Filas:</span>
                         <select value={itemsPerPage} onChange={handlePageSizeChange} className="bg-white border border-slate-300 text-slate-700 text-xs rounded focus:ring-blue-500 focus:border-blue-500 p-1 cursor-pointer outline-none">
                             <option value={5}>5</option><option value={10}>10</option><option value={20}>20</option>
                         </select>
                     </div>
                     <div className="text-xs text-slate-500">{currentPage} de {totalPages} pág</div>
                     <div className="flex gap-2">
-                         <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1.5 border border-slate-300 rounded text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50">Anterior</button>
-                         <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1.5 border border-slate-300 rounded text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50">Siguiente</button>
+                        <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1.5 border border-slate-300 rounded text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50">Anterior</button>
+                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1.5 border border-slate-300 rounded text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50">Siguiente</button>
                     </div>
                 </div>
             )}
