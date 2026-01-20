@@ -5,7 +5,7 @@ import { API_BASE_URL } from '../app/config';
 
 const SystemLogs = ({ isOpen, onClose }) => {
     const { basicAuthHeader } = useContext(AuthContext);
-    const [logs, setLogs] = useState([]); 
+    const [logs, setLogs] = useState([]);
     const bottomRef = useRef(null);
 
     // --- CONVERSIÓN A HORA LOCAL REAL ---
@@ -15,10 +15,10 @@ const SystemLogs = ({ isOpen, onClose }) => {
             // El servidor envía segundos, JS requiere milisegundos
             const date = new Date(unixTimestamp * 1000);
             return date.toLocaleTimeString('es-CO', {
-                hour: '2-digit', 
-                minute: '2-digit', 
-                second: '2-digit', 
-                hour12: false 
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
             });
         } catch (e) { return '--:--:--'; }
     };
@@ -38,7 +38,7 @@ const SystemLogs = ({ isOpen, onClose }) => {
                         // Evitar duplicados usando el timestamp como ID único
                         const existingIds = new Set(prevLogs.map(l => l.timestamp));
                         const newEntries = latest.filter(l => !existingIds.has(l.timestamp));
-                        return [...prevLogs, ...newEntries].slice(-1000); 
+                        return [...prevLogs, ...newEntries].slice(-1000);
                     });
                 }
             } catch (e) { console.error("Stream error", e); }
@@ -49,8 +49,10 @@ const SystemLogs = ({ isOpen, onClose }) => {
     }, [basicAuthHeader, isOpen]);
 
     useEffect(() => {
-        if (isOpen) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [logs, isOpen]);
+        if (isOpen) {
+            setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -77,19 +79,18 @@ const SystemLogs = ({ isOpen, onClose }) => {
                         <span className="text-slate-500 shrink-0 select-none font-bold min-w-[65px]">
                             {formatLocalTime(log.timestamp)}
                         </span>
-                        
+
                         {/* NIVEL */}
-                        <span className={`font-bold shrink-0 w-12 ${
-                            log.level === 'ERROR' ? 'text-red-500' : 
-                            log.level === 'WARNING' ? 'text-amber-400' : 'text-cyan-400'
-                        }`}>
+                        <span className={`font-bold shrink-0 w-12 ${log.level === 'ERROR' ? 'text-red-500' :
+                                log.level === 'WARNING' ? 'text-amber-400' : 'text-cyan-400'
+                            }`}>
                             {log.level}
                         </span>
 
                         {/* MENSAJE - Sin recortes */}
                         <span className="text-slate-200 break-words leading-relaxed flex-1">
-                            {log.message.includes('services.tasks') 
-                                ? '✓ Proceso de tracking finalizado exitosamente' 
+                            {log.message.includes('services.tasks')
+                                ? '✓ Proceso de tracking finalizado exitosamente'
                                 : log.message}
                         </span>
                     </div>
