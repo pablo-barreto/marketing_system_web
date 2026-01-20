@@ -389,25 +389,75 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
     }, [currentPage, searchTerm, statusFilter]);
 
     const handleVerifyMetaStatus = async (campaignId) => {
-        Swal.fire({ title: 'Verificando...', text: 'Sincronizando estado y presupuesto...', didOpen: () => { Swal.showLoading(); } });
+        // 1. Mostrar estado de carga
+        Swal.fire({ 
+            title: 'Verificando...', 
+            text: 'Sincronizando estado y presupuesto con Meta...', 
+            didOpen: () => { Swal.showLoading(); } 
+        });
+
         try {
             const token = getAuthToken();
-            const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/real-status`, { headers: { 'Authorization': token } });
+            // 2. Petición al Backend
+            const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/real-status`, { 
+                headers: { 'Authorization': token } 
+            });
             const data = await response.json();
+
             if (response.ok) {
-                updateLocalCampaignData(campaignId, { status: data.status, budget: data.budget });
-                Swal.fire({
-                    title: 'Sincronizado',
-                    html: `<div class="text-sm"><p><strong>Estado:</strong> ${data.status}</p><p><strong>Presupuesto:</strong> $${data.budget?.toLocaleString()}</p></div>`,
-                    icon: data.status === 'ACTIVE' ? 'success' : 'info',
-                    timer: 1500,
-                    showConfirmButton: false
+                // 3. Actualizar datos en la tabla local
+                updateLocalCampaignData(campaignId, { 
+                    status: data.status, 
+                    budget: data.budget 
                 });
+
+                // 4. Lógica Visual de Error (NUEVO)
+                // Si viene una razón de error, preparamos un HTML bonito para mostrarlo
+                let errorHtml = '';
+                if (data.reason) {
+                    errorHtml = `
+                        <div class="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg text-left">
+                            <p class="text-xs font-bold text-red-500 uppercase mb-1">⚠️ Diagnóstico:</p>
+                            <p class="text-sm text-red-700 font-medium leading-snug">${data.reason}</p>
+                        </div>
+                    `;
+                }
+
+                // 5. Determinar si es Éxito o Error
+                const isError = data.status === 'WITH_ISSUES' || data.status === 'DISAPPROVED' || data.status === 'REJECTED';
+
+                // 6. Mostrar la Alerta Final
+                Swal.fire({
+                    title: isError ? 'Atención Requerida' : 'Sincronizado',
+                    html: `
+                        <div class="text-sm">
+                            <div class="flex justify-center gap-4 mb-2">
+                                <div>
+                                    <span class="block text-xs text-slate-400 uppercase">Estado</span>
+                                    <span class="font-bold text-slate-800">${data.label || data.status}</span>
+                                </div>
+                                <div>
+                                    <span class="block text-xs text-slate-400 uppercase">Presupuesto</span>
+                                    <span class="font-bold text-slate-800">$${data.budget?.toLocaleString()}</span>
+                                </div>
+                            </div>
+                            ${errorHtml}
+                        </div>
+                    `,
+                    icon: isError ? 'error' : 'success',
+                    // Si es error, NO cerrar automático (timer null). Si es éxito, cerrar en 1.5s
+                    timer: isError ? null : 1500, 
+                    showConfirmButton: isError, // Mostrar botón solo si hay error para poder cerrar
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#ef4444'
+                });
+
             } else {
-                throw new Error(data.error || 'Error API');
+                throw new Error(data.error || 'Error en la respuesta de la API');
             }
         } catch (error) {
-            Swal.fire({ title: 'Error', text: error.message, icon: 'warning' });
+            console.error(error);
+            Swal.fire({ title: 'Error de Conexión', text: error.message, icon: 'warning' });
         }
     };
 
