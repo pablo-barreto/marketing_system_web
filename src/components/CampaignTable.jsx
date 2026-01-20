@@ -389,75 +389,67 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
     }, [currentPage, searchTerm, statusFilter]);
 
     const handleVerifyMetaStatus = async (campaignId) => {
-        // 1. Mostrar estado de carga
+        // Mostrar cargando
         Swal.fire({ 
             title: 'Verificando...', 
-            text: 'Sincronizando estado y presupuesto con Meta...', 
+            text: 'Sincronizando estado y presupuesto...', 
             didOpen: () => { Swal.showLoading(); } 
         });
 
         try {
             const token = getAuthToken();
-            // 2. Petición al Backend
             const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/real-status`, { 
                 headers: { 'Authorization': token } 
             });
             const data = await response.json();
 
             if (response.ok) {
-                // 3. Actualizar datos en la tabla local
+                // 1. Actualizar tabla local
                 updateLocalCampaignData(campaignId, { 
                     status: data.status, 
                     budget: data.budget 
                 });
 
-                // 4. Lógica Visual de Error (NUEVO)
-                // Si viene una razón de error, preparamos un HTML bonito para mostrarlo
+                // 2. ¿Hay error? (WITH_ISSUES es el código de Meta para "Activo no válido")
+                const isError = data.status === 'WITH_ISSUES' || 
+                                data.status === 'DISAPPROVED' || 
+                                data.status === 'REJECTED' ||
+                                data.status === 'ERROR';
+
+                // 3. Construir mensaje de error visual
                 let errorHtml = '';
                 if (data.reason) {
                     errorHtml = `
-                        <div class="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg text-left">
-                            <p class="text-xs font-bold text-red-500 uppercase mb-1">⚠️ Diagnóstico:</p>
-                            <p class="text-sm text-red-700 font-medium leading-snug">${data.reason}</p>
+                        <div style="margin-top: 15px; padding: 10px; background-color: #fef2f2; border: 1px solid #fee2e2; border-radius: 8px; text-align: left;">
+                            <p style="color: #991b1b; font-weight: bold; font-size: 12px; margin-bottom: 4px; text-transform: uppercase;">⚠️ Diagnóstico Detectado:</p>
+                            <p style="color: #b91c1c; font-size: 14px; margin: 0;">${data.reason}</p>
                         </div>
                     `;
                 }
 
-                // 5. Determinar si es Éxito o Error
-                const isError = data.status === 'WITH_ISSUES' || data.status === 'DISAPPROVED' || data.status === 'REJECTED';
-
-                // 6. Mostrar la Alerta Final
+                // 4. Mostrar Alerta Final
                 Swal.fire({
                     title: isError ? 'Atención Requerida' : 'Sincronizado',
                     html: `
                         <div class="text-sm">
-                            <div class="flex justify-center gap-4 mb-2">
-                                <div>
-                                    <span class="block text-xs text-slate-400 uppercase">Estado</span>
-                                    <span class="font-bold text-slate-800">${data.label || data.status}</span>
-                                </div>
-                                <div>
-                                    <span class="block text-xs text-slate-400 uppercase">Presupuesto</span>
-                                    <span class="font-bold text-slate-800">$${data.budget?.toLocaleString()}</span>
-                                </div>
-                            </div>
+                            <p><strong>Estado:</strong> ${data.label || data.status}</p>
+                            <p><strong>Presupuesto:</strong> $${data.budget?.toLocaleString()}</p>
                             ${errorHtml}
                         </div>
                     `,
                     icon: isError ? 'error' : 'success',
-                    // Si es error, NO cerrar automático (timer null). Si es éxito, cerrar en 1.5s
+                    // Si es error, dejamos la alerta abierta para que la leas
                     timer: isError ? null : 1500, 
-                    showConfirmButton: isError, // Mostrar botón solo si hay error para poder cerrar
+                    showConfirmButton: isError,
                     confirmButtonText: 'Entendido',
                     confirmButtonColor: '#ef4444'
                 });
 
             } else {
-                throw new Error(data.error || 'Error en la respuesta de la API');
+                throw new Error(data.error || 'Error API');
             }
         } catch (error) {
-            console.error(error);
-            Swal.fire({ title: 'Error de Conexión', text: error.message, icon: 'warning' });
+            Swal.fire({ title: 'Error', text: error.message, icon: 'warning' });
         }
     };
 
