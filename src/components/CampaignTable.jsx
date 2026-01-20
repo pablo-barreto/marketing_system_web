@@ -286,11 +286,15 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
     const [localCampaigns, setLocalCampaigns] = useState(initialCampaigns || []);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(5);
+    
+    // --- ESTADOS DE FILTRO MEJORADOS ---
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [platformFilter, setPlatformFilter] = useState('all'); // Nuevo
+    const [sortConfig, setSortConfig] = useState('newest');      // Nuevo (Presupuesto)
+    
     const [selectedCampaign, setSelectedCampaign] = useState(null); 
     const [selectedAudienceCampaign, setSelectedAudienceCampaign] = useState(null);
-
     const ESTIMATED_LEAD_VALUE = 15;
 
     useEffect(() => {
@@ -386,10 +390,10 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
         };
         checkVisibleCampaigns();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentPage, searchTerm, statusFilter]);
+    }, [currentPage, searchTerm, statusFilter, platformFilter, sortConfig]);
 
+    // --- FUNCIÓN DE VERIFICACIÓN CON MANEJO DE ERRORES ---
     const handleVerifyMetaStatus = async (campaignId) => {
-        // Mostrar cargando
         Swal.fire({ 
             title: 'Verificando...', 
             text: 'Sincronizando estado y presupuesto...', 
@@ -404,19 +408,16 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
             const data = await response.json();
 
             if (response.ok) {
-                // 1. Actualizar tabla local
                 updateLocalCampaignData(campaignId, { 
                     status: data.status, 
                     budget: data.budget 
                 });
 
-                // 2. ¿Hay error? (WITH_ISSUES es el código de Meta para "Activo no válido")
                 const isError = data.status === 'WITH_ISSUES' || 
                                 data.status === 'DISAPPROVED' || 
                                 data.status === 'REJECTED' ||
                                 data.status === 'ERROR';
 
-                // 3. Construir mensaje de error visual
                 let errorHtml = '';
                 if (data.reason) {
                     errorHtml = `
@@ -427,7 +428,6 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
                     `;
                 }
 
-                // 4. Mostrar Alerta Final
                 Swal.fire({
                     title: isError ? 'Atención Requerida' : 'Sincronizado',
                     html: `
@@ -438,7 +438,6 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
                         </div>
                     `,
                     icon: isError ? 'error' : 'success',
-                    // Si es error, dejamos la alerta abierta para que la leas
                     timer: isError ? null : 1500, 
                     showConfirmButton: isError,
                     confirmButtonText: 'Entendido',
@@ -517,11 +516,41 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
         });
     };
 
+    // =========================================================================
+    // LÓGICA DE FILTRADO Y ORDENAMIENTO COMPLETA
+    // =========================================================================
     const filteredCampaigns = localCampaigns.filter((campaign) => {
         const search = searchTerm.toLowerCase();
-        const matchesSearch = (campaign.service || '').toLowerCase().includes(search) || (campaign.platform || '').toLowerCase().includes(search);
-        const matchesStatus = statusFilter === 'all' || campaign.status === statusFilter;
-        return matchesSearch && matchesStatus;
+        const p = (campaign.platform || '').toLowerCase();
+        const s = (campaign.status || '').toLowerCase();
+        const serviceName = (campaign.service || '').toLowerCase();
+        const budgetStr = (campaign.budget || '').toString();
+
+        // 1. Buscador global (Servicio, ID o Valor)
+        const matchesSearch = serviceName.includes(search) || 
+                              campaign.id.toLowerCase().includes(search) ||
+                              budgetStr.includes(search);
+
+        // 2. Filtro Estado (Ahora incluye with_issues)
+        let matchesStatus = true;
+        if (statusFilter !== 'all') {
+            matchesStatus = s === statusFilter.toLowerCase();
+        }
+
+        // 3. Filtro Plataforma (NUEVO)
+        let matchesPlatform = true;
+        if (platformFilter !== 'all') {
+            if (platformFilter === 'meta') matchesPlatform = p.includes('facebook') || p.includes('instagram');
+            else matchesPlatform = p.includes(platformFilter);
+        }
+
+        return matchesSearch && matchesStatus && matchesPlatform;
+    })
+    .sort((a, b) => {
+        // 4. Lógica de Ordenamiento
+        if (sortConfig === 'budget_desc') return (b.budget || 0) - (a.budget || 0); // Mayor a menor
+        if (sortConfig === 'budget_asc') return (a.budget || 0) - (b.budget || 0);  // Menor a mayor
+        return 0; // newest por defecto
     });
 
     const totalPages = Math.ceil(filteredCampaigns.length / itemsPerPage);
@@ -572,16 +601,58 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
             {selectedCampaign && <CampaignPreviewModal campaign={selectedCampaign} onClose={() => setSelectedCampaign(null)} onApprove={handleConfirmApprove} onToggleStatus={handleToggleStatus} onUpdateBudget={handleEditBudget} />}
             {selectedAudienceCampaign && <AudienceModal campaign={selectedAudienceCampaign} onClose={() => setSelectedAudienceCampaign(null)} />}
 
-            <div className="p-4 md:p-5 border-b border-slate-200 bg-white flex flex-col md:flex-row gap-4 items-center justify-between">
-                <div className="relative w-full md:w-auto">
+            {/* --- BARRA DE HERRAMIENTAS ACTUALIZADA --- */}
+            <div className="p-4 md:p-5 border-b border-slate-200 bg-white flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center">
+                
+                {/* 1. BUSCADOR UNIFICADO */}
+                <div className="relative w-full xl:w-96">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
-                    <input type="text" placeholder="Buscar campaña..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="pl-9 pr-4 py-2.5 w-full md:w-64 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
+                    <input 
+                        type="text" 
+                        placeholder="Buscar por servicio, ID o valor..." 
+                        value={searchTerm} 
+                        onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} 
+                        className="pl-9 pr-4 py-2.5 w-full border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm" 
+                    />
                 </div>
-                <div className="flex gap-3 w-full md:w-auto">
-                    <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }} className="w-full md:w-auto px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer">
-                        <option value="all">Todos</option>
-                        <option value="active">Activos</option>
-                        <option value="pending_approval">Pendientes</option>
+
+                {/* 2. SELECTORES DE FILTRO SEPARADOS */}
+                <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+                    
+                    {/* Filtro Plataforma */}
+                    <select 
+                        value={platformFilter} 
+                        onChange={(e) => { setPlatformFilter(e.target.value); setCurrentPage(1); }} 
+                        className="px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer shadow-sm min-w-[140px]"
+                    >
+                        <option value="all">🌐 Todas las Redes</option>
+                        <option value="meta">♾️ Meta (FB/IG)</option>
+                        <option value="linkedin">💼 LinkedIn</option>
+                        <option value="google">🔍 Google Ads</option>
+                    </select>
+
+                    {/* Filtro Estado */}
+                    <select 
+                        value={statusFilter} 
+                        onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }} 
+                        className="px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer shadow-sm min-w-[140px]"
+                    >
+                        <option value="all">📊 Todos los Estados</option>
+                        <option value="active">🟢 Activos</option>
+                        <option value="paused">⏸️ Pausados</option>
+                        <option value="pending_approval">⏳ Pendientes</option>
+                        <option value="with_issues">⚠️ Con Errores</option>
+                    </select>
+
+                    {/* Ordenar por Presupuesto */}
+                    <select 
+                        value={sortConfig} 
+                        onChange={(e) => { setSortConfig(e.target.value); setCurrentPage(1); }} 
+                        className="px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer shadow-sm min-w-[160px]"
+                    >
+                        <option value="newest">📅 Más Recientes</option>
+                        <option value="budget_desc">💰 Mayor Presupuesto</option>
+                        <option value="budget_asc">💸 Menor Presupuesto</option>
                     </select>
                 </div>
             </div>
