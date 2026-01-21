@@ -705,7 +705,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col gap-1">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-xs font-bold text-slate-700">${formatMoney(spend)} <span className="text-slate-400 font-normal">/ {formatMoney(budget)}</span></span>
+                                                <span className="text-xs font-bold text-slate-700">{formatMoney(spend)} <span className="text-slate-400 font-normal">/ {formatMoney(budget)}</span></span>
                                                 {isSyncSupported && <button onClick={() => handleEditBudget(c, budget)} className="text-slate-300 hover:text-blue-500 transition-colors" title="Editar Presupuesto">✏️</button>}
                                             </div>
                                             <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
