@@ -107,17 +107,29 @@ const GooglePreview = ({ content }) => {
 
 const LinkedInPreview = ({ content, service, imageUrl }) => (
     <div className="bg-white rounded-lg shadow-sm border border-gray-300 overflow-hidden w-[320px] mx-auto font-sans">
-        <div className="p-3 flex gap-2 border-b border-gray-50">
+        
+        {/* ENCABEZADO */}
+        <div className="p-3 flex gap-2">
             <div className="w-10 h-10 bg-slate-100 rounded flex items-center justify-center text-slate-500 font-bold border border-slate-200 text-xs">CR</div>
             <div className="flex flex-col justify-center">
                 <div className="font-bold text-[12px] text-slate-900">CR Consultores</div>
                 <div className="text-[10px] text-slate-500">Promocionado</div>
             </div>
         </div>
+
+        {/* --- NUEVA SECCIÓN DE TEXTO (COPY) --- */}
+        {/* Usamos whitespace-pre-wrap para respetar los saltos de línea de la IA */}
+        <div className="px-3 pb-3 text-[13px] text-[#000000e6] leading-snug whitespace-pre-wrap">
+            {content.body || content.text || content.message || "Aquí aparecerá el texto del anuncio..."}
+        </div>
+
+        {/* IMAGEN */}
         <div className="bg-slate-100 h-[200px]">
             <img src={imageUrl} alt={service} className="w-full h-full object-cover" onError={(e) => { e.target.style.display='none'; }}/>
         </div>
-        <div className="bg-[#f3f6f8] p-2 flex justify-between items-center px-3">
+
+        {/* PIE DE ANUNCIO (CTA) */}
+        <div className="bg-[#f3f6f8] p-2 flex justify-between items-center px-3 border-t border-slate-100">
             <div className="text-[12px] font-bold text-slate-800 truncate pr-2">{content.title || service}</div>
             <button className="text-blue-700 border border-blue-700 rounded-full px-3 py-0.5 text-[10px] font-bold">Ver más</button>
         </div>
@@ -395,11 +407,10 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
     // --- FUNCIÓN DE VERIFICACIÓN CON MANEJO DE ERRORES ---
     const handleVerifyMetaStatus = async (campaignId) => {
         Swal.fire({ 
-            title: 'Verificando...', 
-            text: 'Sincronizando estado y presupuesto...', 
+            title: 'Sincronizando...', 
+            text: 'Obteniendo costos y estado en tiempo real...', 
             didOpen: () => { Swal.showLoading(); } 
         });
-
         try {
             const token = getAuthToken();
             const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/real-status`, { 
@@ -408,42 +419,29 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
             const data = await response.json();
 
             if (response.ok) {
+                // AQUÍ ESTÁ LA MAGIA: Actualizamos también spend y conversions
                 updateLocalCampaignData(campaignId, { 
                     status: data.status, 
-                    budget: data.budget 
+                    budget: data.budget,
+                    spend: data.spend,           // <--- Nuevo
+                    conversions: data.conversions // <--- Nuevo
                 });
 
-                const isError = data.status === 'WITH_ISSUES' || 
-                                data.status === 'DISAPPROVED' || 
-                                data.status === 'REJECTED' ||
-                                data.status === 'ERROR';
-
-                let errorHtml = '';
-                if (data.reason) {
-                    errorHtml = `
-                        <div style="margin-top: 15px; padding: 10px; background-color: #fef2f2; border: 1px solid #fee2e2; border-radius: 8px; text-align: left;">
-                            <p style="color: #991b1b; font-weight: bold; font-size: 12px; margin-bottom: 4px; text-transform: uppercase;">⚠️ Diagnóstico Detectado:</p>
-                            <p style="color: #b91c1c; font-size: 14px; margin: 0;">${data.reason}</p>
-                        </div>
-                    `;
-                }
-
+                const isError = data.status === 'WITH_ISSUES' || data.status === 'DISAPPROVED';
+                
                 Swal.fire({
-                    title: isError ? 'Atención Requerida' : 'Sincronizado',
+                    title: 'Datos Actualizados',
                     html: `
-                        <div class="text-sm">
+                        <div class="text-sm text-left">
                             <p><strong>Estado:</strong> ${data.label || data.status}</p>
-                            <p><strong>Presupuesto:</strong> $${data.budget?.toLocaleString()}</p>
-                            ${errorHtml}
+                            <p><strong>Gasto Real:</strong> $${data.spend?.toLocaleString()}</p>
+                            <p><strong>Leads/Conv:</strong> ${data.conversions}</p>
                         </div>
                     `,
-                    icon: isError ? 'error' : 'success',
-                    timer: isError ? null : 1500, 
-                    showConfirmButton: isError,
-                    confirmButtonText: 'Entendido',
-                    confirmButtonColor: '#ef4444'
+                    icon: isError ? 'warning' : 'success',
+                    timer: 2000,
+                    showConfirmButton: false
                 });
-
             } else {
                 throw new Error(data.error || 'Error API');
             }
