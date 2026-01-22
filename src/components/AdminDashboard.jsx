@@ -25,7 +25,7 @@ const AdminDashboard = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [selectedService, setSelectedService] = useState('asesoria-financiera');
-    const [selectedPlatform, setSelectedPlatform] = useState('facebook');
+    const [selectedPlatform, setSelectedPlatform] = useState('all');
 
     // --- ESTADO PARA VISIBILIDAD DE LOGS ---
     const [showLogs, setShowLogs] = useState(false);

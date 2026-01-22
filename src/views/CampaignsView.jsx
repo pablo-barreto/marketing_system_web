@@ -49,7 +49,7 @@ const CampaignsView = ({
             });
 
             let detectedService = "";
-            let platformToUse = 'all';
+            let platformToUse = selectedPlatform;
 
             if (response.ok) {
                 const result = await response.json();
@@ -66,7 +66,6 @@ const CampaignsView = ({
                         
                         // Actualizamos la UI
                         setSelectedService(aiServiceName);
-                        setSelectedPlatform('all');
                         setStatusMessage(`✅ Texto detectado: ${aiServiceName}`);
                     } else {
                         // Si por alguna razón extrema falla, tomamos el primero
@@ -188,10 +187,15 @@ const CampaignsView = ({
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Plataformas</label>
                                 <select 
                                     value={selectedPlatform} 
-                                    disabled={true} 
-                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 text-sm outline-none cursor-not-allowed"
+                                    onChange={(e) => setSelectedPlatform(e.target.value)}
+                                    disabled={isProcessing}
+                                    className={`w-full px-4 py-3 rounded-xl border transition-colors outline-none text-sm text-slate-700 ${isProcessing ? 'bg-slate-100' : 'bg-white border-slate-200'}`}
                                 >
-                                    <option value="all">✨ Todas (Meta + LinkedIn)</option>
+                                    {/* 2. AGREGAMOS LAS OPCIONES REALES */}
+                                    <option value="all">✨ Redes Sociales (Meta + LinkedIn)</option>
+                                    <option value="google">🔍 Google Ads (Búsqueda)</option>
+                                    <option value="facebook">👤 Solo Meta (FB/IG)</option>
+                                    <option value="linkedin">💼 Solo LinkedIn</option>
                                 </select>
                             </div>
 
