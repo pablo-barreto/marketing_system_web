@@ -69,6 +69,7 @@ const LaunchView = ({ crmData }) => {
         />
 
         {/* 3. Panel Informativo / Logs Rápidos */}
+        {/* 3. Panel Informativo / Logs Rápidos */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
           <h3 className="font-bold text-slate-700 mb-4">💡 Estrategia Activa</h3>
           <ul className="space-y-4 text-sm text-slate-600">
@@ -80,9 +81,10 @@ const LaunchView = ({ crmData }) => {
               <span className="text-green-500 font-bold">✓</span>
               <span><strong>Retargeting Omnicanal:</strong> Meta y LinkedIn sincronizados.</span>
             </li>
+            {/* NUEVA NOTA SOBRE GOOGLE */}
             <li className="flex gap-3">
-              <span className="text-blue-500 font-bold">ℹ</span>
-              <span>Usa el lanzador de la izquierda para promocionar Seminarios o Webinars a toda la lista histórica.</span>
+              <span className="text-amber-500 font-bold">⚠️</span>
+              <span><strong>Nota:</strong> El lanzamiento masivo <b>excluye Google Ads</b>. Para crear campañas de Búsqueda, usa la pestaña "Gestión de Ads".</span>
             </li>
           </ul>
         </div>
