@@ -6,7 +6,7 @@ import { AuthContext } from '../context/AuthContext';
 import { API_BASE_URL } from '../app/config';
 import FormattedDate from '../components/FormattedDate';
 
-const GalleryView = () => {
+const GalleryView = ({ config }) => {
     const { basicAuthHeader } = useContext(AuthContext);
     const [creatives, setCreatives] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -14,7 +14,7 @@ const GalleryView = () => {
     // Estados de UI para la barra superior
     const [isProcessing, setIsProcessing] = useState(false);
     const [detectedService, setDetectedService] = useState("---"); // Estado visual
-    const [fixedBudget] = useState(50000); // Presupuesto fijo visual
+    const [fixedBudget] = useState(config?.default_budget || 50000); // Presupuesto fijo visual
     const fileInputRef = useRef(null);
 
     const loadImages = async () => {

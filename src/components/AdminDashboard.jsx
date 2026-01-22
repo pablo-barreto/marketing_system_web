@@ -106,12 +106,13 @@ const AdminDashboard = () => {
     if (!data) return null;
 
     const renderContent = () => {
+        const config = data?.business_config || { lead_value: 15, min_daily_budget: 20000, default_budget: 50000 };
         switch (activeView) {
             case 'overview': return <OverviewView data={data} />;
-            case 'campaigns': return <CampaignsView campaigns={data.campaigns} isCreating={isCreating} availableServices={availableServices} selectedService={selectedService} setSelectedService={setSelectedService} selectedPlatform={selectedPlatform} setSelectedPlatform={setSelectedPlatform} handleCreateOnDemand={handleCreateOnDemand} handleApprove={handleApprove} />;
+            case 'campaigns': return <CampaignsView campaigns={data.campaigns} isCreating={isCreating} availableServices={availableServices} selectedService={selectedService} setSelectedService={setSelectedService} selectedPlatform={selectedPlatform} setSelectedPlatform={setSelectedPlatform} handleCreateOnDemand={handleCreateOnDemand} handleApprove={handleApprove} config={config} />;
             case 'launch': return <LaunchView crmData={data.crm_leads} />;
             case 'seo': return <SeoView rankings={data.seo_rankings} content={data.published_content} />;
-            case 'gallery': return <GalleryView />;
+            case 'gallery': return <GalleryView config={config} />;
             case 'crm': return <CrmView leads={data.crm_leads} performance={data.lead_performance} />;
             default: return null;
         }

@@ -20,14 +20,15 @@ const CampaignsView = ({
     setSelectedService, 
     selectedPlatform, 
     setSelectedPlatform, 
-    handleApprove 
+    handleApprove,
+    config 
 }) => {
     const { basicAuthHeader } = useContext(AuthContext);
     
     // Estados Locales
     const [isProcessing, setIsProcessing] = useState(false);
     const [statusMessage, setStatusMessage] = useState("");
-    const [budget, setBudget] = useState(50000);
+    const [budget, setBudget] = useState(config?.default_budget || 50000);
     const [previewImage, setPreviewImage] = useState(null);
     const fileInputRef = useRef(null);
 
@@ -265,7 +266,7 @@ const CampaignsView = ({
                     <h3 className="text-lg font-bold text-slate-800">Historial de Operaciones</h3>
                 </div>
                 <div className="p-0">
-                    <CampaignTable campaigns={campaigns} onApprove={handleApprove} />
+                    <CampaignTable campaigns={campaigns} onApprove={handleApprove} config={config}/>
                 </div>
             </div>
         </div>

@@ -302,7 +302,7 @@ const formatMoney = (amount) => {
     }).format(amount || 0);
 };
 
-const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
+const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
     const [localCampaigns, setLocalCampaigns] = useState(initialCampaigns || []);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(5);
@@ -315,7 +315,6 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
 
     const [selectedCampaign, setSelectedCampaign] = useState(null);
     const [selectedAudienceCampaign, setSelectedAudienceCampaign] = useState(null);
-    const ESTIMATED_LEAD_VALUE = 15;
 
     useEffect(() => {
         if (initialCampaigns) setLocalCampaigns(initialCampaigns);
@@ -348,8 +347,10 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
             confirmButtonColor: '#3085d6',
             confirmButtonText: 'Guardar',
             inputValidator: (value) => {
-                if (!value || value < 20000) {
-                    return 'El presupuesto mínimo recomendado es $40.000 COP';
+                const minBudget = config?.min_daily_budget || 20000;
+                
+                if (!value || value < minBudget) {
+                    return `El presupuesto mínimo recomendado es $${minBudget.toLocaleString()} COP`;
                 }
             }
         });
@@ -567,7 +568,8 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
         const spend = c.spend || 0;
         const spendPercent = budget > 0 ? Math.min((spend / budget) * 100, 100) : 0;
         const conversions = c.conversions || 0;
-        const roi = spend > 0 ? (((conversions * ESTIMATED_LEAD_VALUE) - spend) / spend) * 100 : 0;
+        const leadVal = config?.lead_value || 0; 
+        const roi = spend > 0 ? (((conversions * leadVal) - spend) / spend) * 100 : 0;
 
         return (
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm mb-4">
@@ -682,7 +684,8 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove }) => {
                             const spend = c.spend || 0;
                             const spendPercent = budget > 0 ? Math.min((spend / budget) * 100, 100) : 0;
                             const conversions = c.conversions || 0;
-                            const roi = spend > 0 ? (((conversions * ESTIMATED_LEAD_VALUE) - spend) / spend) * 100 : 0;
+                            const leadVal = config?.lead_value || 0; 
+                            const roi = spend > 0 ? (((conversions * leadVal) - spend) / spend) * 100 : 0;
                             const isSyncSupported = c.platform && (c.platform.toLowerCase().includes('facebook') || c.platform.toLowerCase().includes('instagram') || c.platform.toLowerCase().includes('linkedin'));
 
                             return (
