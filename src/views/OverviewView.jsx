@@ -1,7 +1,7 @@
 'use client';
 import SystemLogs from '../components/SystemLogs';
-import React, { useState } from 'react'; // <--- CAMBIO: Importar useState
-import ServiceTrafficModal from '../components/ServiceTrafficModal'; // <--- CAMBIO: Importar Modal
+import React, { useState, useMemo } from 'react';
+import ServiceTrafficModal from '../components/ServiceTrafficModal';
 
 // Iconos SVG (Sin cambios)
 const Icons = {
@@ -14,66 +14,97 @@ const Icons = {
 };
 
 const OverviewView = ({ data }) => {
-    // <--- CAMBIO: Estado para controlar el Modal
     const [selectedTraffic, setSelectedTraffic] = useState(null);
+    
+    // --- ESTADOS DE TABLA (Filtro, Orden, Paginación) ---
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: 'total_visits', direction: 'desc' });
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
-    // <--- CAMBIO: Lógica mejorada para NO perder los visitantes al agrupar
-    const processedServices = React.useMemo(() => {
+    // 1. PROCESAMIENTO RAW
+    const rawServices = useMemo(() => {
         if (!data.service_visits) return [];
-        
         const aggregationMap = data.service_visits.reduce((acc, curr) => {
             const normalizedName = curr.service_name.toUpperCase().replace(/-/g, ' ').trim();
-            
-            // Si no existe, inicializamos el objeto completo
             if (!acc[normalizedName]) {
-                acc[normalizedName] = { 
-                    total_visits: 0, 
-                    visitors: [] // <--- Guardamos array vacío
-                }; 
+                acc[normalizedName] = { total_visits: 0, commercial_visits: 0, blog_visits: 0, visitors: [] }; 
             }
-            
-            // Acumulamos el total
             acc[normalizedName].total_visits += curr.total_visits;
-            
-            // Concatenamos los visitantes si vienen en la respuesta
+            acc[normalizedName].commercial_visits += (curr.commercial_visits || 0); 
+            acc[normalizedName].blog_visits += (curr.blog_visits || 0);
             if (curr.visitors && Array.isArray(curr.visitors)) {
                 acc[normalizedName].visitors = [...acc[normalizedName].visitors, ...curr.visitors];
             }
-
             return acc;
         }, {});
-
-        // Convertimos el mapa a array para renderizar
-        return Object.entries(aggregationMap)
-            .map(([name, obj]) => ({ 
-                service_name: name, 
-                total_visits: obj.total_visits,
-                visitors: obj.visitors // <--- Pasamos la lista al componente
-            }))
-            .sort((a, b) => b.total_visits - a.total_visits);
-
+        return Object.entries(aggregationMap).map(([name, obj]) => ({ 
+            service_name: name, 
+            total_visits: obj.total_visits,
+            commercial_visits: obj.commercial_visits, 
+            blog_visits: obj.blog_visits,
+            visitors: obj.visitors 
+        }));
     }, [data.service_visits]);
 
-    // ========================================================================
-    // CÁLCULOS KPI
-    // ========================================================================
-    const totalVisits = processedServices.reduce((a, b) => a + b.total_visits, 0) || 1;
+    // 2. FILTRADO Y ORDENAMIENTO GLOBAL
+    const filteredAndSortedServices = useMemo(() => {
+        let result = [...rawServices];
+
+        // A. Filtrar
+        if (searchTerm) {
+            const lowerTerm = searchTerm.toLowerCase();
+            result = result.filter(s => s.service_name.toLowerCase().includes(lowerTerm));
+        }
+
+        // B. Ordenar
+        if (sortConfig.key) {
+            result.sort((a, b) => {
+                if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        return result;
+    }, [rawServices, searchTerm, sortConfig]);
+
+    // 3. PAGINACIÓN (Corte final)
+    const totalPages = Math.ceil(filteredAndSortedServices.length / itemsPerPage);
+    const currentItems = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return filteredAndSortedServices.slice(start, start + itemsPerPage);
+    }, [filteredAndSortedServices, currentPage, itemsPerPage]);
+
+    // Handlers
+    const handleSort = (key) => {
+        let direction = 'desc';
+        if (sortConfig.key === key && sortConfig.direction === 'desc') direction = 'asc';
+        setSortConfig({ key, direction });
+    };
+
+    const handlePageSizeChange = (e) => {
+        setItemsPerPage(Number(e.target.value));
+        setCurrentPage(1);
+    };
+
+    const SortIcon = ({ columnKey }) => {
+        if (sortConfig.key !== columnKey) return <span className="opacity-20 ml-1">⇅</span>;
+        return <span className="text-blue-600 ml-1">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>;
+    };
+
+    // KPIs
+    const totalVisits = rawServices.reduce((a, b) => a + b.total_visits, 0) || 1;
     const totalLeads = data.crm_leads?.length || 0;
     const conversionRate = ((totalLeads / totalVisits) * 100).toFixed(1);
-    
-    const activeCampaigns = data.campaigns?.filter(c => 
-        c.status?.toLowerCase() === 'active' || c.status?.toLowerCase() === 'activa'
-    ).length || 0;
-
+    const activeCampaigns = data.campaigns?.filter(c => c.status?.toLowerCase() === 'active' || c.status?.toLowerCase() === 'activa').length || 0;
     const topRankings = data.seo_rankings?.filter(r => r.ranking <= 10).length || 0;
     const isAdsApiConnected = data.system_status?.ads_api === 'active' || data.system_status?.ads_api === 'online';
-
     const today = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
     return (
-        <div className="animate-fade-in-up pb-10">
+        <div className="animate-fade-in-up pb-10 w-full max-w-full overflow-x-hidden">
             {/* HEADER */}
-            <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4 px-1">
                 <div>
                     <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
                         Hola, Admin <span className="animate-wave text-3xl">👋</span>
@@ -85,19 +116,18 @@ const OverviewView = ({ data }) => {
                 </div>
             </div>
 
-            {/* --- GRID PRINCIPAL --- */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 auto-rows-fr">
-
+            {/* --- GRID DE CARDS KPI --- */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 {/* 1. KPI PRINCIPAL */}
-                <div className="col-span-1 lg:col-span-2 bg-slate-900 text-white rounded-2xl p-8 shadow-xl relative overflow-hidden flex flex-col justify-between group h-full">
+                <div className="col-span-1 lg:col-span-2 bg-slate-900 text-white rounded-2xl p-8 shadow-xl relative overflow-hidden flex flex-col justify-between group min-h-[220px]">
                     <div className="relative z-10 flex justify-between items-start h-full">
-                        <div className="flex flex-col justify-between h-full">
+                        <div className="flex flex-col justify-between h-full w-full">
                             <div className="flex items-center gap-2 mb-2">
                                 <span className="text-xs font-bold text-slate-300 uppercase tracking-widest">Prospectos CRM</span>
                             </div>
                             <div>
-                                <div className="text-7xl font-black tracking-tighter">{totalLeads}</div>
-                                <div className="mt-2 inline-flex items-center px-3 py-1 bg-white/10 rounded-full text-sm">
+                                <div className="text-6xl md:text-7xl font-black tracking-tighter">{totalLeads}</div>
+                                <div className="mt-4 inline-flex items-center px-3 py-1 bg-white/10 rounded-full text-sm">
                                     🚀 Tasa de Conversión: <span className="text-emerald-400 font-bold ml-2">{conversionRate}%</span>
                                 </div>
                             </div>
@@ -106,20 +136,20 @@ const OverviewView = ({ data }) => {
                 </div>
 
                 {/* 2. SALUD DEL SISTEMA */}
-                <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-lg flex flex-col justify-center h-full">
-                    <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-50">
+                <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-lg flex flex-col justify-center min-h-[220px]">
+                    <div className="flex items-center gap-2 mb-6 pb-3 border-b border-slate-50">
                         <div className="text-emerald-500"><Icons.Server /></div>
                         <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Estado Técnico</h4>
                     </div>
-                    <div className="space-y-4 flex-1 flex flex-col justify-center">
+                    <div className="space-y-5 flex-1 flex flex-col justify-center">
                         <HealthItem label="Worker IA" active={data.system_status?.worker_ia === 'active'} />
                         <HealthItem label="Base de Datos" active={data.system_status?.database === 'active'} />
                         <HealthItem label="Ads API" active={isAdsApiConnected} />
                     </div>
                 </div>
 
-                {/* 3. COLUMNA DE MÉTRICAS RÁPIDAS */}
-                <div className="flex flex-col gap-6 h-full">
+                {/* 3. MÉTRICAS RÁPIDAS */}
+                <div className="flex flex-col gap-6 h-full min-h-[220px]">
                     <div className="flex-1 bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-5 border border-emerald-100 shadow-sm flex flex-col justify-center">
                         <div className="flex justify-between items-center">
                             <div>
@@ -140,93 +170,143 @@ const OverviewView = ({ data }) => {
                         </div>
                     </div>
                 </div>
-
-                {/* --- SEGUNDA FILA --- */}
-
-                {/* 4. TRÁFICO (MODIFICADO PARA SER CLICABLE) */}
-                <div className="col-span-1 lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-100 shadow-lg shadow-slate-100/50 h-full max-h-[350px]">
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-2">
-                            <div className="text-blue-500"><Icons.TrendingUp /></div>
-                            <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Interés (Tráfico)</h4>
-                        </div>
-                        <span className="text-xs text-slate-400">Total: {totalVisits} visitas</span>
-                    </div>
-
-                    <div className="flex flex-col gap-5 overflow-y-auto pr-2 max-h-[240px] custom-scrollbar">
-                        {processedServices.length > 0 ? (
-                            processedServices.map((svc, index) => {
-                                const percent = Math.round((svc.total_visits / totalVisits) * 100);
-                                const barColors = ['bg-blue-500', 'bg-indigo-500', 'bg-violet-500', 'bg-fuchsia-500'];
-
-                                return (
-                                    // <--- CAMBIO: Elemento Clicable
-                                    <div 
-                                        key={svc.service_name} 
-                                        className="group cursor-pointer hover:bg-slate-50 p-2 -mx-2 rounded-lg transition-all duration-200 select-none"
-                                        onClick={() => setSelectedTraffic(svc)} // Guardamos el servicio seleccionado
-                                        title="Haz clic para ver qué páginas están visitando"
-                                    >
-                                        <div className="flex justify-between mb-1 text-sm">
-                                            <div className="flex items-center gap-2 max-w-[70%]">
-                                                {/* Icono de ojo al pasar el mouse */}
-                                                <span className="opacity-0 group-hover:opacity-100 text-xs transition-opacity duration-200">👁️</span>
-                                                <span className="font-bold text-slate-700 truncate group-hover:text-blue-600 transition-colors">
-                                                    {svc.service_name}
-                                                </span>
-                                            </div>
-                                            <span className="text-slate-500 font-mono text-xs bg-slate-50 px-2 py-0.5 rounded group-hover:bg-blue-100 group-hover:text-blue-700 transition-colors">
-                                                {svc.total_visits}
-                                            </span>
-                                        </div>
-                                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                                            <div 
-                                                style={{ width: `${percent}%` }} 
-                                                className={`h-full rounded-full ${barColors[index % 4]} opacity-80 group-hover:opacity-100 transition-opacity`}
-                                            ></div>
-                                        </div>
-                                    </div>
-                                );
-                            })
-                        ) : (
-                            <p className="text-slate-400 text-sm text-center py-4">No hay datos de tráfico aún.</p>
-                        )}
-                    </div>
-                </div>
-
-                {/* 5. ACTIVIDAD (Sin cambios) */}
-                <div className="col-span-1 lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-100 shadow-lg shadow-slate-100/50 h-full max-h-[350px] flex flex-col">
-                    <div className="flex items-center gap-2 mb-4">
-                        <div className="text-blue-500 animate-pulse"><Icons.Activity /></div>
-                        <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Actividad en Vivo</h4>
-                    </div>
-
-                    <div className="relative pl-2 overflow-y-auto pr-2 flex-1 custom-scrollbar">
-                        <div className="absolute left-[11px] top-2 bottom-0 w-0.5 bg-slate-100"></div>
-                        <div className="flex flex-col gap-6 pb-2">
-                            {data.notifications?.slice(0, 8).map((notif, idx) => (
-                                <div key={idx} className="flex gap-4 relative group">
-                                    <div className="w-6 h-6 rounded-full bg-white border-[3px] border-blue-500 z-10 flex-shrink-0 shadow-sm group-hover:border-blue-600 transition-colors mt-0.5"></div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium text-slate-600 leading-snug line-clamp-2 hover:line-clamp-none transition-all cursor-default" title={notif.message}>
-                                            {notif.message}
-                                        </p>
-                                        <span className="text-[10px] text-slate-400 font-medium uppercase mt-1 block">Hace un momento</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                {/* 6. CONSOLA DE SISTEMA */}
-                <div className="col-span-1 lg:col-span-4 mt-6">
-                    <SystemLogs />
-                </div>
-
             </div>
 
-            {/* <--- CAMBIO: Renderizar el Modal si hay un servicio seleccionado */}
+            {/* --- SECCIÓN DE TRÁFICO (TABLA COMPLETA CON PAGINACIÓN) --- */}
+            <div className="w-full bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-8">
+                
+                {/* Cabecera + Buscador */}
+                <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-50 gap-4">
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <span className="text-xl">📊</span> Desglose de Tráfico por Tipo
+                        </h3>
+                        <p className="text-sm text-slate-500 mt-1">
+                            Análisis detallado: Ventas vs. Blogs Educativos.
+                        </p>
+                    </div>
+
+                    <div className="relative w-full sm:w-64">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">🔍</span>
+                        <input
+                            type="text"
+                            placeholder="Buscar servicio..."
+                            value={searchTerm}
+                            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                            className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all"
+                        />
+                    </div>
+                </div>
+
+                <div className="overflow-x-auto w-full">
+                    <table className="w-full text-left border-collapse min-w-[800px]">
+                        <thead>
+                            <tr className="text-xs font-bold text-slate-500 uppercase bg-white border-b border-slate-100">
+                                <th className="p-4 w-1/3 cursor-pointer hover:bg-slate-50 select-none" onClick={() => handleSort('service_name')}>
+                                    Interés / Servicio <SortIcon columnKey="service_name" />
+                                </th>
+                                <th className="p-4 text-center bg-blue-50/50 text-blue-600 border-x border-slate-50 w-1/4 cursor-pointer hover:bg-blue-50 select-none" onClick={() => handleSort('commercial_visits')}>
+                                    <div className="flex flex-col items-center">
+                                        <span className="flex items-center gap-1">🏢 Páginas Comerciales <SortIcon columnKey="commercial_visits" /></span>
+                                        <div className="text-[9px] font-normal text-slate-400 normal-case mt-0.5">(Venta Directa)</div>
+                                    </div>
+                                </th>
+                                <th className="p-4 text-center bg-amber-50/50 text-amber-600 border-r border-slate-50 w-1/4 cursor-pointer hover:bg-amber-50 select-none" onClick={() => handleSort('blog_visits')}>
+                                    <div className="flex flex-col items-center">
+                                        <span className="flex items-center gap-1">📝 Artículos Blog <SortIcon columnKey="blog_visits" /></span>
+                                        <div className="text-[9px] font-normal text-slate-400 normal-case mt-0.5">(Contenido Educativo)</div>
+                                    </div>
+                                </th>
+                                <th className="p-4 text-right w-[15%] cursor-pointer hover:bg-slate-50 select-none" onClick={() => handleSort('total_visits')}>
+                                    Total <SortIcon columnKey="total_visits" />
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50 text-sm">
+                            {currentItems.length > 0 ? (
+                                currentItems.map((svc) => (
+                                    <tr 
+                                        key={svc.service_name} 
+                                        className="hover:bg-slate-50 transition-colors cursor-pointer group"
+                                        onClick={() => setSelectedTraffic(svc)}
+                                    >
+                                        <td className="p-4">
+                                            <div className="font-bold text-slate-700 group-hover:text-blue-600 transition-colors">
+                                                {svc.service_name}
+                                            </div>
+                                            <span className="text-[10px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                Click para ver detalle ↗
+                                            </span>
+                                        </td>
+                                        <td className="p-4 text-center border-x border-slate-50 bg-blue-50/10">
+                                            <span className="font-mono text-slate-600 font-semibold">{svc.commercial_visits.toLocaleString()}</span>
+                                        </td>
+                                        <td className="p-4 text-center border-r border-slate-50 bg-amber-50/10">
+                                            <span className="font-mono text-slate-600 font-semibold">{svc.blog_visits.toLocaleString()}</span>
+                                        </td>
+                                        <td className="p-4 text-right">
+                                            <span className="font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded">{svc.total_visits.toLocaleString()}</span>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="4" className="p-12 text-center text-slate-400">
+                                        {searchTerm ? <p>🔍 No se encontraron resultados.</p> : <p className="mb-2 text-2xl">💤 Esperando datos...</p>}
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* --- CONTROLES DE PAGINACIÓN --- */}
+                {filteredAndSortedServices.length > 0 && (
+                    <div className="bg-white px-4 py-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                            <span>Filas:</span>
+                            <select 
+                                value={itemsPerPage} 
+                                onChange={handlePageSizeChange} 
+                                className="bg-white border border-slate-300 text-slate-700 text-xs rounded focus:ring-blue-500 p-1 cursor-pointer outline-none"
+                            >
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                            </select>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs text-slate-400">
+                                {currentPage} de {totalPages} pág
+                            </span>
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                                    disabled={currentPage === 1} 
+                                    className="px-3 py-1.5 border border-slate-300 bg-white rounded text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    Anterior
+                                </button>
+                                <button 
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+                                    disabled={currentPage === totalPages} 
+                                    className="px-3 py-1.5 border border-slate-300 bg-white rounded text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    Siguiente
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* 6. CONSOLA */}
+            <div className="w-full mt-6">
+                <SystemLogs />
+            </div>
+
+            {/* MODAL */}
             {selectedTraffic && (
                 <ServiceTrafficModal 
                     serviceName={selectedTraffic.service_name}
@@ -236,24 +316,18 @@ const OverviewView = ({ data }) => {
             )}
 
             <style jsx>{`
-                .custom-scrollbar::-webkit-scrollbar {
-                    width: 4px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-track {
-                    background: transparent;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb {
-                    background-color: #e2e8f0;
-                    border-radius: 20px;
-                }
+                .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
             `}</style>
         </div>
     );
 };
 
 const HealthItem = ({ label, active }) => (
-    <div className="flex justify-between items-center group">
-        <span className="text-sm font-medium text-slate-500">{label}</span>
+    <div className="flex justify-between items-center group py-1">
+        <span className="text-sm font-medium text-slate-500 group-hover:text-slate-700 transition-colors">{label}</span>
         <div className="flex items-center gap-2">
             <span className={`relative flex h-2.5 w-2.5`}>
                 {active && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>}
