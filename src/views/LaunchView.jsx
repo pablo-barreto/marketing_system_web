@@ -13,20 +13,20 @@ const LaunchView = ({ crmData }) => {
   // 1. LÓGICA DE INTELIGENCIA DE DATOS (CRM)
   // -----------------------------------------------------------------------
   
-  // A. Obtener lista única de todos los roles disponibles para el selector
+  // A. Obtener lista única de todos los roles disponibles para el selector manual
   const availableRoles = useMemo(() => {
     if (!crmData) return [];
     const roles = crmData
       .map(lead => lead.role)
       // Filtramos nulos, vacíos y roles genéricos que no sirven para segmentar
-      .filter(role => role && role.trim().length > 2 && !['visitante', 'desconocido', 'n/a'].includes(role.toLowerCase()))
+      .filter(role => role && role.trim().length > 2 && !['visitante', 'desconocido', 'n/a', 'otro'].includes(role.toLowerCase()))
       .map(role => role.trim());
       
     // Retornamos lista única ordenada alfabéticamente
     return [...new Set(roles)].sort(); 
   }, [crmData]);
 
-  // B. Calcular automáticamente el TOP 5 de roles más frecuentes
+  // B. Calcular automáticamente el TOP 5 de roles más frecuentes (Para modo automático)
   const topRolesDetected = useMemo(() => {
     if (!crmData) return [];
     
@@ -53,7 +53,7 @@ const LaunchView = ({ crmData }) => {
   // 2. HANDLERS DE ACCIÓN
   // -----------------------------------------------------------------------
 
-  // Lanzamiento Global con Segmentación
+  // A. Lanzamiento Global con Segmentación
   const handleGlobalLaunch = async (file, title, mode, roles) => {
     setLoading(true);
     try {
@@ -89,14 +89,55 @@ const LaunchView = ({ crmData }) => {
     }
   };
 
-  // Sincronización de Lookalikes
+  // B. Sincronización de Lookalikes (CON REPORTE DETALLADO VISUAL)
   const handleSyncLookalikes = async () => {
-    Swal.fire({ title: 'Sincronizando...', didOpen: () => Swal.showLoading() });
+    // 1. Mostrar estado de carga
+    Swal.fire({ 
+        title: 'Analizando Base de Datos...', 
+        text: 'Filtrando clientes de alto valor (Gerentes, Score > 60)...',
+        didOpen: () => Swal.showLoading() 
+    });
+
     try {
-      await launchService.syncLookalikes(basicAuthHeader);
-      Swal.fire('Sincronizado', 'Las audiencias Lookalike se han actualizado en Meta/LinkedIn.', 'success');
+      // 2. Llamada al Backend
+      const res = await launchService.syncLookalikes(basicAuthHeader);
+
+      // 3. Formatear los detalles de las plataformas (HTML)
+      const detailsHtml = Object.entries(res.platforms || {})
+        .map(([plat, status]) => `<li style="margin-bottom:4px; font-size: 0.85rem;"><b>${plat}:</b> <span style="color:#059669">${status}</span></li>`)
+        .join('');
+
+      // 4. Mostrar alerta con los datos reales
+      Swal.fire({
+        title: '¡Sincronización VIP Completa!',
+        html: `
+            <div style="text-align: left; font-size: 0.95rem; line-height: 1.5;">
+                <p style="margin-bottom: 12px; color: #1e293b;">
+                    El sistema detectó <b>${res.vip_leads_count || 0} Leads de Alto Valor</b> en tu CRM y los envió como semilla.
+                </p>
+                <div style="background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 10px;">
+                    <p style="font-size: 0.75rem; font-weight: bold; color: #64748b; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">Reporte de Inyección:</p>
+                    <ul style="list-style: none; padding: 0; margin: 0;">
+                        ${detailsHtml || '<li style="color:#94a3b8">Sin detalles de plataforma</li>'}
+                    </ul>
+                </div>
+                <p style="font-size: 0.75rem; color: #64748b; font-style: italic; text-align: center;">
+                    * Meta y LinkedIn tardarán entre 1 y 24 horas en recalcular los públicos similares.
+                </p>
+            </div>
+        `,
+        icon: 'success',
+        confirmButtonText: 'Entendido',
+        confirmButtonColor: '#10b981'
+      });
+
     } catch (error) {
-      Swal.fire('Error', error.message, 'error');
+      Swal.fire({
+        title: 'Error de Sincronización',
+        text: error.message,
+        icon: 'error',
+        confirmButtonColor: '#ef4444'
+      });
     }
   };
 
@@ -107,7 +148,7 @@ const LaunchView = ({ crmData }) => {
         <p className="text-slate-500">Gestión de Audiencias e Inteligencia Artificial</p>
       </div>
 
-      {/* Dashboard de Métricas */}
+      {/* Dashboard de Métricas de Intención */}
       <IntentDashboard 
         urgentCount={urgentLeads}
         generalCount={generalLeads}
