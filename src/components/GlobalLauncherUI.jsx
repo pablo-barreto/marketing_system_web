@@ -11,6 +11,9 @@ const GlobalLauncherUI = ({ onLaunch, isProcessing, availableRoles = [], topRole
   // Estado para los roles seleccionados manualmente
   const [selectedRoles, setSelectedRoles] = useState([]); 
   
+  // Nuevo estado para el presupuesto
+  const [budget, setBudget] = useState(50000);
+
   const fileInputRef = useRef(null);
 
   // Manejo de imagen
@@ -44,10 +47,15 @@ const GlobalLauncherUI = ({ onLaunch, isProcessing, availableRoles = [], topRole
       return Swal.fire('Selección vacía', 'Selecciona al menos un rol de la lista para el modo específico.', 'warning');
     }
 
+    if (!budget || budget < 20000) {
+        return Swal.fire('Presupuesto inválido', 'El presupuesto mínimo es $20.000 COP.', 'warning');
+    }
+
     // Convertimos el array a string para enviarlo
     const rolesString = selectedRoles.join(',');
 
-    onLaunch(file, title, segmentationMode, rolesString);
+    // Pasamos el presupuesto como argumento adicional
+    onLaunch(file, title, segmentationMode, rolesString, budget);
   };
 
   const handleReset = () => {
@@ -55,6 +63,7 @@ const GlobalLauncherUI = ({ onLaunch, isProcessing, availableRoles = [], topRole
       setTitle('');
       setSegmentationMode('all');
       setSelectedRoles([]);
+      setBudget(50000); // Resetear presupuesto
       if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -85,7 +94,25 @@ const GlobalLauncherUI = ({ onLaunch, isProcessing, availableRoles = [], topRole
             />
         </div>
 
-        {/* 2. Selector de Estrategia */}
+        {/* 2. Presupuesto Diario (NUEVO CAMPO) */}
+        <div className="mb-4">
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Presupuesto Diario (COP)</label>
+            <div className="relative">
+                <span className="absolute left-4 top-3 text-slate-400">$</span>
+                <input 
+                  type="number" 
+                  placeholder="Ej: 50000" 
+                  value={budget}
+                  onChange={(e) => setBudget(e.target.value)}
+                  min="20000"
+                  step="5000"
+                  className="w-full pl-8 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-emerald-500 outline-none placeholder-slate-600 font-mono"
+                />
+            </div>
+            <p className="text-xs text-slate-600 mt-1 ml-1">Mínimo recomendado: $20.000 COP</p>
+        </div>
+
+        {/* 3. Selector de Estrategia */}
         <div className="mb-4">
             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Estrategia de Segmentación</label>
             <select 

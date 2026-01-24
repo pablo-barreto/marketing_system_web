@@ -46,15 +46,21 @@ const LaunchView = ({ crmData }) => {
   }, [crmData]);
 
   // Métricas rápidas para el Dashboard
-  const urgentLeads = crmData?.filter(l => l.lead_score > 80 || l.service_interest?.includes('Tributaria')).length || 0;
+  // Lógica Estricta de Crisis: Solo cuenta si menciona palabras clave de riesgo
+  const urgentLeads = crmData?.filter(l => {
+      const keywords = ['embargo', 'dian', 'sancion', 'multa', 'urgente', 'tributaria'];
+      const interest = (l.service_interest || '').toLowerCase();
+      return keywords.some(k => interest.includes(k));
+  }).length || 0;
+
   const generalLeads = (crmData?.length || 0) - urgentLeads;
 
   // -----------------------------------------------------------------------
   // 2. HANDLERS DE ACCIÓN
   // -----------------------------------------------------------------------
 
-  // A. Lanzamiento Global con Segmentación
-  const handleGlobalLaunch = async (file, title, mode, roles) => {
+  // A. Lanzamiento Global con Segmentación y Presupuesto
+  const handleGlobalLaunch = async (file, title, mode, roles, budget) => {
     setLoading(true);
     try {
       const formData = new FormData();
@@ -64,6 +70,7 @@ const LaunchView = ({ crmData }) => {
       
       // Enviamos la configuración de segmentación al Backend
       formData.append('segmentation_mode', mode); // 'all', 'top_roles', 'specific'
+      formData.append('budget', budget); // <--- NUEVO: Presupuesto
       
       if (mode === 'specific' && roles) {
           formData.append('target_roles', roles);
@@ -163,7 +170,7 @@ const LaunchView = ({ crmData }) => {
           onLaunch={handleGlobalLaunch} 
           isProcessing={loading} 
           availableRoles={availableRoles} 
-          topRoles={topRolesDetected}     
+          topRoles={topRolesDetected}      
         />
 
         {/* Panel Informativo Lateral */}
