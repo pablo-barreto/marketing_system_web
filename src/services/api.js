@@ -63,7 +63,20 @@ export const campaignService = {
         });
         if (!response.ok) throw new Error('Error al eliminar imagen');
         return response.json();
-    }
+    },
+
+    resetMetrics: async (campaignId, token) => {
+      const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/reset`, {
+          method: 'POST',
+          headers: { 
+              'Authorization': token, 
+              'Content-Type': 'application/json' 
+          }
+      });
+      if (!response.ok) throw new Error('No se pudo resetear la base de datos local');
+      return response.json();
+  }
+
 };
 
 export const launchService = {

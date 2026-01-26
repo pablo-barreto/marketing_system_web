@@ -348,7 +348,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
             confirmButtonText: 'Guardar',
             inputValidator: (value) => {
                 const minBudget = config?.min_daily_budget || 20000;
-                
+
                 if (!value || value < minBudget) {
                     return `El presupuesto mínimo recomendado es $${minBudget.toLocaleString()} COP`;
                 }
@@ -523,6 +523,43 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
         });
     };
 
+    const handleResetMetrics = async (campaignId, serviceName) => {
+        const result = await Swal.fire({
+            title: '¿Resetear contadores?',
+            html: `<div class="text-sm">Se pondrá en cero el gasto y leads de:<br/><b>${serviceName}</b>.<br/><br/><i class="text-slate-400">Nota: Esto solo afecta el panel local, no a Meta/LinkedIn.</i></div>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444', // Rojo
+            confirmButtonText: 'Sí, resetear',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const token = getAuthToken();
+                await campaignService.resetMetrics(campaignId, token);
+
+                // Actualizamos la UI localmente sin recargar toda la página 
+                updateLocalCampaignData(campaignId, {
+                    spend: 0,
+                    impressions: 0,
+                    clicks: 0,
+                    conversions: 0
+                });
+
+                Swal.fire({
+                    title: 'Reseteado',
+                    text: 'Los datos locales han vuelto a cero.',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } catch (error) {
+                Swal.fire('Error', error.message, 'error');
+            }
+        }
+    };
+
     // =========================================================================
     // LÓGICA DE FILTRADO Y ORDENAMIENTO COMPLETA
     // =========================================================================
@@ -568,7 +605,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
         const spend = c.spend || 0;
         const spendPercent = budget > 0 ? Math.min((spend / budget) * 100, 100) : 0;
         const conversions = c.conversions || 0;
-        const leadVal = config?.lead_value || 0; 
+        const leadVal = config?.lead_value || 0;
         const roi = spend > 0 ? (((conversions * leadVal) - spend) / spend) * 100 : 0;
 
         return (
@@ -684,7 +721,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                             const spend = c.spend || 0;
                             const spendPercent = budget > 0 ? Math.min((spend / budget) * 100, 100) : 0;
                             const conversions = c.conversions || 0;
-                            const leadVal = config?.lead_value || 0; 
+                            const leadVal = config?.lead_value || 0;
                             const roi = spend > 0 ? (((conversions * leadVal) - spend) / spend) * 100 : 0;
                             const isSyncSupported = c.platform && (c.platform.toLowerCase().includes('facebook') || c.platform.toLowerCase().includes('instagram') || c.platform.toLowerCase().includes('linkedin'));
 
@@ -741,6 +778,24 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                                             ) : (
                                                 <span className="text-slate-300 px-3 cursor-not-allowed" title="Gestionado automáticamente">🔒</span>
                                             )}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-2">
+                                            {/* Botones de Ver y Audiencia que ya tienes... [cite: 808, 810] */}
+
+                                            {/* BOTÓN DE RESETEO TÉCNICO */}
+                                            <button
+                                                onClick={() => handleResetMetrics(c.id, c.service)}
+                                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-100"
+                                                title="Resetear métricas locales"
+                                            >
+                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                </svg>
+                                            </button>
+
+                                            {/* Lógica de botones Condicionales (Aprobar/Pausar) [cite: 812, 814] */}
                                         </div>
                                     </td>
                                 </tr>
