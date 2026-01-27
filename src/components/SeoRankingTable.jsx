@@ -65,7 +65,7 @@ const SeoRankingTable = ({ rankings }) => {
             </div>
 
             {/* --- VISTA MÓVIL (CARDS) --- */}
-            <div className="md:hidden space-y-3 p-1">
+            <div className="block md:hidden space-y-4">
                 {currentItems.length > 0 ? (
                     currentItems.map((r, i) => (
                         <div key={i} className="bg-white border border-slate-200 p-4 rounded-xl flex justify-between items-center shadow-sm">
