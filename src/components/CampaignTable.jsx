@@ -118,12 +118,6 @@ const LinkedInPreview = ({ content, service, imageUrl }) => (
             </div>
         </div>
 
-        {/* --- NUEVA SECCIÓN DE TEXTO (COPY) --- */}
-        {/* Usamos whitespace-pre-wrap para respetar los saltos de línea de la IA */}
-        <div className="px-3 pb-3 text-[13px] text-[#000000e6] leading-snug whitespace-pre-wrap">
-            {content.body || content.text || content.message || "Aquí aparecerá el texto del anuncio..."}
-        </div>
-
         {/* IMAGEN */}
         <div className="bg-slate-100 h-[200px]">
             <img src={imageUrl} alt={service} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
@@ -601,44 +595,66 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
     const totalPages = Math.ceil(filteredCampaigns.length / itemsPerPage);
     const currentItems = filteredCampaigns.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+    // =========================================================================
+    // VISTA MÓVIL OPTIMIZADA
+    // =============================================================================
     const MobileCard = ({ c }) => {
         const budget = c.budget || 0;
         const spend = c.spend || 0;
         const spendPercent = budget > 0 ? Math.min((spend / budget) * 100, 100) : 0;
         const conversions = c.conversions || 0;
-        const leadVal = config?.lead_value || 0;
+        const leadVal = config?.lead_value || 15;
         const roi = spend > 0 ? (((conversions * leadVal) - spend) / spend) * 100 : 0;
+        const isSyncSupported = c.platform && (c.platform.toLowerCase().includes('facebook') || c.platform.toLowerCase().includes('instagram') || c.platform.toLowerCase().includes('linkedin'));
 
         return (
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm mb-4">
                 <div className="flex justify-between items-start mb-3">
-                    <div>
-                        <h4 className="font-bold text-slate-800 text-sm mb-1">{c.service}</h4>
+                    <div className="min-w-0 pr-2">
+                        <h4 className="font-bold text-slate-800 text-sm mb-1 truncate">{c.service}</h4>
                         {renderPlatformBadge(c.platform)}
                     </div>
-                    <StatusBadge status={c.status} />
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                        <StatusBadge status={c.status} />
+                        {isSyncSupported && (
+                            <button onClick={() => handleVerifyMetaStatus(c.id)} className="p-1.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100 shadow-sm" title="Sincronizar ahora">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                            </button>
+                        )}
+                    </div>
                 </div>
+
                 <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="bg-slate-50 p-2 rounded">
-                        <div className="text-[10px] text-slate-500 uppercase font-bold">Gasto</div>
-                        <div className="text-sm font-semibold text-slate-700">
-                            {formatMoney(spend)} <span className="text-slate-400 text-xs">/ {formatMoney(budget)}</span>
+                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                        <div className="flex justify-between items-center mb-1">
+                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Gasto</span>
+                            {isSyncSupported && <button onClick={() => handleEditBudget(c, budget)} className="text-blue-500 p-0.5 rounded" title="Editar Presupuesto">✏️</button>}
                         </div>
-                        <div className="w-full h-1 bg-slate-200 rounded-full mt-1.5">
-                            <div style={{ width: `${spendPercent}%` }} className={`h-full rounded-full ${spendPercent > 90 ? 'bg-red-500' : 'bg-blue-500'}`}></div>
+                        <div className="text-xs font-semibold text-slate-700">
+                            {formatMoney(spend)} <span className="text-slate-400 text-[10px] font-normal">/ {formatMoney(budget)}</span>
+                        </div>
+                        <div className="w-full h-1 bg-slate-200 rounded-full mt-2 overflow-hidden">
+                            <div style={{ width: `${spendPercent}%` }} className={`h-full rounded-full transition-all duration-500 ${spendPercent > 90 ? 'bg-red-500' : 'bg-blue-500'}`}></div>
                         </div>
                     </div>
-                    <div className="bg-slate-50 p-2 rounded">
-                        <div className="text-[10px] text-slate-500 uppercase font-bold">ROI & Leads</div>
-                        <div className={`text-sm font-bold ${roi > 0 ? 'text-emerald-600' : 'text-amber-500'}`}>
-                            {roi > 0 ? '+' : ''}{roi.toFixed(0)}% <span className="text-slate-400 font-normal">({conversions})</span>
+                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 relative">
+                        <div className="flex justify-between items-center">
+                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">ROI & Leads</span>
+                            <button onClick={() => handleResetMetrics(c.id, c.service)} className="text-slate-400 hover:text-rose-500" title="Resetear métricas">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                            </button>
+                        </div>
+                        <div className={`text-xs font-bold mt-1 ${roi > 0 ? 'text-emerald-600' : 'text-amber-500'}`}>
+                            {roi > 0 ? '+' : ''}{roi.toFixed(0)}% <span className="text-slate-400 font-normal ml-1">({conversions})</span>
                         </div>
                     </div>
                 </div>
+
                 <div className="flex gap-2">
-                    <button onClick={() => setSelectedCampaign(c)} className="flex-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-bold py-2.5 rounded-lg shadow-sm flex items-center justify-center gap-2 transition-colors">👁️ Ver</button>
-                    {c.status === 'ACTIVE' && <button onClick={() => handleToggleStatus(c.id, c.status)} className="flex-1 bg-amber-50 border border-amber-200 text-amber-700 text-sm font-bold py-2.5 rounded-lg">⏸️ Pausar</button>}
-                    {c.status === 'PAUSED' && <button onClick={() => handleToggleStatus(c.id, c.status)} className="flex-1 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-bold py-2.5 rounded-lg">▶️ Activar</button>}
+                    <button onClick={() => setSelectedCampaign(c)} className="flex-[1.5] bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold py-2.5 rounded-xl shadow-sm flex items-center justify-center gap-2">👁️ Ver</button>
+                    {c.status === 'ACTIVE' && <button onClick={() => handleToggleStatus(c.id, c.status)} className="flex-1 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold py-2.5 rounded-xl">⏸️ Pausar</button>}
+                    {c.status === 'PAUSED' && <button onClick={() => handleToggleStatus(c.id, c.status)} className="flex-1 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold py-2.5 rounded-xl">▶️ Activar</button>}
+                    {c.status === 'pending_approval' && <button onClick={() => handleConfirmApprove(c.id, c.service)} className="flex-1 bg-emerald-500 text-white text-sm font-bold py-2.5 rounded-xl shadow-md">✅ APROBAR</button>}
                 </div>
             </div>
         );
