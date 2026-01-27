@@ -4,22 +4,20 @@ import React, { useState, useMemo } from 'react';
 const SeoRankingTable = ({ rankings }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(5);
-    const [activeTab, setActiveTab] = useState('nacional'); // 'nacional' o 'internacional'
+    const [activeTab, setActiveTab] = useState('nacional');
 
     const safeRankings = rankings || [];
 
-    // --- FILTRADO DE DATOS (NACIONAL VS INTERNACIONAL) ---
     const filteredRankings = useMemo(() => {
         return safeRankings.filter(r => {
             if (activeTab === 'nacional') {
-                return r.country === 'CO'; // Solo Colombia
+                return r.country === 'CO';
             } else {
-                return r.country !== 'CO'; // Todo lo que NO sea Colombia
+                return r.country !== 'CO';
             }
         });
     }, [safeRankings, activeTab]);
 
-    // --- PAGINACIÓN SOBRE DATOS FILTRADOS ---
     const totalPages = Math.ceil(filteredRankings.length / itemsPerPage);
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -30,17 +28,17 @@ const SeoRankingTable = ({ rankings }) => {
         setCurrentPage(1);
     };
 
-    // Helper para determinar el color del ranking
     const getRankingColor = (rank) => {
-        if (rank <= 10) return 'text-emerald-600'; // Top 10 (Verde)
-        if (rank > 50) return 'text-red-500';     // Malo (Rojo)
-        return 'text-amber-500';                  // Regular (Naranja)
+        if (rank <= 10) return 'text-emerald-600';
+        if (rank > 50) return 'text-red-500';
+        return 'text-amber-500';
     };
 
     return (
-        <div className="flex flex-col h-full w-full">
+        /* CAMBIO 1: Se elimina h-full y se usa min-h-0 con overflow-visible para iOS */
+        <div className="flex flex-col w-full min-h-0 overflow-visible">
             
-            {/* --- PESTAÑAS DE NAVEGACIÓN --- */}
+            {/* PESTAÑAS DE NAVEGACIÓN */}
             <div className="flex gap-4 mb-4 border-b border-slate-100 pb-1">
                 <button 
                     onClick={() => { setActiveTab('nacional'); setCurrentPage(1); }}
@@ -65,6 +63,7 @@ const SeoRankingTable = ({ rankings }) => {
             </div>
 
             {/* --- VISTA MÓVIL (CARDS) --- */}
+            {/* CAMBIO 2: Se usa 'block md:hidden' en lugar de solo 'md:hidden' para forzar el renderizado en Safari */}
             <div className="block md:hidden space-y-4">
                 {currentItems.length > 0 ? (
                     currentItems.map((r, i) => (
@@ -89,7 +88,8 @@ const SeoRankingTable = ({ rankings }) => {
             </div>
 
             {/* --- VISTA ESCRITORIO (TABLA) --- */}
-            <div className="hidden md:block overflow-x-auto flex-1">
+            {/* CAMBIO 3: Se asegura que el contenedor de la tabla no colapse en iOS */}
+            <div className="hidden md:block overflow-x-auto w-full">
                 <table className="min-w-full divide-y divide-slate-200">
                     <thead className="bg-slate-50">
                         <tr>
@@ -129,7 +129,7 @@ const SeoRankingTable = ({ rankings }) => {
                 </table>
             </div>
             
-            {/* --- PAGINACIÓN --- */}
+            {/* PAGINACIÓN */}
             {filteredRankings.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
@@ -137,7 +137,7 @@ const SeoRankingTable = ({ rankings }) => {
                         <select 
                             value={itemsPerPage} 
                             onChange={handlePageSizeChange} 
-                            className="bg-white border border-slate-300 text-slate-700 text-xs rounded focus:ring-blue-500 focus:border-blue-500 p-1 cursor-pointer outline-none"
+                            className="bg-white border border-slate-300 text-slate-700 text-xs rounded p-1 outline-none"
                         >
                             <option value={5}>5</option>
                             <option value={10}>10</option>
@@ -153,14 +153,14 @@ const SeoRankingTable = ({ rankings }) => {
                             <button 
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
                                 disabled={currentPage === 1} 
-                                className="px-3 py-1.5 border border-slate-300 bg-white rounded text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                className="px-3 py-1.5 border border-slate-300 bg-white rounded text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
                             >
                                 Anterior
                             </button>
                             <button 
                                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
                                 disabled={currentPage === totalPages} 
-                                className="px-3 py-1.5 border border-slate-300 bg-white rounded text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                className="px-3 py-1.5 border border-slate-300 bg-white rounded text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
                             >
                                 Siguiente
                             </button>
