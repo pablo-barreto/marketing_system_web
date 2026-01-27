@@ -658,7 +658,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                         className="px-3 bg-slate-50 border border-slate-200 text-slate-400 rounded-xl hover:text-rose-500 active:bg-rose-50 transition-colors" 
                         title="Resetear"
                     >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />Reset</svg>
                     </button>
                 </div>
             </div>
