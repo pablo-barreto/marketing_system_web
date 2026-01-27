@@ -4,6 +4,7 @@ import StatusBadge from './StatusBadge';
 import Swal from 'sweetalert2';
 import AudienceModal from './AudienceModal';
 import { URL_IMAGES, API_BASE_URL } from '../app/config';
+import { campaignService } from '../services/api';
 
 // =============================================================================
 // HELPER: NORMALIZADOR DE IMÁGENES (Soporta GCS y Local Windows/Linux)
