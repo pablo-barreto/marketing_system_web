@@ -655,11 +655,13 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                     {/* BOTÓN DE RESETEO AL LADO DE LAS ACCIONES DE ESTADO */}
                     <button
                         onClick={() => handleResetMetrics(c.id, c.service)}
-                        className="px-3 bg-slate-50 border border-slate-200 text-slate-400 rounded-xl hover:text-rose-500 active:bg-rose-50 transition-colors"
+                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-50 text-slate-500 border border-slate-200 rounded-xl hover:text-rose-600 hover:bg-rose-50 transition-colors active:scale-95"
                         title="Resetear"
                     >
-                        Reset
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                        <span className="text-[11px] font-bold tracking-tight">RESET</span>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
                     </button>
                 </div>
             </div>
@@ -810,13 +812,19 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                                             {/* BOTÓN DE RESETEO TÉCNICO */}
                                             <button
                                                 onClick={() => handleResetMetrics(c.id, c.service)}
-                                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-100"
+                                                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl hover:bg-rose-600 hover:text-white transition-all duration-200 text-[10px] font-black shadow-sm active:scale-95 group"
                                                 title="Resetear métricas locales"
                                             >
-                                                Reset
-                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <svg
+                                                    className="w-3.5 h-3.5 transition-transform duration-500 group-hover:rotate-180"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                    strokeWidth={3}
+                                                >
                                                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                                 </svg>
+                                                <span className="tracking-widest">RESET</span>
                                             </button>
 
                                             {/* Lógica de botones Condicionales (Aprobar/Pausar) [cite: 812, 814] */}
