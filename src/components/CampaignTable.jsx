@@ -637,24 +637,29 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                             <div style={{ width: `${spendPercent}%` }} className={`h-full rounded-full transition-all duration-500 ${spendPercent > 90 ? 'bg-red-500' : 'bg-blue-500'}`}></div>
                         </div>
                     </div>
-                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 relative">
-                        <div className="flex justify-between items-center">
-                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">ROI & Leads</span>
-                            <button onClick={() => handleResetMetrics(c.id, c.service)} className="text-slate-400 hover:text-rose-500" title="Resetear métricas">
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                            </button>
-                        </div>
-                        <div className={`text-xs font-bold mt-1 ${roi > 0 ? 'text-emerald-600' : 'text-amber-500'}`}>
+                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tight block mb-1">ROI & Leads</span>
+                        <div className={`text-xs font-bold ${roi > 0 ? 'text-emerald-600' : 'text-amber-500'}`}>
                             {roi > 0 ? '+' : ''}{roi.toFixed(0)}% <span className="text-slate-400 font-normal ml-1">({conversions})</span>
                         </div>
                     </div>
                 </div>
 
                 <div className="flex gap-2">
-                    <button onClick={() => setSelectedCampaign(c)} className="flex-[1.5] bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold py-2.5 rounded-xl shadow-sm flex items-center justify-center gap-2">👁️ Ver</button>
+                    <button onClick={() => setSelectedCampaign(c)} className="flex-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold py-2.5 rounded-xl shadow-sm">👁️ Ver</button>
+                    
                     {c.status === 'ACTIVE' && <button onClick={() => handleToggleStatus(c.id, c.status)} className="flex-1 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold py-2.5 rounded-xl">⏸️ Pausar</button>}
                     {c.status === 'PAUSED' && <button onClick={() => handleToggleStatus(c.id, c.status)} className="flex-1 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold py-2.5 rounded-xl">▶️ Activar</button>}
-                    {c.status === 'pending_approval' && <button onClick={() => handleConfirmApprove(c.id, c.service)} className="flex-1 bg-emerald-500 text-white text-sm font-bold py-2.5 rounded-xl shadow-md">✅ APROBAR</button>}
+                    {c.status === 'pending_approval' && <button onClick={() => handleConfirmApprove(c.id, c.service)} className="flex-1 bg-emerald-500 text-white text-xs font-bold py-2.5 rounded-xl shadow-md">✅ APROBAR</button>}
+                    
+                    {/* BOTÓN DE RESETEO AL LADO DE LAS ACCIONES DE ESTADO */}
+                    <button 
+                        onClick={() => handleResetMetrics(c.id, c.service)} 
+                        className="px-3 bg-slate-50 border border-slate-200 text-slate-400 rounded-xl hover:text-rose-500 active:bg-rose-50 transition-colors" 
+                        title="Resetear"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    </button>
                 </div>
             </div>
         );
