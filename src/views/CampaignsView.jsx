@@ -2,9 +2,9 @@
 import React, { useState, useRef, useContext } from 'react';
 import Swal from 'sweetalert2';
 import CampaignTable from '../components/CampaignTable';
-import { campaignService } from '../services/api'; 
+import { campaignService } from '../services/api';
 import { AuthContext } from '../context/AuthContext';
-import { API_BASE_URL } from '../app/config'; 
+import { API_BASE_URL } from '../app/config';
 
 // Iconos SVG
 const Icons = {
@@ -13,18 +13,18 @@ const Icons = {
     Rocket: () => <svg className="w-5 h-5 text-blue-500 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
 };
 
-const CampaignsView = ({ 
-    campaigns, 
-    availableServices, 
-    selectedService, 
-    setSelectedService, 
-    selectedPlatform, 
-    setSelectedPlatform, 
+const CampaignsView = ({
+    campaigns,
+    availableServices,
+    selectedService,
+    setSelectedService,
+    selectedPlatform,
+    setSelectedPlatform,
     handleApprove,
-    config 
+    config
 }) => {
     const { basicAuthHeader } = useContext(AuthContext);
-    
+
     // Estados Locales
     const [isProcessing, setIsProcessing] = useState(false);
     const [statusMessage, setStatusMessage] = useState("");
@@ -36,7 +36,11 @@ const CampaignsView = ({
     const analyzeAndAutoCreate = async (file) => {
         setIsProcessing(true);
         setStatusMessage("🧠 Leyendo texto de la imagen...");
-        
+
+        // 🔥 Guardamos el servicio que el usuario tenía seleccionado ANTES de que la IA lo cambie
+        const userSelectedService = selectedService;
+        const isDefaultSelection = userSelectedService === availableServices[0];
+
         try {
             const formData = new FormData();
             formData.append('image', file);
@@ -53,33 +57,41 @@ const CampaignsView = ({
 
             if (response.ok) {
                 const result = await response.json();
-                
+
                 if (result.status === 'success' && result.data) {
-                    // El backend ya hizo el trabajo sucio y garantizó que este servicio existe en la lista
-                    const aiServiceName = result.data.service; 
-                    
+                    const aiServiceName = result.data.service;
+
                     console.log("🤖 IA Detectó:", aiServiceName);
 
                     // Verificación final simple
                     if (availableServices.includes(aiServiceName)) {
                         detectedService = aiServiceName;
-                        
-                        // Actualizamos la UI
-                        setSelectedService(aiServiceName);
-                        setStatusMessage(`✅ Texto detectado: ${aiServiceName}`);
+
+                        // 🔥 Solo actualizar UI si el usuario NO cambió manualmente el selector
+                        if (isDefaultSelection) {
+                            setSelectedService(aiServiceName);
+                            setStatusMessage(`✅ Texto detectado: ${aiServiceName}`);
+                        } else {
+                            // El usuario ya eligió manualmente, respetamos su elección
+                            detectedService = userSelectedService;
+                            setStatusMessage(`✅ Usando servicio seleccionado: ${userSelectedService}`);
+                            console.log("👤 Usuario ya eligió:", userSelectedService);
+                        }
                     } else {
-                        // Si por alguna razón extrema falla, tomamos el primero
-                        detectedService = availableServices[0];
-                        setSelectedService(detectedService);
+                        // Fallback: usar lo que el usuario eligió
+                        detectedService = userSelectedService;
                         console.warn("⚠️ Fallback activado en frontend");
                     }
                 }
+            } else {
+                // Si falla el análisis, usar lo que el usuario seleccionó
+                detectedService = userSelectedService;
             }
 
             // 2. CREACIÓN AUTOMÁTICA
             setTimeout(() => {
                 executeCreation(file, detectedService, platformToUse, budget);
-            }, 800); // Pequeña pausa para que el usuario vea qué servicio se eligió
+            }, 800);
 
         } catch (error) {
             console.error("Error flujo automático:", error);
@@ -93,7 +105,7 @@ const CampaignsView = ({
         try {
             const formData = new FormData();
             formData.append('image', file);
-            formData.append('service_name', serviceName || "General"); 
+            formData.append('service_name', serviceName || "General");
             formData.append('budget', budgetAmount);
             formData.append('platform', platformName);
 
@@ -124,7 +136,7 @@ const CampaignsView = ({
         if (file) {
             const objectUrl = URL.createObjectURL(file);
             setPreviewImage(objectUrl);
-            
+
             // Disparar automático
             analyzeAndAutoCreate(file);
         }
@@ -146,9 +158,9 @@ const CampaignsView = ({
 
     return (
         <div className="animate-fade-in-up space-y-8">
-            
+
             <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/40 border border-slate-100 overflow-hidden">
-                
+
                 <div className="px-8 py-6 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
                     <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
                         <Icons.Image />
@@ -161,7 +173,7 @@ const CampaignsView = ({
 
                 <div className="p-6 md:p-8">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        
+
                         {/* A. CONFIGURACIÓN (Visual, se actualiza sola) */}
                         <div className="lg:col-span-1 space-y-5">
                             <div className="relative">
@@ -171,12 +183,12 @@ const CampaignsView = ({
                                         <Icons.Rocket /> {statusMessage}
                                     </div>
                                 )}
-                                
+
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Servicio Detectado</label>
-                                <select 
-                                    value={selectedService} 
-                                    disabled={isProcessing} 
-                                    onChange={e => setSelectedService(e.target.value)} 
+                                <select
+                                    value={selectedService}
+                                    disabled={isProcessing}
+                                    onChange={e => setSelectedService(e.target.value)}
                                     className={`w-full px-4 py-3 rounded-xl border transition-colors outline-none text-sm text-slate-700 ${isProcessing ? 'bg-slate-100' : 'bg-white border-slate-200'}`}
                                 >
                                     {availableServices.map(s => <option key={s} value={s}>{s}</option>)}
@@ -185,8 +197,8 @@ const CampaignsView = ({
 
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Plataformas</label>
-                                <select 
-                                    value={selectedPlatform} 
+                                <select
+                                    value={selectedPlatform}
                                     onChange={(e) => setSelectedPlatform(e.target.value)}
                                     disabled={isProcessing}
                                     className={`w-full px-4 py-3 rounded-xl border transition-colors outline-none text-sm text-slate-700 ${isProcessing ? 'bg-slate-100' : 'bg-white border-slate-200'}`}
@@ -203,9 +215,9 @@ const CampaignsView = ({
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Presupuesto Base</label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
-                                    <input 
-                                        type="number" 
-                                        value={budget} 
+                                    <input
+                                        type="number"
+                                        value={budget}
                                         onChange={e => setBudget(e.target.value)}
                                         className="w-full pl-7 pr-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                                     />
@@ -217,17 +229,17 @@ const CampaignsView = ({
                         <div className="lg:col-span-2">
                             <div className="h-full flex flex-col">
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Cargar Imagen</label>
-                                
-                                <input 
-                                    type="file" 
-                                    ref={fileInputRef} 
-                                    onChange={handleFileChange} 
-                                    className="hidden" 
+
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileChange}
+                                    className="hidden"
                                     accept="image/*"
                                 />
 
                                 {!previewImage ? (
-                                    <div 
+                                    <div
                                         onClick={!isProcessing ? triggerFileInput : undefined}
                                         className={`flex-1 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-8 min-h-[300px] transition-all
                                             ${isProcessing ? 'border-slate-200 bg-slate-50 cursor-wait' : 'border-slate-300 bg-slate-50 hover:bg-blue-50 hover:border-blue-300 cursor-pointer'}
@@ -242,7 +254,7 @@ const CampaignsView = ({
                                 ) : (
                                     <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-black min-h-[300px] flex items-center justify-center group shadow-md">
                                         <img src={previewImage} alt="Preview" className={`max-h-[350px] w-auto object-contain transition-opacity duration-500 ${isProcessing ? 'opacity-50' : 'opacity-100'}`} />
-                                        
+
                                         {/* Overlay de Procesamiento */}
                                         {isProcessing && (
                                             <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
@@ -270,7 +282,7 @@ const CampaignsView = ({
                     <h3 className="text-lg font-bold text-slate-800">Historial de Operaciones</h3>
                 </div>
                 <div className="p-0">
-                    <CampaignTable campaigns={campaigns} onApprove={handleApprove} config={config}/>
+                    <CampaignTable campaigns={campaigns} onApprove={handleApprove} config={config} />
                 </div>
             </div>
         </div>
