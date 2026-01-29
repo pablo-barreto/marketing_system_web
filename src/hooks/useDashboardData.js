@@ -27,10 +27,10 @@ export function useDashboardData() {
         basicAuthHeader ? [`${API_BASE_URL}${ADMIN_PANEL_ENDPOINT}`, basicAuthHeader] : null,
         ([url, token]) => fetcher(url, token),
         {
-            refreshInterval: 30000, // CAMBIO: Bajar a 10s para ver cambios externos más rápido
-            revalidateOnFocus: false, // Si cambias de pestaña y vuelves, refresca inmediato
-            dedupingInterval: 5000,
-            keepPreviousData: false   // Evita parpadeos de carga mientras refresca
+            refreshInterval: 5000, // CAMBIO: Bajar a 10s para ver cambios externos más rápido
+            revalidateOnFocus: true, // Si cambias de pestaña y vuelves, refresca inmediato
+            dedupingInterval: 2000,
+            keepPreviousData: true   // Evita parpadeos de carga mientras refresca
         }
     );
 

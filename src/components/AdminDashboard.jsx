@@ -21,7 +21,12 @@ const AdminDashboard = () => {
     const { basicAuthHeader, isAuthenticated, logout } = useContext(AuthContext);
 
     // Estados de UI
-    const [activeView, setActiveView] = useState('overview');
+    const [activeView, setActiveView] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('marketing_os_last_view') || 'overview';
+        }
+        return 'overview';
+    });
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [selectedService, setSelectedService] = useState('asesoria-financiera');
@@ -37,6 +42,11 @@ const AdminDashboard = () => {
             setSelectedService(availableServices[0]);
         }
     }, [availableServices, loading, selectedService]);
+
+    // Agrega este useEffect dentro del componente AdminDashboard
+    useEffect(() => {
+        localStorage.setItem('marketing_os_last_view', activeView);
+    }, [activeView]);
 
     // Handlers
     const handleApprove = async (campaignId) => {
