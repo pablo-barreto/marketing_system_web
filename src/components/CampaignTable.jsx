@@ -565,36 +565,36 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
         const serviceName = (campaign.service || '').toLowerCase();
         const budgetStr = (campaign.budget || '').toString();
 
-        // 1. Buscador global (Servicio, ID o Valor)
+        // 1. Buscador global
         const matchesSearch = serviceName.includes(search) ||
             campaign.id.toLowerCase().includes(search) ||
             budgetStr.includes(search);
 
-        // 2. Filtro Estado (Ahora incluye with_issues)
-        let matchesStatus = true;
-        if (statusFilter !== 'all') {
-            matchesStatus = s === statusFilter.toLowerCase();
-        }
+        // 2. Filtro Estado
+        let matchesStatus = statusFilter === 'all' || s === statusFilter.toLowerCase();
 
-        // 3. Filtro Plataforma (NUEVO)
+        // 3. Filtro Plataforma
         let matchesPlatform = true;
         if (platformFilter !== 'all') {
             if (platformFilter === 'meta') matchesPlatform = p.includes('facebook') || p.includes('instagram');
             else matchesPlatform = p.includes(platformFilter);
         }
 
-        return matchesSearch && matchesStatus && matchesPlatform;
+        // --- NUEVA LÓGICA: FILTRAR GASTO > 0 ---
+        // Si el usuario elige ordenar por gasto, ocultamos las que están en $0
+        let hasSpend = true;
+        if (sortConfig === 'spend_desc' || sortConfig === 'spend_asc') {
+            hasSpend = (campaign.spend || 0) > 0;
+        }
+
+        return matchesSearch && matchesStatus && matchesPlatform && hasSpend;
     })
         .sort((a, b) => {
-            // Ordenar por Gasto (Real Spend)
+            // Mantén la lógica de ordenamiento anterior
             if (sortConfig === 'spend_desc') return (b.spend || 0) - (a.spend || 0);
             if (sortConfig === 'spend_asc') return (a.spend || 0) - (b.spend || 0);
-
-            // Ordenar por Presupuesto (Budget)
             if (sortConfig === 'budget_desc') return (b.budget || 0) - (a.budget || 0);
             if (sortConfig === 'budget_asc') return (a.budget || 0) - (b.budget || 0);
-
-            // Por defecto: Más recientes (usando ID como referencia de creación)
             return b.id.localeCompare(a.id);
         });
 
