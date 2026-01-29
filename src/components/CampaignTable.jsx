@@ -586,11 +586,24 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
         return matchesSearch && matchesStatus && matchesPlatform;
     })
         .sort((a, b) => {
-            if (sortConfig === 'budget_desc') return (b.budget || 0) - (a.budget || 0);
-            if (sortConfig === 'budget_asc') return (a.budget || 0) - (b.budget || 0);
-            // Para 'newest', se debería comparar por fecha si el objeto tiene 'created_at'
-            return 0;
-        })
+            // 1. Obtener valores numéricos limpios para evitar errores con null/undefined
+            const budgetA = parseFloat(a.budget) || 0;
+            const budgetB = parseFloat(b.budget) || 0;
+
+            // 2. Aplicar lógica según el estado de sortConfig
+            if (sortConfig === 'budget_desc') {
+                return budgetB - budgetA; // De mayor a menor 
+            }
+
+            if (sortConfig === 'budget_asc') {
+                return budgetA - budgetB; // De menor a mayor 
+            }
+
+            // 3. Orden por defecto: "newest" (Más recientes)
+            // Asumiendo que las campañas tienen un ID incremental o una fecha
+            // Si tienes un campo 'created_at', cámbialo aquí:
+            return b.id.localeCompare(a.id);
+        });
 
     const totalPages = Math.ceil(filteredCampaigns.length / itemsPerPage);
     const currentItems = filteredCampaigns.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -719,7 +732,10 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                     {/* Ordenar por Presupuesto */}
                     <select
                         value={sortConfig}
-                        onChange={(e) => { setSortConfig(e.target.value); setCurrentPage(1); }}
+                        onChange={(e) => {
+                            setSortConfig(e.target.value);
+                            setCurrentPage(1); // Reiniciar a la página 1 al ordenar [cite: 273]
+                        }}
                         className="px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer shadow-sm min-w-[160px]"
                     >
                         <option value="newest">📅 Más Recientes</option>
