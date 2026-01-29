@@ -586,11 +586,11 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
         return matchesSearch && matchesStatus && matchesPlatform;
     })
         .sort((a, b) => {
-            // 4. Lógica de Ordenamiento
-            if (sortConfig === 'budget_desc') return (b.budget || 0) - (a.budget || 0); // Mayor a menor
-            if (sortConfig === 'budget_asc') return (a.budget || 0) - (b.budget || 0);  // Menor a mayor
-            return 0; // newest por defecto
-        });
+            if (sortConfig === 'budget_desc') return (b.budget || 0) - (a.budget || 0);
+            if (sortConfig === 'budget_asc') return (a.budget || 0) - (b.budget || 0);
+            // Para 'newest', se debería comparar por fecha si el objeto tiene 'created_at'
+            return 0;
+        })
 
     const totalPages = Math.ceil(filteredCampaigns.length / itemsPerPage);
     const currentItems = filteredCampaigns.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
