@@ -29,6 +29,28 @@ const SeoView = ({ rankings, content }) => {
         });
     };
 
+    const handleClearHistory = async () => {
+        Swal.fire({
+            title: '¿Limpiar Historial?',
+            text: 'Esta acción eliminará todos los registros de la tabla de contenido publicado. No se puede deshacer.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, Limpiar Todo',
+            confirmButtonColor: '#ef4444'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    await launchService.clearSeoHistory(basicAuthHeader);
+                    Swal.fire('Limpiado', 'El historial ha sido eliminado.', 'success').then(() => {
+                        window.location.reload(); // Recarga simple para limpiar la vista
+                    });
+                } catch (e) {
+                    Swal.fire('Error', e.message, 'error');
+                }
+            }
+        });
+    };
+
     return (
         <div className="p-2 md:p-6 w-full max-w-full overflow-x-hidden">
             {/* 3. ENCABEZADO SUPERIOR CON EL BOTÓN DE ACCIÓN */}
@@ -37,8 +59,8 @@ const SeoView = ({ rankings, content }) => {
                     <h2 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">Estrategia Orgánica</h2>
                     <p className="text-slate-500 text-sm mt-1">Monitorización de rankings y generación de contenido automático.</p>
                 </div>
-                
-                <button 
+
+                <button
                     onClick={handleForceBoost}
                     className="w-full md:w-auto bg-amber-600 hover:bg-amber-700 text-white px-6 py-3.5 rounded-xl font-bold shadow-lg shadow-amber-900/20 transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
@@ -48,7 +70,7 @@ const SeoView = ({ rankings, content }) => {
 
             {/* 4. GRID DE CONTENIDO - Optimizado para iOS y Mobile */}
             <div className="animate-fade-in-up flex flex-col lg:flex-row gap-8 w-full">
-                
+
                 {/* COLUMNA IZQUIERDA: RANKINGS */}
                 {/* CAMBIO: Se elimina h-[600px] y se usa min-h para evitar colapsos en Safari */}
                 <div className="flex-1 w-full bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col min-h-[450px] h-auto">
@@ -63,8 +85,18 @@ const SeoView = ({ rankings, content }) => {
                 {/* COLUMNA DERECHA: CONTENIDO */}
                 {/* CAMBIO: Se elimina h-[600px] para permitir que iOS maneje el scroll natural del dispositivo */}
                 <div className="flex-1 w-full bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col min-h-[450px] h-auto">
-                    <h3 className="text-lg md:text-xl font-bold text-slate-800 mb-6 flex items-center gap-2 border-b border-slate-50 pb-4 shrink-0">
-                        <span className="text-xl">📝</span> Contenido Publicado
+                    <h3 className="text-lg md:text-xl font-bold text-slate-800 mb-6 flex items-center justify-between border-b border-slate-50 pb-4 shrink-0">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xl">📝</span> Contenido Publicado
+                        </div>
+                        {content && content.length > 0 && (
+                            <button
+                                onClick={handleClearHistory}
+                                className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors uppercase tracking-wider"
+                            >
+                                🗑️ Limpiar Historial
+                            </button>
+                        )}
                     </h3>
                     <div className="flex-1 overflow-visible md:overflow-y-auto rounded-xl">
                         <ContentTable content={content} />
