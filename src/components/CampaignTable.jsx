@@ -796,7 +796,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                         <option value="spend_desc">📈 Mayor Gasto Real</option>
                         <option value="spend_asc">📉 Menor Gasto Real</option>
                     </select>
-                    {/* Dentro de la barra de herramientas, junto a los selectores */}
+                    {/* Botones administrativos ocultos temporalmente 
                     <button
                         onClick={handleFixLinkedInBids}
                         className="flex items-center gap-2 px-4 py-2.5 bg-sky-50 text-sky-700 border border-sky-200 rounded-lg hover:bg-sky-100 transition-all font-bold text-xs shadow-sm"
@@ -809,6 +809,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                     >
                         <span>🎯 Targeting LinkedIn</span>
                     </button>
+                    */}
                 </div>
             </div>
 
