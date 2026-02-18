@@ -17,7 +17,7 @@ import SystemLogs from './SystemLogs';
 import LaunchView from '@/views/LaunchView';
 
 const AdminDashboard = () => {
-    const [days, setDays] = useState(null); // Estado para filtrar por periodo
+    const [days, setDays] = useState('30'); // Estado para filtrar por periodo (30 días por defecto)
     const { data, loading, error, refresh } = useDashboardData(days);
     const { basicAuthHeader, isAuthenticated, logout } = useContext(AuthContext);
 
@@ -101,7 +101,8 @@ const AdminDashboard = () => {
 
     if (!isAuthenticated) return null;
 
-    if (loading) return (
+    // Solo mostramos pantalla de carga si NO hay datos previos (Evita parpadeos al filtrar)
+    if (loading && !data) return (
         <div className="h-screen flex justify-center items-center bg-slate-50 text-slate-400 text-xl font-medium">
             <div className="animate-pulse">Cargando Sistema...</div>
         </div>
