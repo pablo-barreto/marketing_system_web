@@ -190,8 +190,8 @@ const OverviewView = ({ data, days, setDays }) => {
                         <div className="relative w-full sm:w-48">
                             <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">📅</span>
                             <select
-                                value={days || 'all'}
-                                onChange={(e) => setDays(e.target.value === 'all' ? null : e.target.value)}
+                                value={days || '30'}
+                                onChange={(e) => setDays(e.target.value === '30' ? null : e.target.value)}
                                 className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all appearance-none"
                             >
                                 <option value="all">Historico Total</option>
