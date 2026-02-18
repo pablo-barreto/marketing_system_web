@@ -13,15 +13,14 @@ const normalizeImagePath = (path) => {
     // 1. Si es nulo o vacío, devolver imagen por defecto
     if (!path) return '/static/images/default.jpg';
 
-    // 2. Si es una URL de Google Cloud Storage (o cualquier nube), devolverla intacta
-    // Tu URL ejemplo: "https://storage.googleapis.com/..." entra aquí y retorna directo.
+    // 2. Si es una URL absoluta (ya en la nube), devolverla intacta
     if (path.startsWith('http')) return path;
 
-    // 3. Si es local antigua, limpiar las barras invertidas de Windows (\)
+    // 3. Si es local o relativa, extraer el nombre y apuntar a GCS
     const filename = path.replace(/\\/g, '/').split('/').pop();
 
-    // 4. Construir la URL final apuntando a tu servidor local
-    return `${URL_IMAGES}/static/images/uploads/${filename}`;
+    // 4. Retornar URL directa a Google Cloud Storage
+    return `https://storage.googleapis.com/marketing-system-assets-prod/uploads/${filename}`;
 };
 
 // =============================================================================

@@ -21,8 +21,12 @@ const GalleryView = ({ config }) => {
     const normalizeImagePath = (path) => {
         if (!path) return '/static/images/default.jpg';
         if (path.startsWith('http')) return path;
+
+        // Extraer solo el nombre del archivo (para manejar rutas de Windows o relativas)
         const filename = path.replace(/\\/g, '/').split('/').pop();
-        return `${URL_IMAGES}/static/images/uploads/${filename}`;
+
+        // Apuntar directamente al bucket de Google Cloud Storage
+        return `https://storage.googleapis.com/marketing-system-assets-prod/uploads/${filename}`;
     };
 
     const loadImages = async () => {
