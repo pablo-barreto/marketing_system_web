@@ -12,7 +12,7 @@ const LaunchView = ({ crmData }) => {
   // -----------------------------------------------------------------------
   // 1. LÓGICA DE INTELIGENCIA DE DATOS (CRM)
   // -----------------------------------------------------------------------
-  
+
   // A. Obtener lista única de todos los roles disponibles para el selector manual
   const availableRoles = useMemo(() => {
     if (!crmData) return [];
@@ -21,36 +21,36 @@ const LaunchView = ({ crmData }) => {
       // Filtramos nulos, vacíos y roles genéricos que no sirven para segmentar
       .filter(role => role && role.trim().length > 2 && !['visitante', 'desconocido', 'n/a', 'otro'].includes(role.toLowerCase()))
       .map(role => role.trim());
-      
+
     // Retornamos lista única ordenada alfabéticamente
-    return [...new Set(roles)].sort(); 
+    return [...new Set(roles)].sort();
   }, [crmData]);
 
   // B. Calcular automáticamente el TOP 5 de roles más frecuentes (Para modo automático)
   const topRolesDetected = useMemo(() => {
     if (!crmData) return [];
-    
+
     const counts = {};
     crmData.forEach(lead => {
-        const r = lead.role?.trim();
-        if (r && r.length > 2 && !['visitante', 'desconocido', 'otro'].includes(r.toLowerCase())) {
-            counts[r] = (counts[r] || 0) + 1;
-        }
+      const r = lead.role?.trim();
+      if (r && r.length > 2 && !['visitante', 'desconocido', 'otro'].includes(r.toLowerCase())) {
+        counts[r] = (counts[r] || 0) + 1;
+      }
     });
 
     // Ordenamos por frecuencia (Mayor a menor) y tomamos los 5 primeros
     return Object.entries(counts)
-        .sort((a, b) => b[1] - a[1]) 
-        .slice(0, 5) 
-        .map(entry => entry[0]); 
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(entry => entry[0]);
   }, [crmData]);
 
   // Métricas rápidas para el Dashboard
   // Lógica Estricta de Crisis: Solo cuenta si menciona palabras clave de riesgo
   const urgentLeads = crmData?.filter(l => {
-      const keywords = ['embargo', 'dian', 'sancion', 'multa', 'urgente', 'tributaria'];
-      const interest = (l.service_interest || '').toLowerCase();
-      return keywords.some(k => interest.includes(k));
+    const keywords = ['embargo', 'dian', 'sancion', 'multa', 'urgente', 'tributaria'];
+    const interest = (l.service_interest || '').toLowerCase();
+    return keywords.some(k => interest.includes(k));
   }).length || 0;
 
   const generalLeads = (crmData?.length || 0) - urgentLeads;
@@ -67,17 +67,17 @@ const LaunchView = ({ crmData }) => {
       formData.append('image', file);
       formData.append('title', title);
       formData.append('context', 'seminario');
-      
+
       // Enviamos la configuración de segmentación al Backend
       formData.append('segmentation_mode', mode); // 'all', 'top_roles', 'specific'
       formData.append('budget', budget); // <--- NUEVO: Presupuesto
-      
+
       if (mode === 'specific' && roles) {
-          formData.append('target_roles', roles);
+        formData.append('target_roles', roles);
       }
 
       const res = await launchService.executeGlobalLaunch(formData, basicAuthHeader);
-      
+
       // Construimos un mensaje de éxito detallado
       let successMsg = `Se impactaron ${res.leads_impacted || 'múltiples'} leads.`;
       if (res.segment === 'top_roles') successMsg += ` Roles Top: [${res.roles_targeted?.join(', ')}]`;
@@ -99,10 +99,10 @@ const LaunchView = ({ crmData }) => {
   // B. Sincronización de Lookalikes (CON REPORTE DETALLADO VISUAL)
   const handleSyncLookalikes = async () => {
     // 1. Mostrar estado de carga
-    Swal.fire({ 
-        title: 'Analizando Base de Datos...', 
-        text: 'Filtrando clientes de alto valor (Gerentes, Score > 60)...',
-        didOpen: () => Swal.showLoading() 
+    Swal.fire({
+      title: 'Analizando Base de Datos...',
+      text: 'Filtrando clientes de alto valor (Gerentes, Score > 60)...',
+      didOpen: () => Swal.showLoading()
     });
 
     try {
@@ -156,21 +156,21 @@ const LaunchView = ({ crmData }) => {
       </div>
 
       {/* Dashboard de Métricas de Intención */}
-      <IntentDashboard 
+      <IntentDashboard
         urgentCount={urgentLeads}
         generalCount={generalLeads}
         onSyncLookalikes={handleSyncLookalikes}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
+
         {/* COMPONENTE PRINCIPAL DE LANZAMIENTO */}
         {/* Le pasamos los datos calculados (availableRoles y topRoles) */}
-        <GlobalLauncherUI 
-          onLaunch={handleGlobalLaunch} 
-          isProcessing={loading} 
-          availableRoles={availableRoles} 
-          topRoles={topRolesDetected}      
+        <GlobalLauncherUI
+          onLaunch={handleGlobalLaunch}
+          isProcessing={loading}
+          availableRoles={availableRoles}
+          topRoles={topRolesDetected}
         />
 
         {/* Panel Informativo Lateral */}
@@ -180,19 +180,19 @@ const LaunchView = ({ crmData }) => {
             <li className="flex gap-3">
               <span className="text-emerald-500 font-bold text-lg">🌍</span>
               <div>
-                  <strong>Masivo (All):</strong> Impacta a toda la base de datos histórica. Ideal para branding general.
+                <strong>Masivo (All):</strong> Impacta a toda la base de datos histórica. Ideal para branding general.
               </div>
             </li>
             <li className="flex gap-3">
               <span className="text-amber-500 font-bold text-lg">🏆</span>
               <div>
-                  <strong>Top Roles (IA):</strong> El sistema detecta automáticamente los 5 cargos más frecuentes y lanza solo a ellos.
+                <strong>Top Roles (IA):</strong> El sistema detecta automáticamente los 5 cargos más frecuentes y lanza solo a ellos.
               </div>
             </li>
             <li className="flex gap-3">
               <span className="text-blue-500 font-bold text-lg">🎯</span>
               <div>
-                  <strong>Específico:</strong> Selección quirúrgica manual. Usa el buscador para elegir cargos exactos.
+                <strong>Específico:</strong> Selección quirúrgica manual. Usa el buscador para elegir cargos exactos.
               </div>
             </li>
           </ul>

@@ -4,7 +4,7 @@ import StatusBadge from './StatusBadge';
 import Swal from 'sweetalert2';
 import AudienceModal from './AudienceModal';
 import { URL_IMAGES, API_BASE_URL } from '../app/config';
-import { campaignService } from '../services/api';
+import { campaignService, launchService } from '../services/api';
 
 // =============================================================================
 // HELPER: NORMALIZADOR DE IMÁGENES (Soporta GCS y Local Windows/Linux)
@@ -601,6 +601,64 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
     const totalPages = Math.ceil(filteredCampaigns.length / itemsPerPage);
     const currentItems = filteredCampaigns.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+    const handleFixLinkedInBids = async () => {
+        const result = await Swal.fire({
+            title: 'Reparar LinkedIn',
+            text: '¿Deseas ajustar las pujas de todas las campañas de LinkedIn a $4.500 COP?',
+            icon: 'info',
+            showCancelButton: true,
+            confirmButtonColor: '#0077b5',
+            confirmButtonText: 'Sí, reparar ahora'
+        });
+
+        if (result.isConfirmed) {
+            Swal.fire({ title: 'Procesando...', didOpen: () => Swal.showLoading() });
+            try {
+                const token = getAuthToken();
+                const res = await launchService.fixLinkedInBids(token);
+                Swal.fire('Completado', `Se repararon ${res.fixed || 0} campañas.`, 'success');
+            } catch (error) {
+                Swal.fire('Error', error.message, 'error');
+            }
+        }
+    };
+
+    const handleFixLinkedInTargeting = async () => {
+        const result = await Swal.fire({
+            title: '🎯 Corregir Targeting LinkedIn',
+            html: `
+                <p class="text-sm text-slate-600 mb-3">Esto actualizará el geo-targeting de TODAS las campañas LinkedIn.</p>
+                <p class="text-xs text-slate-400">Países por defecto: CO, MX, PE, CL, EC, AR, PA</p>
+            `,
+            icon: 'info',
+            showCancelButton: true,
+            confirmButtonColor: '#0077b5',
+            confirmButtonText: 'Actualizar Targeting',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (result.isConfirmed) {
+            Swal.fire({ title: 'Actualizando targeting...', text: 'Esto puede tomar unos segundos...', didOpen: () => Swal.showLoading() });
+            try {
+                const token = getAuthToken();
+                const res = await launchService.fixLinkedInTargeting(token);
+                Swal.fire({
+                    title: '✅ Targeting Actualizado',
+                    html: `
+                        <div class="text-sm text-left">
+                            <p><strong>Campañas corregidas:</strong> ${res.details?.fixed || 0}</p>
+                            <p><strong>Errores:</strong> ${res.details?.errors || 0}</p>
+                            <p class="mt-2 text-xs text-slate-500">Países: ${res.details?.countries?.join(', ') || 'Por defecto'}</p>
+                        </div>
+                    `,
+                    icon: 'success'
+                });
+            } catch (error) {
+                Swal.fire('Error', error.message, 'error');
+            }
+        }
+    };
+
     // =========================================================================
     // VISTA MÓVIL OPTIMIZADA
     // =============================================================================
@@ -720,6 +778,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                         <option value="paused">⏸️ Pausados</option>
                         <option value="pending_approval">⏳ Pendientes</option>
                         <option value="with_issues">⚠️ Con Errores</option>
+                        <option value="deleted">🗑️ Eliminadas</option>
                     </select>
 
                     {/* Ordenar por Presupuesto */}
@@ -738,6 +797,19 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                         <option value="spend_desc">📈 Mayor Gasto Real</option>
                         <option value="spend_asc">📉 Menor Gasto Real</option>
                     </select>
+                    {/* Dentro de la barra de herramientas, junto a los selectores */}
+                    <button
+                        onClick={handleFixLinkedInBids}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-sky-50 text-sky-700 border border-sky-200 rounded-lg hover:bg-sky-100 transition-all font-bold text-xs shadow-sm"
+                    >
+                        <span>🛠️ Reparar Pujas</span>
+                    </button>
+                    <button
+                        onClick={handleFixLinkedInTargeting}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-all font-bold text-xs shadow-sm"
+                    >
+                        <span>🎯 Targeting LinkedIn</span>
+                    </button>
                 </div>
             </div>
 
