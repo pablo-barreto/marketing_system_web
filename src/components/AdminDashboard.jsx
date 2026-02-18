@@ -17,7 +17,8 @@ import SystemLogs from './SystemLogs';
 import LaunchView from '@/views/LaunchView';
 
 const AdminDashboard = () => {
-    const { data, loading, error, refresh } = useDashboardData();
+    const [days, setDays] = useState(null); // Estado para filtrar por periodo
+    const { data, loading, error, refresh } = useDashboardData(days);
     const { basicAuthHeader, isAuthenticated, logout } = useContext(AuthContext);
 
     // Estados de UI
@@ -118,7 +119,7 @@ const AdminDashboard = () => {
     const renderContent = () => {
         const config = data?.business_config || { lead_value: 15, min_daily_budget: 20000, default_budget: 50000 };
         switch (activeView) {
-            case 'overview': return <OverviewView data={data} />;
+            case 'overview': return <OverviewView data={data} days={days} setDays={setDays} />;
             case 'campaigns': return <CampaignsView campaigns={data.campaigns} isCreating={isCreating} availableServices={availableServices} selectedService={selectedService} setSelectedService={setSelectedService} selectedPlatform={selectedPlatform} setSelectedPlatform={setSelectedPlatform} handleCreateOnDemand={handleCreateOnDemand} handleApprove={handleApprove} config={config} />;
             case 'launch': return <LaunchView crmData={data.crm_leads} />;
             case 'seo': return <SeoView rankings={data.seo_rankings} content={data.published_content} />;

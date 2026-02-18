@@ -13,9 +13,9 @@ const Icons = {
     Globe: () => <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
 };
 
-const OverviewView = ({ data }) => {
+const OverviewView = ({ data, days, setDays }) => {
     const [selectedTraffic, setSelectedTraffic] = useState(null);
-    
+
     // --- ESTADOS DE TABLA (Filtro, Orden, Paginación) ---
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: 'total_visits', direction: 'desc' });
@@ -28,22 +28,22 @@ const OverviewView = ({ data }) => {
         const aggregationMap = data.service_visits.reduce((acc, curr) => {
             const normalizedName = curr.service_name.toUpperCase().replace(/-/g, ' ').trim();
             if (!acc[normalizedName]) {
-                acc[normalizedName] = { total_visits: 0, commercial_visits: 0, blog_visits: 0, visitors: [] }; 
+                acc[normalizedName] = { total_visits: 0, commercial_visits: 0, blog_visits: 0, visitors: [] };
             }
             acc[normalizedName].total_visits += curr.total_visits;
-            acc[normalizedName].commercial_visits += (curr.commercial_visits || 0); 
+            acc[normalizedName].commercial_visits += (curr.commercial_visits || 0);
             acc[normalizedName].blog_visits += (curr.blog_visits || 0);
             if (curr.visitors && Array.isArray(curr.visitors)) {
                 acc[normalizedName].visitors = [...acc[normalizedName].visitors, ...curr.visitors];
             }
             return acc;
         }, {});
-        return Object.entries(aggregationMap).map(([name, obj]) => ({ 
-            service_name: name, 
+        return Object.entries(aggregationMap).map(([name, obj]) => ({
+            service_name: name,
             total_visits: obj.total_visits,
-            commercial_visits: obj.commercial_visits, 
+            commercial_visits: obj.commercial_visits,
             blog_visits: obj.blog_visits,
-            visitors: obj.visitors 
+            visitors: obj.visitors
         }));
     }, [data.service_visits]);
 
@@ -174,7 +174,7 @@ const OverviewView = ({ data }) => {
 
             {/* --- SECCIÓN DE TRÁFICO (TABLA COMPLETA CON PAGINACIÓN) --- */}
             <div className="w-full bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-8">
-                
+
                 {/* Cabecera + Buscador */}
                 <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-50 gap-4">
                     <div>
@@ -186,15 +186,32 @@ const OverviewView = ({ data }) => {
                         </p>
                     </div>
 
-                    <div className="relative w-full sm:w-64">
-                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">🔍</span>
-                        <input
-                            type="text"
-                            placeholder="Buscar servicio..."
-                            value={searchTerm}
-                            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                            className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all"
-                        />
+                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                        <div className="relative w-full sm:w-48">
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">📅</span>
+                            <select
+                                value={days || 'all'}
+                                onChange={(e) => setDays(e.target.value === 'all' ? null : e.target.value)}
+                                className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all appearance-none"
+                            >
+                                <option value="all">Historico Total</option>
+                                <option value="1">Hoy</option>
+                                <option value="7">Últimos 7 días</option>
+                                <option value="30">Últimos 30 días</option>
+                                <option value="90">Tres meses</option>
+                            </select>
+                        </div>
+
+                        <div className="relative w-full sm:w-64">
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">🔍</span>
+                            <input
+                                type="text"
+                                placeholder="Buscar servicio..."
+                                value={searchTerm}
+                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                                className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all"
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -225,8 +242,8 @@ const OverviewView = ({ data }) => {
                         <tbody className="divide-y divide-slate-50 text-sm">
                             {currentItems.length > 0 ? (
                                 currentItems.map((svc) => (
-                                    <tr 
-                                        key={svc.service_name} 
+                                    <tr
+                                        key={svc.service_name}
                                         className="hover:bg-slate-50 transition-colors cursor-pointer group"
                                         onClick={() => setSelectedTraffic(svc)}
                                     >
@@ -265,9 +282,9 @@ const OverviewView = ({ data }) => {
                     <div className="bg-white px-4 py-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
                             <span>Filas:</span>
-                            <select 
-                                value={itemsPerPage} 
-                                onChange={handlePageSizeChange} 
+                            <select
+                                value={itemsPerPage}
+                                onChange={handlePageSizeChange}
                                 className="bg-white border border-slate-300 text-slate-700 text-xs rounded focus:ring-blue-500 p-1 cursor-pointer outline-none"
                             >
                                 <option value={10}>10</option>
@@ -281,16 +298,16 @@ const OverviewView = ({ data }) => {
                                 {currentPage} de {totalPages} pág
                             </span>
                             <div className="flex gap-2">
-                                <button 
-                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
-                                    disabled={currentPage === 1} 
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
                                     className="px-3 py-1.5 border border-slate-300 bg-white rounded text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
                                     Anterior
                                 </button>
-                                <button 
-                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
-                                    disabled={currentPage === totalPages} 
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages}
                                     className="px-3 py-1.5 border border-slate-300 bg-white rounded text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
                                     Siguiente
@@ -308,10 +325,10 @@ const OverviewView = ({ data }) => {
 
             {/* MODAL */}
             {selectedTraffic && (
-                <ServiceTrafficModal 
+                <ServiceTrafficModal
                     serviceName={selectedTraffic.service_name}
-                    visitors={selectedTraffic.visitors || []} 
-                    onClose={() => setSelectedTraffic(null)} 
+                    visitors={selectedTraffic.visitors || []}
+                    onClose={() => setSelectedTraffic(null)}
                 />
             )}
 

@@ -6,12 +6,12 @@ import { API_BASE_URL, ADMIN_PANEL_ENDPOINT } from '../app/config';
 // Función fetcher genérica
 const fetcher = async (url, token) => {
     const res = await fetch(url, {
-        headers: { 
+        headers: {
             'Authorization': token,
             'Content-Type': 'application/json'
         }
     });
-    
+
     if (!res.ok) {
         const error = new Error('Error al cargar datos');
         error.status = res.status;
@@ -20,17 +20,20 @@ const fetcher = async (url, token) => {
     return res.json();
 };
 
-export function useDashboardData() {
+export function useDashboardData(days = null) {
     const { basicAuthHeader } = useContext(AuthContext);
 
-    const { data, error, isLoading, mutate } = useSWR( // Importante: desestructurar mutate aquí también
-        basicAuthHeader ? [`${API_BASE_URL}${ADMIN_PANEL_ENDPOINT}`, basicAuthHeader] : null,
-        ([url, token]) => fetcher(url, token),
+    const { data, error, isLoading, mutate } = useSWR(
+        basicAuthHeader ? [`${API_BASE_URL}${ADMIN_PANEL_ENDPOINT}`, basicAuthHeader, days] : null,
+        ([url, token, d]) => {
+            const finalUrl = d ? `${url}?days=${d}` : url;
+            return fetcher(finalUrl, token);
+        },
         {
-            refreshInterval: 5000, // CAMBIO: Bajar a 10s para ver cambios externos más rápido
-            revalidateOnFocus: true, // Si cambias de pestaña y vuelves, refresca inmediato
+            refreshInterval: 10000,
+            revalidateOnFocus: true,
             dedupingInterval: 2000,
-            keepPreviousData: true   // Evita parpadeos de carga mientras refresca
+            keepPreviousData: true
         }
     );
 
@@ -39,6 +42,6 @@ export function useDashboardData() {
         loading: isLoading,
         error,
         // Exponemos la función mutate directa para actualizaciones instantáneas
-        refresh: () => mutate() 
+        refresh: () => mutate()
     };
 }
