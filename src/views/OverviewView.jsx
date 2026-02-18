@@ -13,7 +13,7 @@ const Icons = {
     Globe: () => <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
 };
 
-const OverviewView = ({ data, days, setDays }) => {
+const OverviewView = ({ data, days, setDays, loading }) => {
     const [selectedTraffic, setSelectedTraffic] = useState(null);
 
     // --- ESTADOS DE TABLA (Filtro, Orden, Paginación) ---
@@ -180,6 +180,7 @@ const OverviewView = ({ data, days, setDays }) => {
                     <div>
                         <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                             <span className="text-xl">📊</span> Desglose de Tráfico por Tipo
+                            {loading && <span className="ml-2 w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></span>}
                         </h3>
                         <p className="text-sm text-slate-500 mt-1">
                             Análisis detallado: Ventas vs. Blogs Educativos.
@@ -215,7 +216,7 @@ const OverviewView = ({ data, days, setDays }) => {
                     </div>
                 </div>
 
-                <div className="overflow-x-auto w-full">
+                <div className={`overflow-x-auto w-full transition-opacity duration-300 ${loading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr className="text-xs font-bold text-slate-500 uppercase bg-white border-b border-slate-100">
