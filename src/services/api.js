@@ -147,5 +147,18 @@ export const launchService = {
     });
     if (!response.ok) throw new Error('Error al actualizar targeting');
     return response.json();
+  },
+
+  // 6. Limpiar historial de contenido SEO publicado
+  clearSeoHistory: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/clear-seo-history`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': token,
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!response.ok) throw new Error('Error al limpiar el historial SEO');
+    return response.json();
   }
 };
