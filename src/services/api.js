@@ -109,6 +109,33 @@ export const launchService = {
     return response.json();
   },
 
+  // 2b. Ranking Check Manual
+  triggerRankingCheck: async (scope, token) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/seo/manual-ranking-check`, {
+      method: 'POST',
+      headers: {
+        'Authorization': token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ scope })
+    });
+    if (!response.ok) throw new Error('Error al iniciar verificación de rankings');
+    return response.json();
+  },
+
+  // 2c. Scraping Manual de Servicios
+  triggerScraping: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/manual-scraping`, {
+      method: 'POST',
+      headers: {
+        'Authorization': token,
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!response.ok) throw new Error('Error al iniciar scraping');
+    return response.json();
+  },
+
   // 3. Sincronizar Lookalikes (Gemelos) [3]
   syncLookalikes: async (token) => {
     const response = await fetch(`${API_BASE_URL}/api/v1/audiences/sync-lookalikes`, {

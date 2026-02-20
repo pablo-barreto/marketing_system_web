@@ -29,6 +29,53 @@ const SeoView = ({ rankings, content }) => {
         });
     };
 
+    const handleRankingCheck = async () => {
+        const { value: scope } = await Swal.fire({
+            title: '🔍 Verificar Rankings',
+            text: '¿Qué alcance deseas verificar?',
+            icon: 'question',
+            input: 'select',
+            inputOptions: {
+                'national': '🇨🇴 Nacional (Colombia)',
+                'international': '🌍 Internacional',
+                'all': '🌐 Todos'
+            },
+            inputValue: 'all',
+            showCancelButton: true,
+            confirmButtonText: 'Verificar',
+            confirmButtonColor: '#2563eb'
+        });
+
+        if (scope) {
+            try {
+                await launchService.triggerRankingCheck(scope, basicAuthHeader);
+                Swal.fire('Iniciado', `Verificación de rankings (${scope}) ejecutándose en segundo plano. Recibirás una notificación al finalizar.`, 'success');
+            } catch (e) {
+                Swal.fire('Error', e.message, 'error');
+            }
+        }
+    };
+
+    const handleScraping = async () => {
+        Swal.fire({
+            title: '📡 Sincronizar Servicios',
+            text: 'Se revisará tu sitio web para actualizar la lista de servicios en la base de datos.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sincronizar',
+            confirmButtonColor: '#059669'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    await launchService.triggerScraping(basicAuthHeader);
+                    Swal.fire('Iniciado', 'Sincronización de servicios en segundo plano. Recibirás una notificación al finalizar.', 'success');
+                } catch (e) {
+                    Swal.fire('Error', e.message, 'error');
+                }
+            }
+        });
+    };
+
     const handleClearHistory = async () => {
         Swal.fire({
             title: '¿Limpiar Historial?',
@@ -42,7 +89,7 @@ const SeoView = ({ rankings, content }) => {
                 try {
                     await launchService.clearSeoHistory(basicAuthHeader);
                     Swal.fire('Limpiado', 'El historial ha sido eliminado.', 'success').then(() => {
-                        window.location.reload(); // Recarga simple para limpiar la vista
+                        window.location.reload();
                     });
                 } catch (e) {
                     Swal.fire('Error', e.message, 'error');
@@ -53,26 +100,41 @@ const SeoView = ({ rankings, content }) => {
 
     return (
         <div className="p-2 md:p-6 w-full max-w-full overflow-x-hidden">
-            {/* 3. ENCABEZADO SUPERIOR CON EL BOTÓN DE ACCIÓN */}
+            {/* ENCABEZADO SUPERIOR CON BOTONES DE ACCIÓN */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6">
                 <div className="text-center md:text-left">
                     <h2 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">Estrategia Orgánica</h2>
                     <p className="text-slate-500 text-sm mt-1">Monitorización de rankings y generación de contenido automático.</p>
                 </div>
 
-                <button
-                    onClick={handleForceBoost}
-                    className="w-full md:w-auto bg-amber-600 hover:bg-amber-700 text-white px-6 py-3.5 rounded-xl font-bold shadow-lg shadow-amber-900/20 transition-all active:scale-95 flex items-center justify-center gap-2"
-                >
-                    <span>⚡ Force SEO Boost</span>
-                </button>
+                <div className="flex flex-wrap gap-2 justify-center md:justify-end">
+                    <button
+                        onClick={handleRankingCheck}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-bold shadow-lg shadow-blue-900/20 transition-all active:scale-95 flex items-center gap-2 text-sm"
+                    >
+                        <span>🔍 Verificar Rankings</span>
+                    </button>
+
+                    <button
+                        onClick={handleScraping}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-xl font-bold shadow-lg shadow-emerald-900/20 transition-all active:scale-95 flex items-center gap-2 text-sm"
+                    >
+                        <span>📡 Sync Servicios</span>
+                    </button>
+
+                    <button
+                        onClick={handleForceBoost}
+                        className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-3 rounded-xl font-bold shadow-lg shadow-amber-900/20 transition-all active:scale-95 flex items-center gap-2 text-sm"
+                    >
+                        <span>⚡ Force SEO Boost</span>
+                    </button>
+                </div>
             </div>
 
-            {/* 4. GRID DE CONTENIDO - Optimizado para iOS y Mobile */}
+            {/* GRID DE CONTENIDO */}
             <div className="animate-fade-in-up flex flex-col lg:flex-row gap-8 w-full">
 
                 {/* COLUMNA IZQUIERDA: RANKINGS */}
-                {/* CAMBIO: Se elimina h-[600px] y se usa min-h para evitar colapsos en Safari */}
                 <div className="flex-1 w-full bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col min-h-[450px] h-auto">
                     <h3 className="text-lg md:text-xl font-bold text-slate-800 mb-6 flex items-center gap-2 border-b border-slate-50 pb-4 shrink-0">
                         <span className="text-xl">🌍</span> Rankings Internacionales
@@ -83,7 +145,6 @@ const SeoView = ({ rankings, content }) => {
                 </div>
 
                 {/* COLUMNA DERECHA: CONTENIDO */}
-                {/* CAMBIO: Se elimina h-[600px] para permitir que iOS maneje el scroll natural del dispositivo */}
                 <div className="flex-1 w-full bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col min-h-[450px] h-auto">
                     <h3 className="text-lg md:text-xl font-bold text-slate-800 mb-6 flex items-center justify-between border-b border-slate-50 pb-4 shrink-0">
                         <div className="flex items-center gap-2">
