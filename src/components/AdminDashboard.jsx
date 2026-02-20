@@ -14,6 +14,7 @@ import GalleryView from '../views/GalleryView';
 
 // Importar componente de Logs
 import SystemLogs from './SystemLogs';
+import NotificationToast from './NotificationToast';
 import LaunchView from '@/views/LaunchView';
 
 const AdminDashboard = () => {
@@ -135,6 +136,9 @@ const AdminDashboard = () => {
 
             {/* --- 1. VENTANA FLOTANTE DE LOGS (GLOBAL) --- */}
             <SystemLogs isOpen={showLogs} onClose={() => setShowLogs(false)} />
+
+            {/* --- NOTIFICACIONES TOAST (POPUP TIPO CELULAR) --- */}
+            <NotificationToast notifications={data?.notifications || []} />
 
             {/* Overlay Móvil */}
             {isMobileMenuOpen && (

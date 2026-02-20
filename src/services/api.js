@@ -1,5 +1,5 @@
 // src/services/api.js
-import { API_BASE_URL, ADMIN_PANEL_ENDPOINT } from '../app/config';
+import { API_BASE_URL, ADMIN_PANEL_ENDPOINT, MARK_READ_ENDPOINT } from '../app/config';
 
 export const campaignService = {
   approve: async (campaignId, token) => {
@@ -159,6 +159,20 @@ export const launchService = {
       }
     });
     if (!response.ok) throw new Error('Error al limpiar el historial SEO');
+    return response.json();
+  }
+};
+
+export const notificationService = {
+  markAsRead: async (notificationId, token) => {
+    const response = await fetch(`${API_BASE_URL}${MARK_READ_ENDPOINT}/${notificationId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': token,
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!response.ok) throw new Error('Error al marcar notificación como leída');
     return response.json();
   }
 };
