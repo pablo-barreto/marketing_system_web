@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { notificationService } from '../services/api';
+import { API_BASE_URL, NOTIFICATIONS_ENDPOINT } from '../app/config';
 
 // Íconos por tipo de notificación
 const NOTIFICATION_ICONS = {
@@ -27,6 +28,7 @@ const NOTIFICATION_COLORS = {
 
 const AUTO_DISMISS_MS = 6000;
 const MAX_VISIBLE_TOASTS = 3;
+const POLL_INTERVAL_MS = 10000; // Polling cada 10 segundos
 
 // ─── TOAST INDIVIDUAL ────────────────────────────────────────
 const Toast = ({ notification, onDismiss }) => {
@@ -122,29 +124,61 @@ const Toast = ({ notification, onDismiss }) => {
     );
 };
 
-// ─── CONTENEDOR DE TOASTS ────────────────────────────────────
-const NotificationToast = ({ notifications = [] }) => {
+// ─── CONTENEDOR AUTOCONTENIDO CON POLLING DIRECTO ────────────
+const NotificationToast = () => {
     const { basicAuthHeader } = useContext(AuthContext);
     const [visibleToasts, setVisibleToasts] = useState([]);
     const seenIdsRef = useRef(new Set());
+    const initialLoadDone = useRef(false);
 
-    // Detectar NUEVAS notificaciones comparando con las ya vistas
+    // Polling directo con setInterval + fetch (sin SWR, sin caching)
     useEffect(() => {
-        if (!notifications || notifications.length === 0) return;
+        if (!basicAuthHeader) return;
 
-        const newOnes = notifications.filter(n => !seenIdsRef.current.has(n.id));
+        const fetchNotifications = async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}${NOTIFICATIONS_ENDPOINT}`, {
+                    headers: {
+                        'Authorization': basicAuthHeader,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                if (!res.ok) return;
+                const notifications = await res.json();
 
-        if (newOnes.length > 0) {
-            // Registrar como vistas
-            newOnes.forEach(n => seenIdsRef.current.add(n.id));
+                if (!notifications || notifications.length === 0) return;
 
-            // Agregar al stack (máximo MAX_VISIBLE_TOASTS)
-            setVisibleToasts(prev => {
-                const updated = [...newOnes.slice(0, MAX_VISIBLE_TOASTS), ...prev];
-                return updated.slice(0, MAX_VISIBLE_TOASTS);
-            });
-        }
-    }, [notifications]);
+                // Primera carga: solo registrar IDs existentes sin mostrar toasts
+                // (evita mostrar todas las notificaciones antiguas al abrir la página)
+                if (!initialLoadDone.current) {
+                    notifications.forEach(n => seenIdsRef.current.add(n.id));
+                    initialLoadDone.current = true;
+                    return;
+                }
+
+                // Detectar NUEVAS notificaciones (que no hemos visto antes)
+                const newOnes = notifications.filter(n => !seenIdsRef.current.has(n.id));
+
+                if (newOnes.length > 0) {
+                    newOnes.forEach(n => seenIdsRef.current.add(n.id));
+                    setVisibleToasts(prev => {
+                        const updated = [...newOnes.slice(0, MAX_VISIBLE_TOASTS), ...prev];
+                        return updated.slice(0, MAX_VISIBLE_TOASTS);
+                    });
+                }
+            } catch (err) {
+                // Silenciar errores de red — no interrumpir la UI
+            }
+        };
+
+        // Fetch inmediato al montar (para registrar IDs existentes)
+        fetchNotifications();
+
+        // Polling cada 10 segundos
+        const interval = setInterval(fetchNotifications, POLL_INTERVAL_MS);
+
+        return () => clearInterval(interval);
+    }, [basicAuthHeader]);
 
     // Dismiss: quitar del stack visual + marcar como leída en backend
     const handleDismiss = useCallback(async (notificationId) => {

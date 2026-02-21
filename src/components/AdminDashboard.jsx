@@ -14,14 +14,12 @@ import GalleryView from '../views/GalleryView';
 
 import SystemLogs from './SystemLogs';
 import NotificationToast from './NotificationToast';
-import { useNotifications } from '../hooks/useNotifications';
 import LaunchView from '@/views/LaunchView';
 
 const AdminDashboard = () => {
     const [days, setDays] = useState('30'); // Estado para filtrar por periodo (30 días por defecto)
     const { data, loading, error, refresh } = useDashboardData(days);
     const { basicAuthHeader, isAuthenticated, logout } = useContext(AuthContext);
-    const notifications = useNotifications();
 
     // Estados de UI
     const [activeView, setActiveView] = useState(() => {
@@ -139,7 +137,7 @@ const AdminDashboard = () => {
             <SystemLogs isOpen={showLogs} onClose={() => setShowLogs(false)} />
 
             {/* --- NOTIFICACIONES TOAST (POPUP TIPO CELULAR) --- */}
-            <NotificationToast notifications={notifications} />
+            <NotificationToast />
 
             {/* Overlay Móvil */}
             {isMobileMenuOpen && (
