@@ -554,6 +554,37 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
         }
     };
 
+    const handleDeleteCampaign = async (campaignId, serviceName) => {
+        const result = await Swal.fire({
+            title: '¿Eliminar campaña?',
+            html: `<div class="text-sm">Se eliminará permanentemente:<br/><b>${serviceName}</b><br/><br/><i class="text-slate-400">Esta acción no se puede deshacer.</i></div>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const token = getAuthToken();
+                const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/delete`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': token }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    setLocalCampaigns(prev => prev.filter(c => c.id !== campaignId));
+                    Swal.fire({ title: 'Eliminada', text: 'La campaña fue eliminada del sistema.', icon: 'success', timer: 1500, showConfirmButton: false });
+                } else {
+                    throw new Error(data.message || 'Error al eliminar');
+                }
+            } catch (error) {
+                Swal.fire('Error', error.message, 'error');
+            }
+        }
+    };
+
     // =========================================================================
     // LÓGICA DE FILTRADO Y ORDENAMIENTO COMPLETA
     // =========================================================================
@@ -714,6 +745,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                     {c.status === 'ACTIVE' && <button onClick={() => handleToggleStatus(c.id, c.status)} className="flex-1 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold py-2.5 rounded-xl">⏸️ Pausar</button>}
                     {c.status === 'PAUSED' && <button onClick={() => handleToggleStatus(c.id, c.status)} className="flex-1 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold py-2.5 rounded-xl">▶️ Activar</button>}
                     {c.status === 'pending_approval' && <button onClick={() => handleConfirmApprove(c.id, c.service)} className="flex-1 bg-emerald-500 text-white text-xs font-bold py-2.5 rounded-xl shadow-md">✅ APROBAR</button>}
+                    {c.status === 'DELETED' && <button onClick={() => handleDeleteCampaign(c.id, c.service)} className="flex-1 bg-red-50 border border-red-200 text-red-600 text-xs font-bold py-2.5 rounded-xl">🗑️ Eliminar</button>}
 
                     {/* BOTÓN DE RESETEO AL LADO DE LAS ACCIONES DE ESTADO */}
                     <button
@@ -883,6 +915,10 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                                             ) : (c.status === 'PAUSED') ? (
                                                 <button onClick={() => handleToggleStatus(c.id, 'PAUSED')} className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors" title="Reactivar Campaña">
                                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                </button>
+                                            ) : (c.status === 'DELETED') ? (
+                                                <button onClick={() => handleDeleteCampaign(c.id, c.service)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar del sistema">
+                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                                 </button>
                                             ) : (
                                                 <span className="text-slate-300 px-3 cursor-not-allowed" title="Gestionado automáticamente">🔒</span>
