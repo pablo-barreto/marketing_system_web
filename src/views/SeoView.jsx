@@ -62,15 +62,13 @@ const SeoView = ({ rankings, content }) => {
     };
 
     const handleRankingCheck = async () => {
+        if (hasLowCredits) {
+            Swal.fire('Sin Créditos', 'No tienes créditos suficientes (< 100) para realizar una verificación de rankings.', 'error');
+            return;
+        }
         const { value: scope } = await Swal.fire({
             title: '🔍 Verificar Rankings',
-            html: `
-                <p style="font-size: 14px; margin-bottom: 10px;">Selecciona el alcance de la verificación:</p>
-                <div style="text-align: left; font-size: 12px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                    <p>🔵 <b>Nacional:</b> Usa créditos de SerpHouse.</p>
-                    <p>✨ <b>Internacional:</b> <span style="color: #059669; font-weight: bold;">GRATIS</span> (Auditado por Gemini).</p>
-                </div>
-            `,
+            text: '¿Qué alcance deseas verificar?',
             icon: 'question',
             input: 'select',
             inputOptions: {
@@ -85,12 +83,6 @@ const SeoView = ({ rankings, content }) => {
         });
 
         if (scope) {
-            // Validar créditos SOLO si el scope requiere SerpHouse (Nacional o Todos)
-            if ((scope === 'national' || scope === 'all') && hasLowCredits) {
-                Swal.fire('Créditos Insuficientes', 'Para rastreo Nacional o Total necesitas al menos 100 créditos.', 'error');
-                return;
-            }
-
             try {
                 await launchService.triggerRankingCheck(scope, basicAuthHeader);
                 Swal.fire('Iniciado', `Verificación de rankings (${scope}) ejecutándose en segundo plano. Recibirás una notificación al finalizar.`, 'success');
@@ -200,10 +192,11 @@ const SeoView = ({ rankings, content }) => {
                 </div>
 
                 <div className="flex flex-wrap gap-2 justify-center md:justify-end">
-                    <PremiumTooltip message="Se requieren créditos para rastreo Nacional. El rastreo Internacional es auditado por Gemini de forma gratuita." enabled={hasLowCredits}>
+                    <PremiumTooltip message="Se requiere al menos 100 créditos en SerpHouse para realizar una verificación de rankings." enabled={hasLowCredits}>
                         <button
                             onClick={handleRankingCheck}
-                            className="bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/20 active:scale-95 px-4 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 text-sm"
+                            disabled={hasLowCredits}
+                            className={`${hasLowCredits ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/20 active:scale-95'} px-4 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 text-sm`}
                         >
                             <span>🔍 Verificar Rankings</span>
                         </button>
