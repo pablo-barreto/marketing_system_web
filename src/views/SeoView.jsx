@@ -108,13 +108,9 @@ const SeoView = ({ rankings, content }) => {
     };
 
     const handleManualGenesis = async () => {
-        if (hasLowCredits) {
-            Swal.fire('Sin Créditos', 'No tienes créditos suficientes (< 100) para generar contenido IA.', 'error');
-            return;
-        }
         Swal.fire({
             title: '¿Generar Contenido IA?',
-            text: 'Se buscará el servicio con peor ranking y se generará un Artículo SEO + Set de Q&A. Esto gasta créditos y puede tardar.',
+            text: 'Se buscará el servicio con peor ranking y se generará un Artículo SEO + Set de Q&A. Este proceso utiliza rankings existentes.',
             icon: 'question',
             showCancelButton: true,
             confirmButtonText: 'Sí, Generar Todo',
@@ -153,6 +149,25 @@ const SeoView = ({ rankings, content }) => {
         });
     };
 
+    // Componente Tooltip Premium para una mejor experiencia visual
+    const PremiumTooltip = ({ children, message, enabled }) => {
+        if (!enabled) return children;
+        return (
+            <div className="group relative flex items-center justify-center">
+                {children}
+                <div className="absolute bottom-full mb-3 hidden group-hover:flex flex-col items-center pointer-events-none z-[100] transition-all duration-300">
+                    <div className="relative p-3 text-[11px] leading-relaxed text-white bg-slate-900/90 backdrop-blur-md rounded-xl shadow-2xl border border-white/10 w-44 text-center">
+                        <div className="font-bold mb-1 text-red-400 flex items-center justify-center gap-1">
+                            <span className="text-sm">⚠️</span> CRÉDITOS INSUFICIENTES
+                        </div>
+                        {message}
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-slate-900/90"></div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="p-2 md:p-6 w-full max-w-full overflow-x-hidden">
 
@@ -171,14 +186,15 @@ const SeoView = ({ rankings, content }) => {
                 </div>
 
                 <div className="flex flex-wrap gap-2 justify-center md:justify-end">
-                    <button
-                        onClick={handleRankingCheck}
-                        disabled={hasLowCredits}
-                        title={hasLowCredits ? "Créditos insuficientes (< 100) para realizar esta acción" : ""}
-                        className={`${hasLowCredits ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/20 active:scale-95'} px-4 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 text-sm`}
-                    >
-                        <span>🔍 Verificar Rankings</span>
-                    </button>
+                    <PremiumTooltip message="Se requiere al menos 100 créditos en SerpHouse para realizar el rastreo." enabled={hasLowCredits}>
+                        <button
+                            onClick={handleRankingCheck}
+                            disabled={hasLowCredits}
+                            className={`${hasLowCredits ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/20 active:scale-95'} px-4 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 text-sm`}
+                        >
+                            <span>🔍 Verificar Rankings</span>
+                        </button>
+                    </PremiumTooltip>
 
                     <button
                         onClick={handleScraping}
@@ -189,21 +205,20 @@ const SeoView = ({ rankings, content }) => {
 
                     <button
                         onClick={handleManualGenesis}
-                        disabled={hasLowCredits}
-                        title={hasLowCredits ? "Créditos insuficientes (< 100) para realizar esta acción" : ""}
-                        className={`${hasLowCredits ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-900/20 active:scale-95'} px-4 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 text-sm`}
+                        className="bg-purple-600 hover:bg-purple-700 text-white shadow-purple-900/20 active:scale-95 px-4 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 text-sm"
                     >
                         <span>🚀 Contenido IA</span>
                     </button>
 
-                    <button
-                        onClick={handleForceBoost}
-                        disabled={hasLowCredits}
-                        title={hasLowCredits ? "Créditos insuficientes (< 100) para realizar esta acción" : ""}
-                        className={`${hasLowCredits ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-900/20 active:scale-95'} px-4 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 text-sm`}
-                    >
-                        <span>⚡ Force SEO Boost</span>
-                    </button>
+                    <PremiumTooltip message="Se requiere al menos 100 créditos en SerpHouse para iniciar una optimización intensiva." enabled={hasLowCredits}>
+                        <button
+                            onClick={handleForceBoost}
+                            disabled={hasLowCredits}
+                            className={`${hasLowCredits ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-900/20 active:scale-95'} px-4 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 text-sm`}
+                        >
+                            <span>⚡ Force SEO Boost</span>
+                        </button>
+                    </PremiumTooltip>
                 </div>
             </div>
 
