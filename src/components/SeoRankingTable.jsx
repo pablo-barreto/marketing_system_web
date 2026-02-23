@@ -63,13 +63,15 @@ const SeoRankingTable = ({ rankings }) => {
     const safeRankings = rankings || [];
 
     const filteredRankings = useMemo(() => {
-        return safeRankings.filter(r => {
-            if (activeTab === 'nacional') {
-                return r.country === 'CO';
-            } else {
-                return r.country !== 'CO';
-            }
-        });
+        return safeRankings
+            .filter(r => {
+                if (activeTab === 'nacional') {
+                    return r.country === 'CO';
+                } else {
+                    return r.country !== 'CO';
+                }
+            })
+            .sort((a, b) => a.ranking - b.ranking);
     }, [safeRankings, activeTab]);
 
     // Contadores de resumen
@@ -98,8 +100,8 @@ const SeoRankingTable = ({ rankings }) => {
                     <button
                         onClick={() => { setActiveTab('nacional'); setCurrentPage(1); }}
                         className={`pb-2 px-1 text-sm font-bold transition-all ${activeTab === 'nacional'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-slate-400 hover:text-slate-600'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-slate-400 hover:text-slate-600'
                             }`}
                     >
                         🇨🇴 Nacional
@@ -107,8 +109,8 @@ const SeoRankingTable = ({ rankings }) => {
                     <button
                         onClick={() => { setActiveTab('internacional'); setCurrentPage(1); }}
                         className={`pb-2 px-1 text-sm font-bold transition-all ${activeTab === 'internacional'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-slate-400 hover:text-slate-600'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-slate-400 hover:text-slate-600'
                             }`}
                     >
                         🌍 Internacional
