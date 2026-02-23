@@ -155,18 +155,6 @@ const SeoView = ({ rankings, content }) => {
 
     return (
         <div className="p-2 md:p-6 w-full max-w-full overflow-x-hidden">
-            {/* MENSAJE DE CRÉDITOS */}
-            {hasLowCredits && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 flex items-center justify-between shadow-sm animate-pulse">
-                    <div className="flex items-center gap-3">
-                        <span className="text-xl">⚠️</span>
-                        <div>
-                            <p className="font-bold text-sm">Créditos SEO Agotados</p>
-                            <p className="text-xs opacity-80">Te quedan menos de 100 créditos en SerpHouse. Las funciones de rastreo y boost están deshabilitadas.</p>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* ENCABEZADO SUPERIOR CON BOTONES DE ACCIÓN */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6">
@@ -186,6 +174,7 @@ const SeoView = ({ rankings, content }) => {
                     <button
                         onClick={handleRankingCheck}
                         disabled={hasLowCredits}
+                        title={hasLowCredits ? "Créditos insuficientes (< 100) para realizar esta acción" : ""}
                         className={`${hasLowCredits ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/20 active:scale-95'} px-4 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 text-sm`}
                     >
                         <span>🔍 Verificar Rankings</span>
@@ -201,6 +190,7 @@ const SeoView = ({ rankings, content }) => {
                     <button
                         onClick={handleManualGenesis}
                         disabled={hasLowCredits}
+                        title={hasLowCredits ? "Créditos insuficientes (< 100) para realizar esta acción" : ""}
                         className={`${hasLowCredits ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-900/20 active:scale-95'} px-4 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 text-sm`}
                     >
                         <span>🚀 Contenido IA</span>
@@ -209,6 +199,7 @@ const SeoView = ({ rankings, content }) => {
                     <button
                         onClick={handleForceBoost}
                         disabled={hasLowCredits}
+                        title={hasLowCredits ? "Créditos insuficientes (< 100) para realizar esta acción" : ""}
                         className={`${hasLowCredits ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-900/20 active:scale-95'} px-4 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 text-sm`}
                     >
                         <span>⚡ Force SEO Boost</span>
