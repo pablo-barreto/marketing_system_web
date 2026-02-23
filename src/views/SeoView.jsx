@@ -107,6 +107,30 @@ const SeoView = ({ rankings, content }) => {
         });
     };
 
+    const handleManualGenesis = async () => {
+        if (hasLowCredits) {
+            Swal.fire('Sin Créditos', 'No tienes créditos suficientes (< 100) para generar contenido IA.', 'error');
+            return;
+        }
+        Swal.fire({
+            title: '¿Generar Contenido IA?',
+            text: 'Se buscará el servicio con peor ranking y se generará un Artículo SEO + Set de Q&A. Esto gasta créditos y puede tardar.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, Generar Todo',
+            confirmButtonColor: '#8b5cf6'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    await launchService.triggerManualGenesis(basicAuthHeader);
+                    Swal.fire('Iniciado', 'La IA está generando el artículo y las FAQs en segundo plano.', 'success');
+                } catch (e) {
+                    Swal.fire('Error', e.message, 'error');
+                }
+            }
+        });
+    };
+
     const handleClearHistory = async () => {
         Swal.fire({
             title: '¿Limpiar Historial?',
@@ -172,6 +196,14 @@ const SeoView = ({ rankings, content }) => {
                         className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-xl font-bold shadow-lg shadow-emerald-900/20 transition-all active:scale-95 flex items-center gap-2 text-sm"
                     >
                         <span>📡 Sync Servicios</span>
+                    </button>
+
+                    <button
+                        onClick={handleManualGenesis}
+                        disabled={hasLowCredits}
+                        className={`${hasLowCredits ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-900/20 active:scale-95'} px-4 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 text-sm`}
+                    >
+                        <span>🚀 Contenido IA</span>
                     </button>
 
                     <button
