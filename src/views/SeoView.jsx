@@ -11,6 +11,10 @@ const SeoView = ({ rankings, content }) => {
     const [credits, setCredits] = React.useState(null);
     const [loadingCredits, setLoadingCredits] = React.useState(true);
 
+    // Filtrar contenido por tipo
+    const blogContent = (content || []).filter(item => item.type === 'BLOG');
+    const faqContent = (content || []).filter(item => item.type === 'Q&A');
+
     React.useEffect(() => {
         const fetchCredits = async () => {
             try {
@@ -236,23 +240,47 @@ const SeoView = ({ rankings, content }) => {
                     </div>
                 </div>
 
-                {/* COLUMNA DERECHA: CONTENIDO */}
-                <div className="flex-1 w-full bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col min-h-[450px] h-auto">
-                    <h3 className="text-lg md:text-xl font-bold text-slate-800 mb-6 flex items-center justify-between border-b border-slate-50 pb-4 shrink-0">
-                        <div className="flex items-center gap-2">
-                            <span className="text-xl">📝</span> Contenido Publicado
+                {/* GRID DE TABLAS DE CONTENIDO */}
+                <div className="animate-fade-in-up flex flex-col lg:flex-row gap-8 w-full mt-8">
+
+                    {/* COLUMNA BLOG */}
+                    <div className="flex-1 w-full bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col min-h-[450px] h-auto">
+                        <h3 className="text-lg md:text-xl font-bold text-slate-800 mb-6 flex items-center justify-between border-b border-slate-50 pb-4 shrink-0">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xl">📝</span> Artículos de Blog
+                            </div>
+                            {blogContent.length > 0 && (
+                                <button
+                                    onClick={handleClearHistory}
+                                    className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors uppercase tracking-wider"
+                                >
+                                    🗑️ Limpiar
+                                </button>
+                            )}
+                        </h3>
+                        <div className="flex-1 overflow-visible md:overflow-y-auto rounded-xl">
+                            <ContentTable content={blogContent} title="Blog Posts Publicados" />
                         </div>
-                        {content && content.length > 0 && (
-                            <button
-                                onClick={handleClearHistory}
-                                className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors uppercase tracking-wider"
-                            >
-                                🗑️ Limpiar Historial
-                            </button>
-                        )}
-                    </h3>
-                    <div className="flex-1 overflow-visible md:overflow-y-auto rounded-xl">
-                        <ContentTable content={content} />
+                    </div>
+
+                    {/* COLUMNA FAQ */}
+                    <div className="flex-1 w-full bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col min-h-[450px] h-auto">
+                        <h3 className="text-lg md:text-xl font-bold text-slate-800 mb-6 flex items-center justify-between border-b border-slate-50 pb-4 shrink-0">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xl">❓</span> Preguntas Frecuentes
+                            </div>
+                            {faqContent.length > 0 && (
+                                <button
+                                    onClick={handleClearHistory}
+                                    className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors uppercase tracking-wider"
+                                >
+                                    🗑️ Limpiar
+                                </button>
+                            )}
+                        </h3>
+                        <div className="flex-1 overflow-visible md:overflow-y-auto rounded-xl">
+                            <ContentTable content={faqContent} title="FAQs Generadas" />
+                        </div>
                     </div>
                 </div>
             </div>

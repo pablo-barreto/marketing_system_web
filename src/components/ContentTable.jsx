@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Swal from 'sweetalert2'; // <--- 1. IMPORTAR SWEETALERT
 import FormattedDate from './FormattedDate';
 
-const ContentTable = ({ content }) => {
+const ContentTable = ({ content, title = "Contenido Publicado" }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(5);
 
@@ -59,10 +59,10 @@ const ContentTable = ({ content }) => {
 
     return (
         <div style={{ backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', flex: 1, display: 'flex', flexDirection: 'column' }}>
-            
+
             {/* Header */}
             <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, fontSize: '1rem', color: '#0f172a', fontWeight: '700' }}>📝 Contenido Publicado</h3>
+                <h3 style={{ margin: 0, fontSize: '1rem', color: '#0f172a', fontWeight: '700' }}>{title}</h3>
                 <span style={{ fontSize: '0.75rem', color: '#64748b', backgroundColor: '#e2e8f0', padding: '2px 8px', borderRadius: '10px' }}>Total: {safeContent.length}</span>
             </div>
 
@@ -80,14 +80,14 @@ const ContentTable = ({ content }) => {
                                         {c.type || 'BLOG'} • <FormattedDate dateString={c.created_at} />
                                     </span>
                                 </div>
-                                
+
                                 {/* --- 3. BOTÓN DE ACCIÓN CONECTADO --- */}
-                                <a 
-                                    href={c.url || '#'} 
-                                    onClick={(e) => handleViewContent(e, c)} 
-                                    style={{ 
-                                        color: '#2563eb', textDecoration: 'none', fontSize: '0.75rem', 
-                                        fontWeight: '600', padding: '6px 12px', backgroundColor: '#eff6ff', 
+                                <a
+                                    href={c.url || '#'}
+                                    onClick={(e) => handleViewContent(e, c)}
+                                    style={{
+                                        color: '#2563eb', textDecoration: 'none', fontSize: '0.75rem',
+                                        fontWeight: '600', padding: '6px 12px', backgroundColor: '#eff6ff',
                                         borderRadius: '6px', cursor: 'pointer', border: '1px solid transparent',
                                         transition: 'all 0.2s'
                                     }}
