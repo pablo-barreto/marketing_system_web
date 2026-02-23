@@ -200,6 +200,19 @@ export const launchService = {
     });
     if (!response.ok) throw new Error('Error al consultar créditos');
     return response.json();
+  },
+
+  // 8. Generación Manual de Contenido (Artículo + FAQs)
+  triggerManualGenesis: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/seo/manual-genesis`, {
+      method: 'POST',
+      headers: {
+        'Authorization': token,
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!response.ok) throw new Error('Error al iniciar generación manual de contenido');
+    return response.json();
   }
 };
 

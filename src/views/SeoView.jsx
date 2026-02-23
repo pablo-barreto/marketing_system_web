@@ -155,13 +155,14 @@ const SeoView = ({ rankings, content }) => {
         return (
             <div className="group relative flex items-center justify-center">
                 {children}
-                <div className="absolute bottom-full mb-3 hidden group-hover:flex flex-col items-center pointer-events-none z-[100] transition-all duration-300">
-                    <div className="relative p-3 text-[11px] leading-relaxed text-white bg-slate-900/90 backdrop-blur-md rounded-xl shadow-2xl border border-white/10 w-44 text-center">
-                        <div className="font-bold mb-1 text-red-400 flex items-center justify-center gap-1">
-                            <span className="text-sm">⚠️</span> CRÉDITOS INSUFICIENTES
+                <div className="absolute top-full mt-3 hidden group-hover:flex flex-col items-center pointer-events-none z-[100] transition-all duration-300">
+                    <div className="relative p-4 text-[12px] leading-relaxed text-white bg-slate-900 border border-white/20 rounded-2xl shadow-2xl w-56 text-center backdrop-blur-xl">
+                        <div className="font-black mb-2 text-red-500 flex items-center justify-center gap-1 text-xs uppercase tracking-tighter">
+                            <span className="text-base">⚠️</span> CRÉDITOS INSUFICIENTES
                         </div>
-                        {message}
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-slate-900/90"></div>
+                        <p className="font-medium text-slate-300">{message}</p>
+                        {/* Triángulo apuntando hacia arriba */}
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-[8px] border-transparent border-b-slate-900"></div>
                     </div>
                 </div>
             </div>
