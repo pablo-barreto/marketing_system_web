@@ -10,6 +10,7 @@ const SeoView = ({ rankings, content }) => {
     const { basicAuthHeader } = useContext(AuthContext);
     const [credits, setCredits] = React.useState(null);
     const [loadingCredits, setLoadingCredits] = React.useState(true);
+    const [activeContentTab, setActiveContentTab] = React.useState('blog');
 
     // Filtrar contenido por tipo
     const blogContent = (content || []).filter(item => item.type === 'BLOG');
@@ -239,49 +240,50 @@ const SeoView = ({ rankings, content }) => {
                         <SeoRankingTable rankings={rankings} />
                     </div>
                 </div>
+            </div>
 
-                {/* GRID DE TABLAS DE CONTENIDO */}
-                <div className="animate-fade-in-up flex flex-col lg:flex-row gap-8 w-full mt-8">
-
-                    {/* COLUMNA BLOG */}
-                    <div className="flex-1 w-full bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col min-h-[450px] h-auto">
-                        <h3 className="text-lg md:text-xl font-bold text-slate-800 mb-6 flex items-center justify-between border-b border-slate-50 pb-4 shrink-0">
-                            <div className="flex items-center gap-2">
-                                <span className="text-xl">📝</span> Artículos de Blog
-                            </div>
-                            {blogContent.length > 0 && (
-                                <button
-                                    onClick={handleClearHistory}
-                                    className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors uppercase tracking-wider"
-                                >
-                                    🗑️ Limpiar
-                                </button>
-                            )}
-                        </h3>
-                        <div className="flex-1 overflow-visible md:overflow-y-auto rounded-xl">
-                            <ContentTable content={blogContent} title="Blog Posts Publicados" />
-                        </div>
+            {/* SECCIÓN DE CONTENIDO PUBLICADO (CON PESTAÑAS) */}
+            <div className="animate-fade-in-up w-full bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm mt-8">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 border-b border-slate-50 pb-4">
+                    <div className="flex gap-6">
+                        <button
+                            onClick={() => setActiveContentTab('blog')}
+                            className={`pb-2 px-1 text-sm font-bold transition-all flex items-center gap-2 ${activeContentTab === 'blog'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-slate-400 hover:text-slate-600'
+                                }`}
+                        >
+                            <span>📝</span> Artículos de Blog
+                        </button>
+                        <button
+                            onClick={() => setActiveContentTab('faq')}
+                            className={`pb-2 px-1 text-sm font-bold transition-all flex items-center gap-2 ${activeContentTab === 'faq'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-slate-400 hover:text-slate-600'
+                                }`}
+                        >
+                            <span>❓</span> Preguntas Frecuentes
+                        </button>
                     </div>
 
-                    {/* COLUMNA FAQ */}
-                    <div className="flex-1 w-full bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col min-h-[450px] h-auto">
-                        <h3 className="text-lg md:text-xl font-bold text-slate-800 mb-6 flex items-center justify-between border-b border-slate-50 pb-4 shrink-0">
-                            <div className="flex items-center gap-2">
-                                <span className="text-xl">❓</span> Preguntas Frecuentes
-                            </div>
-                            {faqContent.length > 0 && (
-                                <button
-                                    onClick={handleClearHistory}
-                                    className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors uppercase tracking-wider"
-                                >
-                                    🗑️ Limpiar
-                                </button>
-                            )}
-                        </h3>
-                        <div className="flex-1 overflow-visible md:overflow-y-auto rounded-xl">
-                            <ContentTable content={faqContent} title="FAQs Generadas" />
-                        </div>
+                    <div className="flex items-center gap-4">
+                        {content && content.length > 0 && (
+                            <button
+                                onClick={handleClearHistory}
+                                className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors uppercase tracking-wider flex items-center gap-1"
+                            >
+                                🗑️ Limpiar Historial Total
+                            </button>
+                        )}
                     </div>
+                </div>
+
+                <div className="flex-1 overflow-visible">
+                    {activeContentTab === 'blog' ? (
+                        <ContentTable content={blogContent} title="Entradas de Blog Publicadas" />
+                    ) : (
+                        <ContentTable content={faqContent} title="FAQs Generadas por IA" />
+                    )}
                 </div>
             </div>
         </div>
