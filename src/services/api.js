@@ -187,6 +187,19 @@ export const launchService = {
     });
     if (!response.ok) throw new Error('Error al limpiar el historial SEO');
     return response.json();
+  },
+
+  // 7. Consultar créditos de SerpHouse
+  getSeoCredits: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/seo/credits`, {
+      method: 'GET',
+      headers: {
+        'Authorization': token,
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!response.ok) throw new Error('Error al consultar créditos');
+    return response.json();
   }
 };
 

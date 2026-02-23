@@ -8,8 +8,35 @@ import Swal from 'sweetalert2';
 
 const SeoView = ({ rankings, content }) => {
     const { basicAuthHeader } = useContext(AuthContext);
+    const [credits, setCredits] = React.useState(null);
+    const [loadingCredits, setLoadingCredits] = React.useState(true);
+
+    React.useEffect(() => {
+        const fetchCredits = async () => {
+            try {
+                const data = await launchService.getSeoCredits(basicAuthHeader);
+                // SerpHouse typically returns credits in data.data.credits or similar
+                // Adjust based on the actual observed response
+                const remaining = data?.data?.credits || data?.credits || 0;
+                setCredits(remaining);
+            } catch (error) {
+                console.error("Error fetching credits:", error);
+                setCredits(0);
+            } finally {
+                setLoadingCredits(false);
+            }
+        };
+
+        fetchCredits();
+    }, [basicAuthHeader]);
+
+    const hasLowCredits = credits !== null && credits < 100;
 
     const handleForceBoost = async () => {
+        if (hasLowCredits) {
+            Swal.fire('Sin Créditos', 'No tienes créditos suficientes (< 100) para iniciar un ciclo intensivo.', 'error');
+            return;
+        }
         Swal.fire({
             title: '¿Iniciar Ciclo Intensivo?',
             text: 'La IA analizará rankings, generará contenido legal y lo publicará en el CMS. Esto puede tardar unos minutos.',
@@ -30,6 +57,10 @@ const SeoView = ({ rankings, content }) => {
     };
 
     const handleRankingCheck = async () => {
+        if (hasLowCredits) {
+            Swal.fire('Sin Créditos', 'No tienes créditos suficientes (< 100) para realizar una verificación de rankings.', 'error');
+            return;
+        }
         const { value: scope } = await Swal.fire({
             title: '🔍 Verificar Rankings',
             text: '¿Qué alcance deseas verificar?',
@@ -100,17 +131,38 @@ const SeoView = ({ rankings, content }) => {
 
     return (
         <div className="p-2 md:p-6 w-full max-w-full overflow-x-hidden">
+            {/* MENSAJE DE CRÉDITOS */}
+            {hasLowCredits && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 flex items-center justify-between shadow-sm animate-pulse">
+                    <div className="flex items-center gap-3">
+                        <span className="text-xl">⚠️</span>
+                        <div>
+                            <p className="font-bold text-sm">Créditos SEO Agotados</p>
+                            <p className="text-xs opacity-80">Te quedan menos de 100 créditos en SerpHouse. Las funciones de rastreo y boost están deshabilitadas.</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* ENCABEZADO SUPERIOR CON BOTONES DE ACCIÓN */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6">
                 <div className="text-center md:text-left">
                     <h2 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">Estrategia Orgánica</h2>
-                    <p className="text-slate-500 text-sm mt-1">Monitorización de rankings y generación de contenido automático.</p>
+                    <div className="flex items-center justify-center md:justify-start gap-2 mt-1">
+                        <p className="text-slate-500 text-sm">Monitorización de rankings y generación de contenido automático.</p>
+                        {!loadingCredits && (
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${hasLowCredits ? 'bg-red-50 text-red-500 border-red-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
+                                {credits} créditos restantes
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2 justify-center md:justify-end">
                     <button
                         onClick={handleRankingCheck}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-bold shadow-lg shadow-blue-900/20 transition-all active:scale-95 flex items-center gap-2 text-sm"
+                        disabled={hasLowCredits}
+                        className={`${hasLowCredits ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/20 active:scale-95'} px-4 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 text-sm`}
                     >
                         <span>🔍 Verificar Rankings</span>
                     </button>
@@ -124,7 +176,8 @@ const SeoView = ({ rankings, content }) => {
 
                     <button
                         onClick={handleForceBoost}
-                        className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-3 rounded-xl font-bold shadow-lg shadow-amber-900/20 transition-all active:scale-95 flex items-center gap-2 text-sm"
+                        disabled={hasLowCredits}
+                        className={`${hasLowCredits ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-900/20 active:scale-95'} px-4 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 text-sm`}
                     >
                         <span>⚡ Force SEO Boost</span>
                     </button>
