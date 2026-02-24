@@ -10,17 +10,18 @@ import { campaignService, launchService } from '../services/api';
 // HELPER: NORMALIZADOR DE IMÁGENES (Soporta GCS y Local Windows/Linux)
 // =============================================================================
 const normalizeImagePath = (path) => {
-    // 1. Si es nulo o vacío, devolver imagen por defecto
-    if (!path) return '/static/images/default.jpg';
+    // 1. Fallback inmediato si es nulo
+    if (!path) return '/static/images/default.jpg'; // [cite: 100]
 
-    // 2. Si es una URL absoluta (ya en la nube), devolverla intacta
-    if (path.startsWith('http')) return path;
+    // 2. Si ya es una URL absoluta, se devuelve intacta
+    if (path.startsWith('http')) return path; // [cite: 101]
 
-    // 3. Si es local o relativa, extraer el nombre y apuntar a GCS
-    const filename = path.replace(/\\/g, '/').split('/').pop();
+    // 3. Limpieza profunda para rutas locales heredadas (Legacy)
+    // Se reemplazan backslashes de Windows y se extrae solo el nombre del archivo
+    const filename = path.replace(/\\/g, '/').split('/').pop(); // [cite: 102]
 
-    // 4. Retornar URL directa a Google Cloud Storage
-    return `https://storage.googleapis.com/marketing-system-assets-prod/uploads/${filename}`;
+    // 4. Se construye la URL apuntando al bucket oficial de producción
+    return `https://storage.googleapis.com/marketing-system-assets-prod/uploads/${filename}`; // [cite: 103]
 };
 
 // =============================================================================
@@ -76,34 +77,6 @@ const InstagramPreview = ({ service, imageUrl }) => (
     </div>
 );
 
-const GooglePreview = ({ content }) => {
-    const title = (content.headlines && content.headlines)
-        ? content.headlines
-        : (content.title || "Servicio Profesional");
-
-    const desc = (content.descriptions && content.descriptions)
-        ? content.descriptions
-        : "Asesoría experta y soluciones profesionales en Colombia. Contáctanos hoy.";
-
-    return (
-        <div className="bg-white p-4 rounded border border-slate-200 font-sans max-w-sm">
-            <div className="flex items-center gap-1 mb-1">
-                <span className="font-bold text-xs text-slate-800">Anuncio</span>
-                <span className="text-xs text-slate-500">· www.crconsultorescolombia.com/servicios</span>
-            </div>
-            <div className="text-xl text-[#1a0dab] hover:underline cursor-pointer font-medium leading-tight mb-1">
-                {title}
-            </div>
-            <div className="text-sm text-[#4d5156] leading-snug">
-                {desc}
-            </div>
-            <div className="mt-2 flex gap-2 text-xs text-[#1a0dab]">
-                <span className="hover:underline cursor-pointer">Cotizar Ahora</span> ·
-                <span className="hover:underline cursor-pointer">Ver Servicios</span>
-            </div>
-        </div>
-    );
-};
 
 const LinkedInPreview = ({ content, service, imageUrl }) => (
     <div className="bg-white rounded-lg shadow-sm border border-gray-300 overflow-hidden w-[320px] mx-auto font-sans">
@@ -181,7 +154,6 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, on
     const isSyncSupported = isMeta || platform.includes('linkedin');
 
     const renderPreview = () => {
-        if (platform.includes('google')) return <GooglePreview content={content} />;
         if (platform.includes('linkedin')) return <LinkedInPreview content={content} service={campaign.service} imageUrl={previewImage} />;
 
         if (isMeta) {
@@ -490,7 +462,6 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
 
     const renderPlatformBadge = (platform) => {
         const p = (platform || '').toLowerCase();
-        if (p.includes('google')) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border bg-orange-50 text-orange-700 border-orange-100">G Google Ads</span>;
         if (p.includes('linkedin')) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border bg-sky-50 text-sky-700 border-sky-100">in LinkedIn</span>;
         return (
             <div className="flex items-center gap-1">
@@ -795,7 +766,6 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                         <option value="all">🌐 Todas las Redes</option>
                         <option value="meta">♾️ Meta (FB/IG)</option>
                         <option value="linkedin">💼 LinkedIn</option>
-                        <option value="google">🔍 Google Ads</option>
                     </select>
 
                     {/* Filtro Estado */}
