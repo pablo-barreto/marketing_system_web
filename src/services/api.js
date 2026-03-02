@@ -75,6 +75,22 @@ export const campaignService = {
     });
     if (!response.ok) throw new Error('No se pudo resetear la base de datos local');
     return response.json();
+  },
+
+  deleteCampaign: async (campaignId, token, deleteOnPlatform = true) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/delete`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ delete_on_platform: deleteOnPlatform })
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Error al eliminar campaña');
+    }
+    return response.json();
   }
 
 };

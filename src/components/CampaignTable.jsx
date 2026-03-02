@@ -525,10 +525,31 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
         }
     };
 
-    const handleDeleteCampaign = async (campaignId, serviceName) => {
+    const handleDeleteCampaign = async (campaign) => {
+        const platform = (campaign.platform || '').toLowerCase();
+        const hasPlatformId = !!campaign.platform_id;
+        const isMeta = platform.includes('facebook') || platform.includes('instagram');
+        const isLinkedIn = platform.includes('linkedin');
+        const supportsPlatformDelete = hasPlatformId && (isMeta || isLinkedIn);
+
+        const platformLabel = isMeta ? 'Meta (Facebook/Instagram)' : isLinkedIn ? 'LinkedIn' : '';
+
         const result = await Swal.fire({
-            title: '¿Eliminar campaña?',
-            html: `<div class="text-sm">Se eliminará permanentemente:<br/><b>${serviceName}</b><br/><br/><i class="text-slate-400">Esta acción no se puede deshacer.</i></div>`,
+            title: '🗑️ ¿Eliminar campaña?',
+            html: `
+                <div class="text-sm text-left space-y-3">
+                    <p>Se eliminará permanentemente del sistema:</p>
+                    <p class="font-bold text-slate-900 text-base">${campaign.service}</p>
+                    ${supportsPlatformDelete ? `
+                    <div class="flex items-center gap-2 mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <input type="checkbox" id="swal-platform-delete" checked style="width:16px;height:16px;cursor:pointer" />
+                        <label for="swal-platform-delete" class="text-sm text-slate-700 cursor-pointer">
+                            También eliminar en <strong>${platformLabel}</strong>
+                        </label>
+                    </div>` : ''}
+                    <p class="text-xs text-slate-400 pt-1">Esta acción no se puede deshacer.</p>
+                </div>
+            `,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
@@ -537,16 +558,28 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
         });
 
         if (result.isConfirmed) {
+            const deleteOnPlatform = supportsPlatformDelete
+                ? document.getElementById('swal-platform-delete')?.checked ?? true
+                : false;
+
+            Swal.fire({ title: 'Eliminando...', didOpen: () => Swal.showLoading() });
             try {
                 const token = getAuthToken();
-                const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/delete`, {
+                const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaign.id}/delete`, {
                     method: 'DELETE',
-                    headers: { 'Authorization': token }
+                    headers: { 'Authorization': token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ delete_on_platform: deleteOnPlatform })
                 });
                 const data = await response.json();
                 if (response.ok) {
-                    setLocalCampaigns(prev => prev.filter(c => c.id !== campaignId));
-                    Swal.fire({ title: 'Eliminada', text: 'La campaña fue eliminada del sistema.', icon: 'success', timer: 1500, showConfirmButton: false });
+                    setLocalCampaigns(prev => prev.filter(c => c.id !== campaign.id));
+                    Swal.fire({
+                        title: '✅ Eliminada',
+                        text: data.message || 'La campaña fue eliminada del sistema.',
+                        icon: 'success',
+                        timer: 2500,
+                        showConfirmButton: false
+                    });
                 } else {
                     throw new Error(data.message || 'Error al eliminar');
                 }
@@ -555,6 +588,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
             }
         }
     };
+
 
     // =========================================================================
     // LÓGICA DE FILTRADO Y ORDENAMIENTO COMPLETA
@@ -716,7 +750,10 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                     {c.status === 'ACTIVE' && <button onClick={() => handleToggleStatus(c.id, c.status)} className="flex-1 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold py-2.5 rounded-xl">⏸️ Pausar</button>}
                     {c.status === 'PAUSED' && <button onClick={() => handleToggleStatus(c.id, c.status)} className="flex-1 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold py-2.5 rounded-xl">▶️ Activar</button>}
                     {c.status === 'pending_approval' && <button onClick={() => handleConfirmApprove(c.id, c.service)} className="flex-1 bg-emerald-500 text-white text-xs font-bold py-2.5 rounded-xl shadow-md">✅ APROBAR</button>}
-                    {c.status === 'DELETED' && <button onClick={() => handleDeleteCampaign(c.id, c.service)} className="flex-1 bg-red-50 border border-red-200 text-red-600 text-xs font-bold py-2.5 rounded-xl">🗑️ Eliminar</button>}
+                    <button onClick={() => handleDeleteCampaign(c)} className="flex items-center justify-center gap-1 px-3 py-2.5 bg-red-50 border border-red-200 text-red-600 text-xs font-bold rounded-xl hover:bg-red-600 hover:text-white transition-all active:scale-95" title="Eliminar campaña">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        DEL
+                    </button>
 
                     {/* BOTÓN DE RESETEO AL LADO DE LAS ACCIONES DE ESTADO */}
                     <button
@@ -886,13 +923,11 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                                                 <button onClick={() => handleToggleStatus(c.id, 'PAUSED')} className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors" title="Reactivar Campaña">
                                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                                 </button>
-                                            ) : (c.status === 'DELETED') ? (
-                                                <button onClick={() => handleDeleteCampaign(c.id, c.service)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar del sistema">
-                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                </button>
-                                            ) : (
-                                                <span className="text-slate-300 px-3 cursor-not-allowed" title="Gestionado automáticamente">🔒</span>
-                                            )}
+                                            ) : null}
+                                            {/* Botón Eliminar — siempre visible */}
+                                            <button onClick={() => handleDeleteCampaign(c)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100" title="Eliminar campaña">
+                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                            </button>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
