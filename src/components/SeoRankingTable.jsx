@@ -260,20 +260,24 @@ const SeoRankingTable = ({ rankings }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [activeTab, setActiveTab] = useState('nacional');
+    const [searchTerm, setSearchTerm] = useState('');
 
     const safeRankings = rankings || [];
 
     const filteredRankings = useMemo(() => {
         return safeRankings
             .filter(r => {
-                if (activeTab === 'nacional') {
-                    return r.country === 'CO';
-                } else {
-                    return r.country !== 'CO';
-                }
+                // Filtro por pestaña (Nacional vs Internacional)
+                const matchesTab = activeTab === 'nacional' ? r.country === 'CO' : r.country !== 'CO';
+
+                // Nuevo: Filtro por búsqueda de servicio o keyword
+                const matchesSearch = r.service.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    r.keyword.toLowerCase().includes(searchTerm.toLowerCase());
+
+                return matchesTab && matchesSearch;
             })
             .sort((a, b) => a.ranking - b.ranking);
-    }, [safeRankings, activeTab]);
+    }, [safeRankings, activeTab, searchTerm]);
 
     // Contadores de resumen
     const summary = useMemo(() => {
@@ -296,32 +300,41 @@ const SeoRankingTable = ({ rankings }) => {
         <div className="flex flex-col w-full min-h-0 overflow-visible">
 
             {/* PESTAÑAS + RESUMEN */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 border-b border-slate-100 pb-3 shrink-0">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4 border-b border-slate-100 pb-3">
                 <div className="flex gap-4">
                     <button
                         onClick={() => { setActiveTab('nacional'); setCurrentPage(1); }}
-                        className={`pb-2 px-1 text-sm font-bold transition-all ${activeTab === 'nacional'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-slate-400 hover:text-slate-600'
-                            }`}
+                        className={`pb-2 px-1 text-sm font-bold transition-all ${activeTab === 'nacional' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400'}`}
                     >
                         🇨🇴 Nacional
                     </button>
                     <button
                         onClick={() => { setActiveTab('internacional'); setCurrentPage(1); }}
-                        className={`pb-2 px-1 text-sm font-bold transition-all ${activeTab === 'internacional'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-slate-400 hover:text-slate-600'
-                            }`}
+                        className={`pb-2 px-1 text-sm font-bold transition-all ${activeTab === 'internacional' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400'}`}
                     >
                         🌍 Internacional
                     </button>
                 </div>
-                {summary.total > 0 && (
-                    <div className="text-xs text-slate-500">
-                        <span className="font-bold text-emerald-600">{summary.top10}</span> de {summary.total} en Página 1 de Google
+
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+                    {/* Buscador de servicios en rankings */}
+                    <div className="relative w-full sm:w-64">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">🔍</span>
+                        <input
+                            type="text"
+                            placeholder="Buscar servicio o palabra clave..."
+                            value={searchTerm}
+                            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                            className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
                     </div>
-                )}
+
+                    {summary.total > 0 && (
+                        <div className="text-xs text-slate-500 whitespace-nowrap">
+                            <span className="font-bold text-emerald-600">{summary.top10}</span> de {summary.total} en Top 10
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* --- VISTA MÓVIL (CARDS) --- */}
