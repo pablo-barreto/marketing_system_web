@@ -91,6 +91,19 @@ export const campaignService = {
       throw new Error(err.message || 'Error al eliminar campaña');
     }
     return response.json();
+  },
+
+  createManualCampaign: async (formData, token) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/manual`, {
+      method: 'POST',
+      headers: { 'Authorization': token },
+      body: formData
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Error al crear campaña manual');
+    }
+    return response.json();
   }
 
 };
