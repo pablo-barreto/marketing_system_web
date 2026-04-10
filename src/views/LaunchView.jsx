@@ -1,20 +1,13 @@
-import React, { useState, useContext, useMemo, useRef } from 'react';
+import React, { useState, useContext, useMemo } from 'react';
 import Swal from 'sweetalert2';
 import { AuthContext } from '../context/AuthContext';
-import { launchService, campaignService } from '../services/api';
+import { launchService } from '../services/api';
 import GlobalLauncherUI from '../components/GlobalLauncherUI';
 import IntentDashboard from '../components/IntentDashboard';
 
 const LaunchView = ({ crmData }) => {
   const { basicAuthHeader } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
-
-  // --- Campaña Manual ---
-  const [manualLoading, setManualLoading] = useState(false);
-  const [manualFile, setManualFile] = useState(null);
-  const [manualPreview, setManualPreview] = useState(null);
-  const [manualForm, setManualForm] = useState({ title: '', body: '', redirect_url: '', platform: 'facebook', budget: 50000 });
-  const manualFileInputRef = useRef(null);
 
   // -----------------------------------------------------------------------
   // 1. LÓGICA DE INTELIGENCIA DE DATOS (CRM)
@@ -100,44 +93,6 @@ const LaunchView = ({ crmData }) => {
       Swal.fire('Error', error.message, 'error');
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Manual Campaign Handler
-  const handleManualFileChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setManualFile(file);
-    setManualPreview(URL.createObjectURL(file));
-  };
-
-  const handleManualCampaign = async (e) => {
-    e.preventDefault();
-    const { title, body, redirect_url, platform, budget } = manualForm;
-    if (!manualFile || !title.trim() || !body.trim() || !redirect_url.trim()) {
-      Swal.fire('Campos incompletos', 'Completa imagen, título, copy y URL de destino.', 'warning');
-      return;
-    }
-    setManualLoading(true);
-    try {
-      const formData = new FormData();
-      formData.append('image', manualFile);
-      formData.append('title', title.trim());
-      formData.append('body', body.trim());
-      formData.append('redirect_url', redirect_url.trim());
-      formData.append('platform', platform);
-      formData.append('budget', budget);
-
-      const res = await campaignService.createManualCampaign(formData, basicAuthHeader);
-      const platforms = res.created?.map(c => c.platform).join(', ') || 'plataformas';
-      Swal.fire({ title: '¡Campaña Creada!', text: `Publicada en: ${platforms}`, icon: 'success' });
-      setManualForm({ title: '', body: '', redirect_url: '', platform: 'facebook', budget: 50000 });
-      setManualFile(null);
-      setManualPreview(null);
-    } catch (error) {
-      Swal.fire('Error', error.message, 'error');
-    } finally {
-      setManualLoading(false);
     }
   };
 
@@ -242,137 +197,6 @@ const LaunchView = ({ crmData }) => {
             </li>
           </ul>
         </div>
-      </div>
-
-      {/* ------------------------------------------------------------------ */}
-      {/* CAMPAÑA MANUAL — WhatsApp CTA + URL de redirección personalizada    */}
-      {/* ------------------------------------------------------------------ */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
-          <span className="text-2xl">✏️</span>
-          <div>
-            <h3 className="font-bold text-slate-800 text-lg">Campaña Manual</h3>
-            <p className="text-slate-500 text-sm">Contenido libre · CTA WhatsApp · Enlace de imagen personalizado</p>
-          </div>
-        </div>
-
-        <form onSubmit={handleManualCampaign} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-
-          {/* Columna izquierda: imagen + preview */}
-          <div className="space-y-4">
-            <div
-              className="border-2 border-dashed border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-indigo-400 transition-colors min-h-[180px] bg-slate-50"
-              onClick={() => manualFileInputRef.current?.click()}
-            >
-              {manualPreview ? (
-                <img src={manualPreview} alt="Preview" className="max-h-40 rounded-lg object-contain" />
-              ) : (
-                <>
-                  <span className="text-4xl text-slate-300">🖼️</span>
-                  <p className="text-sm text-slate-400 text-center">Haz clic para subir la imagen del anuncio</p>
-                </>
-              )}
-              <input
-                ref={manualFileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleManualFileChange}
-              />
-            </div>
-            {manualFile && (
-              <p className="text-xs text-slate-400 text-center truncate">{manualFile.name}</p>
-            )}
-
-            {/* Plataforma y Presupuesto */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Plataforma</label>
-                <select
-                  value={manualForm.platform}
-                  onChange={e => setManualForm(f => ({ ...f, platform: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                >
-                  <option value="facebook">Facebook</option>
-                  <option value="linkedin">LinkedIn</option>
-                  <option value="all">Ambas</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Presupuesto diario (COP)</label>
-                <input
-                  type="number"
-                  min={20000}
-                  step={5000}
-                  value={manualForm.budget}
-                  onChange={e => setManualForm(f => ({ ...f, budget: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Columna derecha: textos y URL */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Título del anuncio <span className="text-red-400">*</span></label>
-              <input
-                type="text"
-                placeholder="Ej: Webinar Gratuito — Cierre Tributario 2025"
-                value={manualForm.title}
-                onChange={e => setManualForm(f => ({ ...f, title: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                maxLength={150}
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Copy / Cuerpo del anuncio <span className="text-red-400">*</span></label>
-              <textarea
-                rows={4}
-                placeholder="Texto principal que verá el usuario en el anuncio..."
-                value={manualForm.body}
-                onChange={e => setManualForm(f => ({ ...f, body: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
-                maxLength={500}
-              />
-              <p className="text-xs text-slate-400 text-right">{manualForm.body.length}/500</p>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">
-                URL de destino (clic en imagen) <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="url"
-                placeholder="https://crconsultorescolombia.com/webinar"
-                value={manualForm.redirect_url}
-                onChange={e => setManualForm(f => ({ ...f, redirect_url: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-              />
-              <p className="text-xs text-slate-400 mt-1">El botón CTA abrirá WhatsApp. La imagen lleva a esta URL.</p>
-            </div>
-
-            <button
-              type="submit"
-              disabled={manualLoading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm"
-            >
-              {manualLoading ? (
-                <>
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                  </svg>
-                  Creando campaña...
-                </>
-              ) : (
-                '🚀 Publicar Campaña Manual'
-              )}
-            </button>
-          </div>
-
-        </form>
       </div>
 
     </div>

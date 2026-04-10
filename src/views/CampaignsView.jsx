@@ -6,6 +6,194 @@ import { campaignService } from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 import { API_BASE_URL } from '../app/config';
 
+// --- MODAL: CAMPAÑA MANUAL ---
+const ManualCampaignModal = ({ onClose, token }) => {
+    const [form, setForm] = useState({ title: '', body: '', redirect_url: '', platform: 'facebook', budget: 50000 });
+    const [file, setFile] = useState(null);
+    const [preview, setPreview] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const fileRef = useRef(null);
+
+    const handleFile = (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        setFile(f);
+        setPreview(URL.createObjectURL(f));
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!file || !form.title.trim() || !form.body.trim() || !form.redirect_url.trim()) {
+            Swal.fire('Campos incompletos', 'Completa todos los campos requeridos.', 'warning');
+            return;
+        }
+        setLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('title', form.title.trim());
+            formData.append('body', form.body.trim());
+            formData.append('redirect_url', form.redirect_url.trim());
+            formData.append('platform', form.platform);
+            formData.append('budget', form.budget);
+
+            const res = await campaignService.createManualCampaign(formData, token);
+            const platforms = res.created?.map(c => c.platform).join(', ') || 'plataformas';
+            Swal.fire({ title: '¡Campaña Creada!', text: `Publicada en: ${platforms}`, icon: 'success' });
+            onClose();
+        } catch (error) {
+            Swal.fire('Error', error.message, 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+            <div
+                className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+                onClick={e => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                    <div>
+                        <h2 className="font-bold text-slate-800 text-lg">✏️ Campaña Manual</h2>
+                        <p className="text-slate-500 text-xs mt-0.5">Contenido libre · CTA WhatsApp · URL de destino personalizada</p>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                    >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                {/* Body */}
+                <form onSubmit={handleSubmit} className="p-6 space-y-5">
+
+                    {/* Imagen */}
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Imagen del anuncio <span className="text-red-400">*</span></label>
+                        <div
+                            className="border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-colors min-h-[140px] bg-slate-50"
+                            onClick={() => fileRef.current?.click()}
+                        >
+                            {preview ? (
+                                <img src={preview} alt="Preview" className="max-h-32 rounded-lg object-contain py-2" />
+                            ) : (
+                                <>
+                                    <svg className="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    <p className="text-sm text-slate-400">Haz clic para subir la imagen del anuncio</p>
+                                    <p className="text-xs text-slate-300">JPG, PNG (Máx 5MB)</p>
+                                </>
+                            )}
+                            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+                        </div>
+                        {file && <p className="text-xs text-slate-400 mt-1 truncate">{file.name}</p>}
+                    </div>
+
+                    {/* Título */}
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Título <span className="text-red-400">*</span></label>
+                        <input
+                            type="text"
+                            placeholder="Ej: Webinar Gratuito — Cierre Tributario 2025"
+                            value={form.title}
+                            onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                            maxLength={150}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                        />
+                    </div>
+
+                    {/* Copy */}
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Copy del anuncio <span className="text-red-400">*</span></label>
+                        <textarea
+                            rows={3}
+                            placeholder="Texto principal que verá el usuario..."
+                            value={form.body}
+                            onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
+                            maxLength={500}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
+                        />
+                        <p className="text-xs text-slate-400 text-right">{form.body.length}/500</p>
+                    </div>
+
+                    {/* URL */}
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">URL de destino (clic en imagen) <span className="text-red-400">*</span></label>
+                        <input
+                            type="url"
+                            placeholder="https://crconsultorescolombia.com/webinar"
+                            value={form.redirect_url}
+                            onChange={e => setForm(f => ({ ...f, redirect_url: e.target.value }))}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                        />
+                        <p className="text-xs text-slate-400 mt-1">El botón CTA abrirá WhatsApp. La imagen lleva a esta URL.</p>
+                    </div>
+
+                    {/* Plataforma + Presupuesto */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Plataforma</label>
+                            <select
+                                value={form.platform}
+                                onChange={e => setForm(f => ({ ...f, platform: e.target.value }))}
+                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                            >
+                                <option value="facebook">👤 Solo Meta (FB/IG)</option>
+                                <option value="linkedin">💼 Solo LinkedIn</option>
+                                <option value="all">✨ Ambas plataformas</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Presupuesto diario (COP)</label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                                <input
+                                    type="number"
+                                    min={20000}
+                                    step={5000}
+                                    value={form.budget}
+                                    onChange={e => setForm(f => ({ ...f, budget: e.target.value }))}
+                                    className="w-full pl-7 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex gap-3 pt-2">
+                        <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                            Cancelar
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm"
+                        >
+                            {loading ? (
+                                <>
+                                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                                    </svg>
+                                    Publicando...
+                                </>
+                            ) : '🚀 Publicar Campaña Manual'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 // Iconos SVG
 const Icons = {
     Image: () => <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
@@ -26,6 +214,7 @@ const CampaignsView = ({
     const { basicAuthHeader } = useContext(AuthContext);
 
     // Estados Locales
+    const [showManualModal, setShowManualModal] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [statusMessage, setStatusMessage] = useState("");
     const [budget, setBudget] = useState(config?.default_budget || 50000);
@@ -159,16 +348,34 @@ const CampaignsView = ({
     return (
         <div className="animate-fade-in-up space-y-8">
 
+            {showManualModal && (
+                <ManualCampaignModal
+                    token={basicAuthHeader}
+                    onClose={() => setShowManualModal(false)}
+                />
+            )}
+
             <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/40 border border-slate-100 overflow-hidden">
 
-                <div className="px-8 py-6 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
-                    <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
-                        <Icons.Image />
+                <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                            <Icons.Image />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-slate-800 text-lg">Nueva Campaña Automática</h3>
+                            <p className="text-slate-500 text-sm">Solo sube la imagen. La IA hará todo el resto.</p>
+                        </div>
                     </div>
-                    <div>
-                        <h3 className="font-bold text-slate-800 text-lg">Nueva Campaña Automática</h3>
-                        <p className="text-slate-500 text-sm">Solo sube la imagen. La IA hará todo el resto.</p>
-                    </div>
+                    <button
+                        onClick={() => setShowManualModal(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Campaña Manual
+                    </button>
                 </div>
 
                 <div className="p-6 md:p-8">
