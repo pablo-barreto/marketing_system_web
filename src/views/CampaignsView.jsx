@@ -8,7 +8,7 @@ import { API_BASE_URL } from '../app/config';
 
 // --- MODAL: CAMPAÑA MANUAL ---
 const ManualCampaignModal = ({ onClose, token }) => {
-    const [form, setForm] = useState({ title: '', body: '', redirect_url: '', platform: 'facebook', budget: 50000 });
+    const [form, setForm] = useState({ title: '', body: '', redirect_url: '', whatsapp_number: '', platform: 'facebook', budget: 50000 });
     const [file, setFile] = useState(null);
     const [preview, setPreview] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -34,6 +34,7 @@ const ManualCampaignModal = ({ onClose, token }) => {
             formData.append('title', form.title.trim());
             formData.append('body', form.body.trim());
             formData.append('redirect_url', form.redirect_url.trim());
+            if (form.whatsapp_number.trim()) formData.append('whatsapp_number', form.whatsapp_number.trim());
             formData.append('platform', form.platform);
             formData.append('budget', form.budget);
 
@@ -124,17 +125,34 @@ const ManualCampaignModal = ({ onClose, token }) => {
                         <p className="text-xs text-slate-400 text-right">{form.body.length}/500</p>
                     </div>
 
-                    {/* URL */}
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">URL de destino (clic en imagen) <span className="text-red-400">*</span></label>
-                        <input
-                            type="url"
-                            placeholder="https://crconsultorescolombia.com/webinar"
-                            value={form.redirect_url}
-                            onChange={e => setForm(f => ({ ...f, redirect_url: e.target.value }))}
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                        />
-                        <p className="text-xs text-slate-400 mt-1">El botón CTA abrirá WhatsApp. La imagen lleva a esta URL.</p>
+                    {/* URL + WhatsApp */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">URL de destino (clic en imagen) <span className="text-red-400">*</span></label>
+                            <input
+                                type="url"
+                                placeholder="https://crconsultorescolombia.com/webinar"
+                                value={form.redirect_url}
+                                onChange={e => setForm(f => ({ ...f, redirect_url: e.target.value }))}
+                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                            />
+                            <p className="text-xs text-slate-400 mt-1">La imagen del anuncio lleva a esta URL.</p>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Número WhatsApp CTA</label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">+</span>
+                                <input
+                                    type="text"
+                                    placeholder="573144768061"
+                                    value={form.whatsapp_number}
+                                    onChange={e => setForm(f => ({ ...f, whatsapp_number: e.target.value.replace(/\D/g, '') }))}
+                                    maxLength={15}
+                                    className="w-full pl-7 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                                />
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1">Opcional · Si no se indica usa el número por defecto.</p>
+                        </div>
                     </div>
 
                     {/* Plataforma + Presupuesto */}
