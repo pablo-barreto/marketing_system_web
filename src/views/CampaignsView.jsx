@@ -8,7 +8,7 @@ import { API_BASE_URL } from '../app/config';
 
 // --- MODAL: CAMPAÑA MANUAL ---
 const ManualCampaignModal = ({ onClose, token }) => {
-    const [form, setForm] = useState({ title: '', body: '', redirect_url: '', whatsapp_number: '', platform: 'facebook', budget: 50000 });
+    const [form, setForm] = useState({ title: '', body: '', redirect_url: '', whatsapp_number: '', platform: 'facebook', budget: 50000, end_date: '' });
     const [file, setFile] = useState(null);
     const [preview, setPreview] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -37,6 +37,7 @@ const ManualCampaignModal = ({ onClose, token }) => {
             if (form.whatsapp_number.trim()) formData.append('whatsapp_number', form.whatsapp_number.trim());
             formData.append('platform', form.platform);
             formData.append('budget', form.budget);
+            if (form.end_date) formData.append('end_date', form.end_date);
 
             const res = await campaignService.createManualCampaign(formData, token);
             const platforms = res.created?.map(c => c.platform).join(', ') || 'plataformas';
@@ -183,6 +184,25 @@ const ManualCampaignModal = ({ onClose, token }) => {
                                 />
                             </div>
                         </div>
+                    </div>
+
+                    {/* Fecha límite */}
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                            Fecha límite <span className="text-slate-400 font-normal normal-case">(opcional)</span>
+                        </label>
+                        <input
+                            type="date"
+                            min={new Date().toISOString().split('T')[0]}
+                            value={form.end_date}
+                            onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                        />
+                        <p className="text-xs text-slate-400 mt-1">
+                            {form.end_date
+                                ? 'La campaña se pausará al llegar a esta fecha aunque no se agote el presupuesto.'
+                                : 'Sin fecha: la campaña se pausa automáticamente al agotar el presupuesto.'}
+                        </p>
                     </div>
 
                     {/* Footer */}

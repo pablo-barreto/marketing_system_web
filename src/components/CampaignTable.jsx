@@ -107,8 +107,23 @@ const LinkedInPreview = ({ content, service, imageUrl }) => (
 // 2. MODAL PRINCIPAL
 // =============================================================================
 
-const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, onUpdateBudget }) => {
+const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, onUpdateBudget, onUpdateEndDate }) => {
     if (!campaign) return null;
+
+    const handleEditEndDateInModal = async () => {
+        const currentVal = campaign.end_date ? campaign.end_date.split('T')[0] : '';
+        const { value: newDate, isDismissed } = await Swal.fire({
+            title: 'Fecha límite de la campaña',
+            input: 'date',
+            inputValue: currentVal,
+            inputLabel: 'Dejar vacío para quitar la fecha límite',
+            showCancelButton: true,
+            confirmButtonText: 'Guardar',
+        });
+        if (!isDismissed && onUpdateEndDate) {
+            await onUpdateEndDate(campaign, newDate || null);
+        }
+    };
 
     const handleEditBudgetInModal = async () => {
         const currentBudget = campaign.budget || 0;
@@ -234,6 +249,23 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, on
                                         </span>
                                     </div>
                                 </div>
+                                <div className="p-2 border border-slate-100 rounded-lg">
+                                    <span className="block text-slate-400 text-[10px]">Fecha límite</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-bold text-slate-800 text-sm">
+                                            {campaign.end_date
+                                                ? new Date(campaign.end_date).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+                                                : <span className="text-slate-400 font-normal">Sin fecha</span>}
+                                        </span>
+                                        {isSyncSupported && (
+                                            <button onClick={handleEditEndDateInModal} className="p-1 text-slate-300 hover:text-blue-500 transition-colors rounded hover:bg-blue-50" title="Editar Fecha Límite">
+                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                </svg>
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -341,6 +373,52 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
             } catch (error) {
                 Swal.fire('Error', error.message, 'error');
             }
+        }
+    };
+
+    const handleDirectBudgetUpdate = async (campaign, newBudget) => {
+        Swal.fire({ title: 'Actualizando...', didOpen: () => Swal.showLoading() });
+        try {
+            const token = getAuthToken();
+            const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaign.id}/budget`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': token },
+                body: JSON.stringify({ budget: newBudget })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                const confirmed = data.new_budget ? parseFloat(data.new_budget) : parseFloat(newBudget);
+                updateLocalCampaignData(campaign.id, { budget: confirmed });
+                Swal.fire({ title: '¡Actualizado!', text: `Nuevo presupuesto: $${confirmed.toLocaleString()}`, icon: 'success', timer: 2000 });
+            } else {
+                throw new Error(data.error || 'Error al actualizar en plataforma');
+            }
+        } catch (error) {
+            Swal.fire('Error', error.message, 'error');
+        }
+    };
+
+    const handleDirectEndDateUpdate = async (campaign, newEndDate) => {
+        Swal.fire({ title: 'Actualizando...', didOpen: () => Swal.showLoading() });
+        try {
+            const token = getAuthToken();
+            const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaign.id}/end-date`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': token },
+                body: JSON.stringify({ end_date: newEndDate })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                updateLocalCampaignData(campaign.id, { end_date: newEndDate });
+                const label = newEndDate
+                    ? `Fecha límite: ${new Date(newEndDate).toLocaleDateString('es-CO')}`
+                    : 'Fecha límite eliminada';
+                Swal.fire({ title: '¡Actualizado!', text: label, icon: 'success', timer: 2000 });
+            } else {
+                throw new Error(data.error || 'Error al actualizar');
+            }
+        } catch (error) {
+            Swal.fire('Error', error.message, 'error');
         }
     };
 
@@ -773,7 +851,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
 
     return (
         <div className="w-full">
-            {selectedCampaign && <CampaignPreviewModal campaign={selectedCampaign} onClose={() => setSelectedCampaign(null)} onApprove={handleConfirmApprove} onToggleStatus={handleToggleStatus} onUpdateBudget={handleEditBudget} />}
+            {selectedCampaign && <CampaignPreviewModal campaign={selectedCampaign} onClose={() => setSelectedCampaign(null)} onApprove={handleConfirmApprove} onToggleStatus={handleToggleStatus} onUpdateBudget={handleDirectBudgetUpdate} onUpdateEndDate={handleDirectEndDateUpdate} />}
             {selectedAudienceCampaign && <AudienceModal campaign={selectedAudienceCampaign} onClose={() => setSelectedAudienceCampaign(null)} />}
 
             {/* --- BARRA DE HERRAMIENTAS ACTUALIZADA --- */}
