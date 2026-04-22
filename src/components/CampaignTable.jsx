@@ -110,19 +110,48 @@ const LinkedInPreview = ({ content, service, imageUrl }) => (
 const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, onUpdateBudget, onUpdateEndDate, onUpdateBid }) => {
     if (!campaign) return null;
 
+    const [bidInfo, setBidInfo] = useState(null);
+    const [bidLoading, setBidLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchBid = async () => {
+            setBidLoading(true);
+            try {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; auth_token=`);
+                const token = parts.length === 2 ? decodeURIComponent(parts.pop().split(';').shift()) : null;
+                const resp = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaign.id}/bid`, {
+                    headers: { 'Authorization': token }
+                });
+                if (resp.ok) setBidInfo(await resp.json());
+            } catch {
+                // fallo silencioso
+            } finally {
+                setBidLoading(false);
+            }
+        };
+        fetchBid();
+    }, [campaign.id]);
+
     const handleEditBidInModal = async () => {
+        const isLinkedIn = platform.includes('linkedin');
+        const minBid = isLinkedIn ? 4000 : 1000;
+        const currentVal = bidInfo?.amount || '';
+        const currentLabel = currentVal ? `Actual: $${currentVal.toLocaleString()} COP` : (bidInfo?.strategy ? `Actual: Automática (${bidInfo.strategy})` : '');
+
         const { value: newBid } = await Swal.fire({
-            title: 'Editar Puja CPC',
-            text: 'Precio máximo a pagar por cada clic (LinkedIn)',
+            title: isLinkedIn ? 'Editar Puja CPC (LinkedIn)' : 'Editar Bid Cap (Meta)',
+            text: currentLabel,
             input: 'number',
-            inputLabel: 'Nueva puja (COP)',
-            inputPlaceholder: 'Ej: 4500',
+            inputLabel: `Nueva puja (COP) — mínimo $${minBid.toLocaleString()}`,
+            inputValue: currentVal,
+            inputPlaceholder: isLinkedIn ? 'Ej: 4500' : 'Ej: 2000',
             showCancelButton: true,
-            confirmButtonColor: '#0077b5',
+            confirmButtonColor: isLinkedIn ? '#0077b5' : '#1877f2',
             confirmButtonText: 'Guardar',
             inputValidator: (value) => {
-                if (!value || value < 4000) {
-                    return 'La puja mínima es $4.000 COP';
+                if (!value || value < minBid) {
+                    return `La puja mínima es $${minBid.toLocaleString()} COP`;
                 }
             }
         });
@@ -287,17 +316,28 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, on
                                         )}
                                     </div>
                                 </div>
-                                {platform.includes('linkedin') && (
+                                {isSyncSupported && (
                                     <div className="p-2 border border-slate-100 rounded-lg">
-                                        <span className="block text-slate-400 text-[10px]">Puja CPC</span>
+                                        <span className="block text-slate-400 text-[10px]">Puja</span>
                                         <div className="flex items-center gap-2">
-                                            <span className="font-bold text-slate-800 text-sm">En plataforma</span>
-                                            <button onClick={handleEditBidInModal} className="p-1 text-slate-300 hover:text-blue-500 transition-colors rounded hover:bg-blue-50" title="Editar Puja CPC">
+                                            {bidLoading ? (
+                                                <span className="text-slate-400 text-xs animate-pulse">Cargando...</span>
+                                            ) : bidInfo?.amount ? (
+                                                <span className="font-bold text-slate-800 text-sm">${bidInfo.amount.toLocaleString()} COP</span>
+                                            ) : bidInfo?.strategy ? (
+                                                <span className="font-bold text-emerald-600 text-xs">Auto ({bidInfo.strategy.replace('LOWEST_COST_', '').replace('_', ' ')})</span>
+                                            ) : (
+                                                <span className="text-slate-400 text-xs">No disponible</span>
+                                            )}
+                                            <button onClick={handleEditBidInModal} className="p-1 text-slate-300 hover:text-blue-500 transition-colors rounded hover:bg-blue-50" title="Editar Puja">
                                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                                 </svg>
                                             </button>
                                         </div>
+                                        {bidInfo?.strategy && !bidInfo?.amount && isMeta && (
+                                            <span className="text-[9px] text-slate-400">Editar activa puja manual (bid cap)</span>
+                                        )}
                                     </div>
                                 )}
                             </div>
