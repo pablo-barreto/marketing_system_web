@@ -107,8 +107,29 @@ const LinkedInPreview = ({ content, service, imageUrl }) => (
 // 2. MODAL PRINCIPAL
 // =============================================================================
 
-const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, onUpdateBudget, onUpdateEndDate }) => {
+const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, onUpdateBudget, onUpdateEndDate, onUpdateBid }) => {
     if (!campaign) return null;
+
+    const handleEditBidInModal = async () => {
+        const { value: newBid } = await Swal.fire({
+            title: 'Editar Puja CPC',
+            text: 'Precio máximo a pagar por cada clic (LinkedIn)',
+            input: 'number',
+            inputLabel: 'Nueva puja (COP)',
+            inputPlaceholder: 'Ej: 4500',
+            showCancelButton: true,
+            confirmButtonColor: '#0077b5',
+            confirmButtonText: 'Guardar',
+            inputValidator: (value) => {
+                if (!value || value < 4000) {
+                    return 'La puja mínima es $4.000 COP';
+                }
+            }
+        });
+        if (newBid && onUpdateBid) {
+            await onUpdateBid(campaign, parseFloat(newBid));
+        }
+    };
 
     const handleEditEndDateInModal = async () => {
         const currentVal = campaign.end_date ? campaign.end_date.split('T')[0] : '';
@@ -266,6 +287,19 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, on
                                         )}
                                     </div>
                                 </div>
+                                {platform.includes('linkedin') && (
+                                    <div className="p-2 border border-slate-100 rounded-lg">
+                                        <span className="block text-slate-400 text-[10px]">Puja CPC</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-slate-800 text-sm">En plataforma</span>
+                                            <button onClick={handleEditBidInModal} className="p-1 text-slate-300 hover:text-blue-500 transition-colors rounded hover:bg-blue-50" title="Editar Puja CPC">
+                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -392,6 +426,26 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                 Swal.fire({ title: '¡Actualizado!', text: `Nuevo presupuesto: $${confirmed.toLocaleString()}`, icon: 'success', timer: 2000 });
             } else {
                 throw new Error(data.error || 'Error al actualizar en plataforma');
+            }
+        } catch (error) {
+            Swal.fire('Error', error.message, 'error');
+        }
+    };
+
+    const handleDirectBidUpdate = async (campaign, newBid) => {
+        Swal.fire({ title: 'Actualizando puja...', didOpen: () => Swal.showLoading() });
+        try {
+            const token = getAuthToken();
+            const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaign.id}/bid`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': token },
+                body: JSON.stringify({ bid: newBid })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                Swal.fire({ title: '¡Puja actualizada!', text: `Nueva puja CPC: $${parseFloat(newBid).toLocaleString()} COP`, icon: 'success', timer: 2000 });
+            } else {
+                throw new Error(data.error || 'Error al actualizar la puja');
             }
         } catch (error) {
             Swal.fire('Error', error.message, 'error');
@@ -851,7 +905,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
 
     return (
         <div className="w-full">
-            {selectedCampaign && <CampaignPreviewModal campaign={selectedCampaign} onClose={() => setSelectedCampaign(null)} onApprove={handleConfirmApprove} onToggleStatus={handleToggleStatus} onUpdateBudget={handleDirectBudgetUpdate} onUpdateEndDate={handleDirectEndDateUpdate} />}
+            {selectedCampaign && <CampaignPreviewModal campaign={selectedCampaign} onClose={() => setSelectedCampaign(null)} onApprove={handleConfirmApprove} onToggleStatus={handleToggleStatus} onUpdateBudget={handleDirectBudgetUpdate} onUpdateEndDate={handleDirectEndDateUpdate} onUpdateBid={handleDirectBidUpdate} />}
             {selectedAudienceCampaign && <AudienceModal campaign={selectedAudienceCampaign} onClose={() => setSelectedAudienceCampaign(null)} />}
 
             {/* --- BARRA DE HERRAMIENTAS ACTUALIZADA --- */}
