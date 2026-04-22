@@ -288,8 +288,6 @@ const CampaignsView = ({
                 if (result.status === 'success' && result.data) {
                     const aiServiceName = result.data.service;
 
-                    console.log("🤖 IA Detectó:", aiServiceName);
-
                     // Verificación final simple
                     if (availableServices.includes(aiServiceName)) {
                         detectedService = aiServiceName;
@@ -302,12 +300,10 @@ const CampaignsView = ({
                             // El usuario ya eligió manualmente, respetamos su elección
                             detectedService = userSelectedService;
                             setStatusMessage(`✅ Usando servicio seleccionado: ${userSelectedService}`);
-                            console.log("👤 Usuario ya eligió:", userSelectedService);
                         }
                     } else {
                         // Fallback: usar lo que el usuario eligió
                         detectedService = userSelectedService;
-                        console.warn("⚠️ Fallback activado en frontend");
                     }
                 }
             } else {

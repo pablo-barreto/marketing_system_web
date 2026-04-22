@@ -124,7 +124,21 @@ export const launchService = {
     return response.json();
   },
 
-  // 2. SEO Boost Manual [2]
+  // 2. Sincronizar audiencia a campañas existentes
+  syncAudienceToCampaigns: async (body, token) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/launch/sync-audience`, {
+      method: 'POST',
+      headers: { 'Authorization': token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.message || 'Error en sincronización de audiencia');
+    }
+    return response.json();
+  },
+
+  // 3. SEO Boost Manual [2]
   triggerSeoBoost: async (token) => {
     const response = await fetch(`${API_BASE_URL}/api/v1/seo/force-boost`, {
       method: 'POST',
