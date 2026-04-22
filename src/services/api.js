@@ -124,7 +124,19 @@ export const launchService = {
     return response.json();
   },
 
-  // 2. Sincronizar audiencia a campañas existentes
+  // 2. Obtener campañas activas del panel
+  getActiveCampaigns: async (token) => {
+    const response = await fetch(`${API_BASE_URL}${ADMIN_PANEL_ENDPOINT}`, {
+      method: 'GET',
+      headers: { 'Authorization': token }
+    });
+    if (!response.ok) throw new Error('Error al obtener campañas');
+    const data = await response.json();
+    const all = data.campaigns || data.campaigns_list || [];
+    return all.filter(c => (c.status || '').toLowerCase() === 'active');
+  },
+
+  // 3. Sincronizar audiencia a campañas existentes
   syncAudienceToCampaigns: async (body, token) => {
     const response = await fetch(`${API_BASE_URL}/api/v1/launch/sync-audience`, {
       method: 'POST',

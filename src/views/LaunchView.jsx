@@ -51,22 +51,9 @@ const LaunchView = ({ crmData }) => {
   // -----------------------------------------------------------------------
 
   useEffect(() => {
-    const fetchActiveCampaigns = async () => {
-      try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/admin/panel`, {
-          headers: { Authorization: basicAuthHeader }
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        const campaigns = data.campaigns || data.campaigns_list || [];
-        setActiveCampaigns(
-          campaigns.filter(c => (c.status || '').toLowerCase() === 'active')
-        );
-      } catch {
-        // fallo silencioso — la UI mostrará lista vacía
-      }
-    };
-    fetchActiveCampaigns();
+    launchService.getActiveCampaigns(basicAuthHeader)
+      .then(setActiveCampaigns)
+      .catch(() => {});
   }, [basicAuthHeader]);
 
   // -----------------------------------------------------------------------
