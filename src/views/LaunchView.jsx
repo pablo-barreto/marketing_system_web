@@ -61,7 +61,7 @@ const LaunchView = ({ crmData }) => {
   // -----------------------------------------------------------------------
 
   // A. Lanzamiento Global: crea campañas nuevas
-  const handleGlobalLaunch = async (file, title, mode, roles, budget) => {
+  const handleGlobalLaunch = async (file, title, mode, roles, budget, targetCountries = [], targetServices = []) => {
     setLoading(true);
     try {
       const formData = new FormData();
@@ -72,6 +72,12 @@ const LaunchView = ({ crmData }) => {
       formData.append('budget', budget);
       if (mode === 'specific' && roles) {
         formData.append('target_roles', roles);
+      }
+      if (targetCountries.length > 0) {
+        formData.append('target_countries', targetCountries.join(','));
+      }
+      if (targetServices.length > 0) {
+        formData.append('service_interests', targetServices.join(','));
       }
 
       const res = await launchService.executeGlobalLaunch(formData, basicAuthHeader);

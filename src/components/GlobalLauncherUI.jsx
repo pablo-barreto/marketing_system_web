@@ -1,12 +1,36 @@
 import React, { useState, useRef } from 'react';
 import Swal from 'sweetalert2';
 
+const COUNTRIES = [
+  { code: 'CO', label: 'Colombia' },
+  { code: 'MX', label: 'México' },
+  { code: 'PE', label: 'Perú' },
+  { code: 'CL', label: 'Chile' },
+  { code: 'EC', label: 'Ecuador' },
+  { code: 'AR', label: 'Argentina' },
+  { code: 'PA', label: 'Panamá' },
+  { code: 'ES', label: 'España' },
+  { code: 'US', label: 'EE.UU.' },
+];
+
+const SERVICES = [
+  { value: 'servicios-tributarios', label: 'Tributario' },
+  { value: 'impuestos', label: 'Impuestos' },
+  { value: 'nomina', label: 'Nómina' },
+  { value: 'asesoria-financiera', label: 'Asesoría Financiera' },
+  { value: 'servicios-legales', label: 'Legal' },
+  { value: 'auditoria', label: 'Auditoría' },
+  { value: 'consultoria', label: 'Consultoría' },
+];
+
 const GlobalLauncherUI = ({ onLaunch, onSyncAudience, isProcessing, availableRoles = [], topRoles = [], activeCampaigns = [] }) => {
   const [preview, setPreview] = useState(null);
   const [title, setTitle] = useState('');
   const [segmentationMode, setSegmentationMode] = useState('all');
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [budget, setBudget] = useState(50000);
+  const [targetCountries, setTargetCountries] = useState(COUNTRIES.map(c => c.code));
+  const [targetServices, setTargetServices] = useState(SERVICES.map(s => s.value));
 
   // Modo de lanzamiento: 'new' = crear campañas nuevas, 'existing' = enviar a existentes
   const [launchType, setLaunchType] = useState('new');
@@ -63,7 +87,19 @@ const GlobalLauncherUI = ({ onLaunch, onSyncAudience, isProcessing, availableRol
     }
 
     const rolesString = selectedRoles.join(',');
-    onLaunch(file, title, segmentationMode, rolesString, budget);
+    onLaunch(file, title, segmentationMode, rolesString, budget, targetCountries, targetServices);
+  };
+
+  const handleToggleCountry = (code) => {
+    setTargetCountries(prev =>
+      prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
+    );
+  };
+
+  const handleToggleService = (value) => {
+    setTargetServices(prev =>
+      prev.includes(value) ? prev.filter(s => s !== value) : [...prev, value]
+    );
   };
 
   const handleReset = () => {
@@ -74,6 +110,8 @@ const GlobalLauncherUI = ({ onLaunch, onSyncAudience, isProcessing, availableRol
     setBudget(50000);
     setLaunchType('new');
     setSelectedCampaignIds([]);
+    setTargetCountries(COUNTRIES.map(c => c.code));
+    setTargetServices(SERVICES.map(s => s.value));
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -222,6 +260,52 @@ const GlobalLauncherUI = ({ onLaunch, onSyncAudience, isProcessing, availableRol
             </div>
           </div>
         )}
+
+        {/* Países objetivo */}
+        <div className="mb-4">
+          <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+            🌍 Países objetivo
+            <span className="ml-2 text-slate-600 font-normal normal-case">({targetCountries.length} seleccionados)</span>
+          </label>
+          <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-3 flex flex-wrap gap-2">
+            {COUNTRIES.map(({ code, label }) => (
+              <label key={code} className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={targetCountries.includes(code)}
+                  onChange={() => handleToggleCountry(code)}
+                  className="w-3.5 h-3.5 accent-emerald-500"
+                />
+                <span className={`text-xs font-medium ${targetCountries.includes(code) ? 'text-white' : 'text-slate-500'}`}>
+                  {label}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Servicios objetivo */}
+        <div className="mb-4">
+          <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+            🎯 Servicios objetivo
+            <span className="ml-2 text-slate-600 font-normal normal-case">({targetServices.length} seleccionados)</span>
+          </label>
+          <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-3 flex flex-wrap gap-2">
+            {SERVICES.map(({ value, label }) => (
+              <label key={value} className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={targetServices.includes(value)}
+                  onChange={() => handleToggleService(value)}
+                  className="w-3.5 h-3.5 accent-emerald-500"
+                />
+                <span className={`text-xs font-medium ${targetServices.includes(value) ? 'text-white' : 'text-slate-500'}`}>
+                  {label}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
 
         {/* ── MODO CAMPAÑAS EXISTENTES: Selector ── */}
         {launchType === 'existing' && (
