@@ -178,13 +178,27 @@ const SeoView = ({ rankings, content }) => {
             setSelectedUrls(selected);
 
             if (!data.redirection_plugin_active) {
+            const otherPlugins = data.other_redirect_plugins || [];
+            if (otherPlugins.length > 0) {
+                Swal.fire({
+                    title: '⚠️ Plugin detectado pero no compatible',
+                    html: `Se detectó el plugin <strong>${otherPlugins[0]}</strong> en WordPress, pero para la aplicación <em>automática</em> de redirecciones se necesita el plugin gratuito <strong>Redirection</strong> de John Godley.<br/><br/>
+                    Puedes:<br/>
+                    • Instalar <strong>Redirection</strong> (Plugins → Añadir nuevo) para aplicar automáticamente<br/>
+                    • O crear las redirecciones manualmente en <strong>${otherPlugins[0]}</strong> usando las URLs de la tabla`,
+                    icon: 'info',
+                    confirmButtonColor: '#2563eb',
+                    confirmButtonText: 'Entendido'
+                });
+            } else {
                 Swal.fire({
                     title: '⚠️ Plugin requerido',
-                    html: `Para aplicar redirecciones necesitas el plugin <strong>Redirection</strong> activo en WordPress.<br/><br/>Es gratuito y se instala en 1 clic desde <em>Plugins → Añadir nuevo</em>.`,
+                    html: `Para aplicar redirecciones automáticamente necesitas el plugin gratuito <strong>Redirection</strong> de John Godley activo en WordPress.<br/><br/>Se instala en 1 clic desde <em>Plugins → Añadir nuevo</em>.`,
                     icon: 'warning',
                     confirmButtonColor: '#d97706'
                 });
             }
+        }
         } catch (e) {
             Swal.fire('Error', e.message, 'error');
         } finally {
@@ -204,7 +218,7 @@ const SeoView = ({ rankings, content }) => {
 
         const confirm = await Swal.fire({
             title: `¿Aplicar ${toApply.length} redirección(es)?`,
-            text: 'Se crearán reglas 301 permanentes en WordPress. Esta acción se puede revertir desde el plugin Redirection.',
+            text: 'Se crearán reglas 301 permanentes en WordPress vía el plugin Redirection de John Godley. Requiere que ese plugin esté instalado y activo.',
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#10b981',
@@ -344,9 +358,19 @@ const SeoView = ({ rankings, content }) => {
                                 <span className={auditResults.total_404 > 0 ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold'}>
                                     {auditResults.total_404} con error 404
                                 </span>
-                                {!auditResults.redirection_plugin_active && (
+                                {auditResults.redirection_plugin_active && (
+                                    <span className="ml-3 inline-flex items-center gap-1 text-emerald-600 text-xs font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                        ✅ Plugin Redirection activo
+                                    </span>
+                                )}
+                                {!auditResults.redirection_plugin_active && (auditResults.other_redirect_plugins || []).length > 0 && (
+                                    <span className="ml-3 inline-flex items-center gap-1 text-blue-600 text-xs font-bold bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                                        ℹ️ {(auditResults.other_redirect_plugins)[0]} (manual)
+                                    </span>
+                                )}
+                                {!auditResults.redirection_plugin_active && (auditResults.other_redirect_plugins || []).length === 0 && (
                                     <span className="ml-3 inline-flex items-center gap-1 text-amber-600 text-xs font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                                        ⚠️ Plugin Redirection no detectado
+                                        ⚠️ Sin plugin de redirecciones
                                     </span>
                                 )}
                             </p>
@@ -354,10 +378,10 @@ const SeoView = ({ rankings, content }) => {
                         {auditResults.total_404 > 0 && (
                             <button
                                 onClick={handleApplyRedirects}
-                                disabled={applyingRedirects || !auditResults.redirection_plugin_active}
+                                disabled={applyingRedirects}
                                 className={`shrink-0 px-5 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 flex items-center gap-2
-                                    ${applyingRedirects || !auditResults.redirection_plugin_active
-                                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                    ${applyingRedirects
+                                        ? 'bg-slate-100 text-slate-400 cursor-wait'
                                         : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-900/20'}`}
                             >
                                 {applyingRedirects ? '⏳ Aplicando...' : `✅ Aplicar ${selectedUrls.size} redirección(es)`}
