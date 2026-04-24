@@ -12,12 +12,6 @@ const SeoView = ({ rankings, content }) => {
     const [loadingCredits, setLoadingCredits] = React.useState(true);
     const [activeContentTab, setActiveContentTab] = React.useState('blog');
 
-    // --- ESTADO AUDITORÍA 404 ---
-    const [auditLoading, setAuditLoading] = React.useState(false);
-    const [auditResults, setAuditResults] = React.useState(null);
-    const [redirectTargets, setRedirectTargets] = React.useState({});
-    const [selectedUrls, setSelectedUrls] = React.useState(new Set());
-    const [applyingRedirects, setApplyingRedirects] = React.useState(false);
 
     // Filtrar contenido por tipo
     const blogContent = (content || []).filter(item => item.type === 'BLOG');
@@ -161,92 +155,6 @@ const SeoView = ({ rankings, content }) => {
         });
     };
 
-    const handleAudit404 = async () => {
-        setAuditLoading(true);
-        setAuditResults(null);
-        try {
-            const data = await launchService.audit404(basicAuthHeader);
-            setAuditResults(data);
-            // Inicializar destinos y selección con los valores sugeridos
-            const targets = {};
-            const selected = new Set();
-            (data.results || []).forEach(r => {
-                targets[r.url] = r.suggested_redirect;
-                selected.add(r.url);
-            });
-            setRedirectTargets(targets);
-            setSelectedUrls(selected);
-
-            if (!data.redirection_plugin_active) {
-            const otherPlugins = data.other_redirect_plugins || [];
-            if (otherPlugins.length > 0) {
-                Swal.fire({
-                    title: '⚠️ Plugin detectado pero no compatible',
-                    html: `Se detectó el plugin <strong>${otherPlugins[0]}</strong> en WordPress, pero para la aplicación <em>automática</em> de redirecciones se necesita el plugin gratuito <strong>Redirection</strong> de John Godley.<br/><br/>
-                    Puedes:<br/>
-                    • Instalar <strong>Redirection</strong> (Plugins → Añadir nuevo) para aplicar automáticamente<br/>
-                    • O crear las redirecciones manualmente en <strong>${otherPlugins[0]}</strong> usando las URLs de la tabla`,
-                    icon: 'info',
-                    confirmButtonColor: '#2563eb',
-                    confirmButtonText: 'Entendido'
-                });
-            } else {
-                Swal.fire({
-                    title: '⚠️ Plugin requerido',
-                    html: `Para aplicar redirecciones automáticamente necesitas el plugin gratuito <strong>Redirection</strong> de John Godley activo en WordPress.<br/><br/>Se instala en 1 clic desde <em>Plugins → Añadir nuevo</em>.`,
-                    icon: 'warning',
-                    confirmButtonColor: '#d97706'
-                });
-            }
-        }
-        } catch (e) {
-            Swal.fire('Error', e.message, 'error');
-        } finally {
-            setAuditLoading(false);
-        }
-    };
-
-    const handleApplyRedirects = async () => {
-        const toApply = (auditResults?.results || [])
-            .filter(r => selectedUrls.has(r.url))
-            .map(r => ({ source_url: r.url, target_url: redirectTargets[r.url] || r.suggested_redirect }))
-            .filter(r => r.target_url);
-
-        if (toApply.length === 0) {
-            return Swal.fire('Sin selección', 'Selecciona al menos una URL para redirigir.', 'warning');
-        }
-
-        const confirm = await Swal.fire({
-            title: `¿Aplicar ${toApply.length} redirección(es)?`,
-            text: 'Se crearán reglas 301 permanentes en WordPress vía el plugin Redirection de John Godley. Requiere que ese plugin esté instalado y activo.',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#10b981',
-            confirmButtonText: 'Sí, aplicar',
-            cancelButtonText: 'Cancelar'
-        });
-
-        if (!confirm.isConfirmed) return;
-
-        setApplyingRedirects(true);
-        try {
-            const res = await launchService.applyRedirects(toApply, basicAuthHeader);
-            const failed = (res.details || []).filter(d => !d.ok);
-            if (failed.length === 0) {
-                Swal.fire('✅ Listo', `${res.applied} redirección(es) aplicadas correctamente.`, 'success');
-            } else {
-                Swal.fire({
-                    title: `Parcialmente completado`,
-                    html: `${res.applied} OK · ${failed.length} fallidas<br/><small style="color:#64748b">${failed.map(f => f.source_url).join('<br/>')}</small>`,
-                    icon: 'warning'
-                });
-            }
-        } catch (e) {
-            Swal.fire('Error', e.message, 'error');
-        } finally {
-            setApplyingRedirects(false);
-        }
-    };
 
     // Componente Tooltip Premium para una mejor experiencia visual
     const PremiumTooltip = ({ children, message, enabled }) => {
@@ -310,14 +218,6 @@ const SeoView = ({ rankings, content }) => {
                         <span>🚀 Contenido IA</span>
                     </button>
 
-                    <button
-                        onClick={handleAudit404}
-                        disabled={auditLoading}
-                        className={`${auditLoading ? 'bg-slate-100 text-slate-400 cursor-wait' : 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-900/20 active:scale-95'} px-4 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 text-sm`}
-                    >
-                        <span>{auditLoading ? '⏳ Auditando...' : '🔗 Auditar 404'}</span>
-                    </button>
-
                     <PremiumTooltip message="Se requiere al menos 100 créditos en SerpHouse para iniciar una optimización intensiva." enabled={hasLowCredits}>
                         <button
                             onClick={handleForceBoost}
@@ -344,119 +244,6 @@ const SeoView = ({ rankings, content }) => {
                 </div>
             </div>
 
-            {/* SECCIÓN AUDITORÍA 404 */}
-            {auditResults && (
-                <div className="animate-fade-in-up w-full bg-white rounded-2xl border border-slate-200 shadow-sm mt-8 overflow-hidden">
-                    {/* Header */}
-                    <div className="p-5 md:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        <div>
-                            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                🔗 Resultado Auditoría de URLs
-                            </h3>
-                            <p className="text-sm text-slate-500 mt-0.5">
-                                Se revisaron <strong>{auditResults.total_checked}</strong> URLs —{' '}
-                                <span className={auditResults.total_404 > 0 ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold'}>
-                                    {auditResults.total_404} con error 404
-                                </span>
-                                {auditResults.redirection_plugin_active && (
-                                    <span className="ml-3 inline-flex items-center gap-1 text-emerald-600 text-xs font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                                        ✅ Plugin Redirection activo
-                                    </span>
-                                )}
-                                {!auditResults.redirection_plugin_active && (auditResults.other_redirect_plugins || []).length > 0 && (
-                                    <span className="ml-3 inline-flex items-center gap-1 text-blue-600 text-xs font-bold bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
-                                        ℹ️ {(auditResults.other_redirect_plugins)[0]} (manual)
-                                    </span>
-                                )}
-                                {!auditResults.redirection_plugin_active && (auditResults.other_redirect_plugins || []).length === 0 && (
-                                    <span className="ml-3 inline-flex items-center gap-1 text-amber-600 text-xs font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                                        ⚠️ Sin plugin de redirecciones
-                                    </span>
-                                )}
-                            </p>
-                        </div>
-                        {auditResults.total_404 > 0 && (
-                            <button
-                                onClick={handleApplyRedirects}
-                                disabled={applyingRedirects}
-                                className={`shrink-0 px-5 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 flex items-center gap-2
-                                    ${applyingRedirects
-                                        ? 'bg-slate-100 text-slate-400 cursor-wait'
-                                        : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-900/20'}`}
-                            >
-                                {applyingRedirects ? '⏳ Aplicando...' : `✅ Aplicar ${selectedUrls.size} redirección(es)`}
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Tabla de resultados */}
-                    {auditResults.total_404 === 0 ? (
-                        <div className="p-10 text-center text-emerald-600 font-bold">
-                            ✅ No se encontraron URLs con error 404. ¡Todo está en orden!
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-slate-100">
-                                <thead className="bg-slate-50">
-                                    <tr>
-                                        <th className="px-4 py-3 text-left">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedUrls.size === auditResults.results.length}
-                                                onChange={e => {
-                                                    if (e.target.checked) setSelectedUrls(new Set(auditResults.results.map(r => r.url)));
-                                                    else setSelectedUrls(new Set());
-                                                }}
-                                                className="w-4 h-4 accent-emerald-500"
-                                            />
-                                        </th>
-                                        {['URL con 404', 'Servicio', 'Redirigir a (editable)'].map(h => (
-                                            <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100 bg-white">
-                                    {auditResults.results.map((r) => (
-                                        <tr key={r.url} className={`transition-colors ${selectedUrls.has(r.url) ? 'bg-emerald-50/40' : ''}`}>
-                                            <td className="px-4 py-3">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedUrls.has(r.url)}
-                                                    onChange={() => {
-                                                        setSelectedUrls(prev => {
-                                                            const next = new Set(prev);
-                                                            next.has(r.url) ? next.delete(r.url) : next.add(r.url);
-                                                            return next;
-                                                        });
-                                                    }}
-                                                    className="w-4 h-4 accent-emerald-500"
-                                                />
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <a href={r.url} target="_blank" rel="noopener noreferrer"
-                                                    className="text-xs text-rose-600 hover:underline font-mono break-all max-w-xs block">
-                                                    {r.url}
-                                                </a>
-                                                <span className="inline-flex items-center mt-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">404</span>
-                                            </td>
-                                            <td className="px-4 py-3 text-xs text-slate-600 font-medium">{r.service}</td>
-                                            <td className="px-4 py-3">
-                                                <input
-                                                    type="text"
-                                                    value={redirectTargets[r.url] || ''}
-                                                    onChange={e => setRedirectTargets(prev => ({ ...prev, [r.url]: e.target.value }))}
-                                                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-400 outline-none font-mono text-slate-700"
-                                                    placeholder="https://..."
-                                                />
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
-            )}
 
             {/* SECCIÓN DE CONTENIDO PUBLICADO (CON PESTAÑAS) */}
             <div className="animate-fade-in-up w-full bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm mt-8">

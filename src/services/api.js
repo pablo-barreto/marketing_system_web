@@ -189,23 +189,6 @@ export const launchService = {
     return handleApiResponse(response);
   },
 
-  audit404: async (token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/seo/audit-404`, {
-      method: 'GET',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' }
-    });
-    return handleApiResponse(response);
-  },
-
-  applyRedirects: async (redirects, token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/seo/apply-redirects`, {
-      method: 'POST',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ redirects })
-    });
-    return handleApiResponse(response);
-  },
-
   getSeoCredits: async (token) => {
     const response = await fetch(`${API_BASE_URL}/api/v1/seo/credits`, {
       method: 'GET',
