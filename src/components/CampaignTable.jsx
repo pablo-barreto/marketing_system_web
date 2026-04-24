@@ -697,6 +697,70 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
         }
     };
 
+    const handleEditTargeting = async (campaign) => {
+        const COUNTRIES = [
+            { code: 'CO', label: 'Colombia' },
+            { code: 'MX', label: 'México' },
+            { code: 'PE', label: 'Perú' },
+            { code: 'CL', label: 'Chile' },
+            { code: 'EC', label: 'Ecuador' },
+            { code: 'AR', label: 'Argentina' },
+            { code: 'PA', label: 'Panamá' },
+            { code: 'ES', label: 'España' },
+            { code: 'US', label: 'EE.UU.' },
+        ];
+
+        const checkboxesHtml = COUNTRIES.map(({ code, label }) =>
+            `<label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;font-size:13px;color:#334155">
+                <input type="checkbox" id="tc-${code}" value="${code}" checked
+                    style="width:14px;height:14px;accent-color:#10b981;cursor:pointer" />
+                ${label}
+            </label>`
+        ).join('');
+
+        const result = await Swal.fire({
+            title: '🌍 Editar Países Objetivo',
+            html: `
+                <p style="font-size:12px;color:#64748b;margin-bottom:12px;text-align:left">
+                    Selecciona los países para <strong>${campaign.service}</strong>:
+                </p>
+                <div style="text-align:left;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px">
+                    ${checkboxesHtml}
+                </div>`,
+            showCancelButton: true,
+            confirmButtonColor: '#10b981',
+            confirmButtonText: 'Actualizar',
+            cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+                const selected = COUNTRIES
+                    .filter(({ code }) => document.getElementById(`tc-${code}`)?.checked)
+                    .map(({ code }) => code);
+                if (selected.length === 0) {
+                    Swal.showValidationMessage('Selecciona al menos un país.');
+                    return false;
+                }
+                return selected;
+            }
+        });
+
+        if (!result.isConfirmed) return;
+
+        Swal.fire({ title: 'Actualizando...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+        try {
+            const token = getAuthToken();
+            await campaignService.updateTargeting(campaign.id, result.value, token);
+            Swal.fire({
+                title: '¡Targeting actualizado!',
+                text: `Países: ${result.value.join(', ')}`,
+                icon: 'success',
+                timer: 2500,
+                showConfirmButton: false
+            });
+        } catch (error) {
+            Swal.fire('Error', error.message, 'error');
+        }
+    };
+
     const handleDeleteCampaign = async (campaign) => {
         const platform = (campaign.platform || '').toLowerCase();
         const hasPlatformId = !!campaign.platform_id;
@@ -918,7 +982,9 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
 
                 <div className="flex gap-2">
                     <button onClick={() => setSelectedCampaign(c)} className="flex-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold py-2.5 rounded-xl shadow-sm">👁️ Ver</button>
-
+                    {isSyncSupported && (
+                        <button onClick={() => handleEditTargeting(c)} className="px-3 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl" title="Editar países">🌍</button>
+                    )}
                     {c.status === 'ACTIVE' && <button onClick={() => handleToggleStatus(c.id, c.status)} className="flex-1 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold py-2.5 rounded-xl">⏸️ Pausar</button>}
                     {c.status === 'PAUSED' && <button onClick={() => handleToggleStatus(c.id, c.status)} className="flex-1 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold py-2.5 rounded-xl">▶️ Activar</button>}
                     {c.status === 'pending_approval' && <button onClick={() => handleConfirmApprove(c.id, c.service)} className="flex-1 bg-emerald-500 text-white text-xs font-bold py-2.5 rounded-xl shadow-md">✅ APROBAR</button>}
@@ -1085,6 +1151,11 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                                             <button onClick={() => setSelectedAudienceCampaign(c)} className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors border border-transparent hover:border-purple-100" title="Ver Audiencia Asignada">
                                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
                                             </button>
+                                            {isSyncSupported && (
+                                                <button onClick={() => handleEditTargeting(c)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border border-transparent hover:border-emerald-100" title="Editar países objetivo">
+                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                </button>
+                                            )}
                                             {c.status === 'pending_approval' ? (
                                                 <button onClick={() => handleConfirmApprove(c.id, c.service)} className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-1.5 px-3 rounded-lg shadow-sm active:scale-95 transition-all">APROBAR</button>
                                             ) : (c.status === 'ACTIVE' || c.status === 'LOW PERFORMANCE') ? (

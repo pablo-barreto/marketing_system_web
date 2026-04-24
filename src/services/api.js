@@ -89,6 +89,15 @@ export const campaignService = {
       body: formData
     });
     return handleApiResponse(response);
+  },
+
+  updateTargeting: async (campaignId, countries, token) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/targeting`, {
+      method: 'PUT',
+      headers: { 'Authorization': token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ countries })
+    });
+    return handleApiResponse(response);
   }
 
 };
