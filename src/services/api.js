@@ -206,6 +206,50 @@ export const launchService = {
   }
 };
 
+export const servicesService = {
+  list: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/services`, {
+      headers: { 'Authorization': token, 'Content-Type': 'application/json' }
+    });
+    return handleApiResponse(response);
+  },
+
+  add: async (service, token) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/services`, {
+      method: 'POST',
+      headers: { 'Authorization': token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(service)
+    });
+    return handleApiResponse(response);
+  },
+
+  setPromoted: async (name, value, token) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/services/${encodeURIComponent(name)}/promoted`, {
+      method: 'PUT',
+      headers: { 'Authorization': token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value })
+    });
+    return handleApiResponse(response);
+  },
+
+  setActive: async (name, value, token) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/services/${encodeURIComponent(name)}/active`, {
+      method: 'PUT',
+      headers: { 'Authorization': token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value })
+    });
+    return handleApiResponse(response);
+  },
+
+  remove: async (name, token) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/services/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': token, 'Content-Type': 'application/json' }
+    });
+    return handleApiResponse(response);
+  }
+};
+
 export const notificationService = {
   markAsRead: async (notificationId, token) => {
     const response = await fetch(`${API_BASE_URL}${MARK_READ_ENDPOINT}/${notificationId}`, {

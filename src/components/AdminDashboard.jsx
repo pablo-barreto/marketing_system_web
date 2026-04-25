@@ -15,6 +15,7 @@ import GalleryView from '../views/GalleryView';
 import SystemLogs from './SystemLogs';
 import NotificationToast from './NotificationToast';
 import LaunchView from '@/views/LaunchView';
+import ServicesView from '@/views/ServicesView';
 
 const AdminDashboard = () => {
     const [days, setDays] = useState('30'); // Estado para filtrar por periodo (30 días por defecto)
@@ -126,6 +127,7 @@ const AdminDashboard = () => {
             case 'seo': return <SeoView rankings={data.seo_rankings} content={data.published_content} />;
             case 'gallery': return <GalleryView config={config} />;
             case 'crm': return <CrmView leads={data.crm_leads} performance={data.lead_performance} />;
+            case 'services': return <ServicesView />;
             default: return null;
         }
     };
@@ -172,8 +174,8 @@ const AdminDashboard = () => {
                     <SidebarItem icon="🖼️" label="Galería Activos" active={activeView === 'gallery'} onClick={() => handleNavClick('gallery')} />
                     <SidebarItem icon="🌍" label="SEO & Contenido" active={activeView === 'seo'} onClick={() => handleNavClick('seo')} />
                     <SidebarItem icon="👥" label="CRM Leads" active={activeView === 'crm'} onClick={() => handleNavClick('crm')} />
-                    <SidebarItem icon={<span>🚀</span>} label="Lanzamiento & IA" active={activeView === 'launch'} onClick={() => handleNavClick('launch')}
-                    />
+                    <SidebarItem icon={<span>🚀</span>} label="Lanzamiento & IA" active={activeView === 'launch'} onClick={() => handleNavClick('launch')} />
+                    <SidebarItem icon="📋" label="Servicios" active={activeView === 'services'} onClick={() => handleNavClick('services')} />
                 </nav>
 
                 <div className="p-8 border-t border-slate-800 bg-slate-900/50">
@@ -219,6 +221,7 @@ const AdminDashboard = () => {
                             {activeView === 'seo' && 'Estrategia Orgánica'}
                             {activeView === 'crm' && 'Inteligencia de Clientes'}
                             {activeView === 'gallery' && 'Galería de Activos'}
+                            {activeView === 'services' && 'Gestión de Servicios'}
                         </h2>
                     </div>
 
