@@ -11,6 +11,9 @@ const SeoView = ({ rankings, content }) => {
     const [credits, setCredits] = React.useState(null);
     const [loadingCredits, setLoadingCredits] = React.useState(true);
     const [activeContentTab, setActiveContentTab] = React.useState('blog');
+    const [auditOpen, setAuditOpen] = React.useState(false);
+    const [auditLoading, setAuditLoading] = React.useState(false);
+    const [auditResult, setAuditResult] = React.useState(null);
 
 
     // Filtrar contenido por tipo
@@ -133,6 +136,21 @@ const SeoView = ({ rankings, content }) => {
         });
     };
 
+    const handleAudit = async () => {
+        setAuditOpen(true);
+        setAuditLoading(true);
+        setAuditResult(null);
+        try {
+            const data = await launchService.getBrokenLinks(basicAuthHeader);
+            setAuditResult(data);
+        } catch (e) {
+            Swal.fire('Error', e.message, 'error');
+            setAuditOpen(false);
+        } finally {
+            setAuditLoading(false);
+        }
+    };
+
     const handleClearHistory = async () => {
         Swal.fire({
             title: '¿Limpiar Historial?',
@@ -227,6 +245,14 @@ const SeoView = ({ rankings, content }) => {
                             <span>⚡ Force SEO Boost</span>
                         </button>
                     </PremiumTooltip>
+
+                    <button
+                        onClick={handleAudit}
+                        disabled={auditLoading}
+                        className="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-xl font-bold shadow-lg shadow-red-900/20 transition-all active:scale-95 flex items-center gap-2 text-sm disabled:opacity-50"
+                    >
+                        <span>🔗 Auditar Links</span>
+                    </button>
                 </div>
             </div>
 
@@ -289,6 +315,142 @@ const SeoView = ({ rankings, content }) => {
                     )}
                 </div>
             </div>
+
+            {/* SECCIÓN: AUDITORÍA DE LINKS ROTOS */}
+            {auditOpen && (
+                <div className="animate-fade-in-up w-full bg-white rounded-2xl border border-slate-200 shadow-sm mt-8 overflow-hidden">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                        <div className="flex items-center gap-3">
+                            <span className="text-xl">🔗</span>
+                            <div>
+                                <h3 className="font-bold text-slate-800">Auditoría de Links Publicados</h3>
+                                {auditResult && !auditLoading && (
+                                    <p className="text-xs text-slate-400 mt-0.5">
+                                        {auditResult.total} URLs verificadas ·{' '}
+                                        <span className="text-red-500 font-semibold">{auditResult.broken?.length} rotas</span> ·{' '}
+                                        <span className="text-emerald-600 font-semibold">{auditResult.ok?.length} activas</span>
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                        <button onClick={() => setAuditOpen(false)} className="text-slate-400 hover:text-slate-700 text-lg">✕</button>
+                    </div>
+
+                    {auditLoading && (
+                        <div className="flex justify-center items-center py-16 text-slate-400 animate-pulse">
+                            Verificando URLs... esto puede tomar unos segundos.
+                        </div>
+                    )}
+
+                    {auditResult && !auditLoading && (
+                        <div className="p-6 space-y-6">
+
+                            {/* LINKS ROTOS */}
+                            {auditResult.broken?.length > 0 ? (
+                                <div>
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                                        <h4 className="font-semibold text-red-600 text-sm uppercase tracking-wide">
+                                            URLs con error ({auditResult.broken.length})
+                                        </h4>
+                                    </div>
+                                    <div className="rounded-xl border border-red-100 overflow-hidden">
+                                        <table className="w-full text-sm">
+                                            <thead>
+                                                <tr className="bg-red-50 text-xs text-red-400 uppercase tracking-wider">
+                                                    <th className="text-left px-4 py-2.5 font-medium">URL</th>
+                                                    <th className="text-center px-4 py-2.5 font-medium w-20">Código</th>
+                                                    <th className="text-center px-4 py-2.5 font-medium w-32">Publicado</th>
+                                                    <th className="text-right px-4 py-2.5 font-medium w-36">Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-red-50">
+                                                {auditResult.broken.map((item, i) => (
+                                                    <tr key={i} className="hover:bg-red-50/50">
+                                                        <td className="px-4 py-3">
+                                                            <a href={item.url} target="_blank" rel="noopener noreferrer"
+                                                                className="text-slate-700 hover:text-blue-600 hover:underline break-all text-xs font-mono">
+                                                                {item.url}
+                                                            </a>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-center">
+                                                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${item.status === 404 ? 'bg-red-100 text-red-600' : item.status === 0 ? 'bg-slate-100 text-slate-500' : 'bg-orange-100 text-orange-600'}`}>
+                                                                {item.status === 0 ? 'Error' : item.status}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-center text-xs text-slate-400">
+                                                            {new Date(item.published_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: '2-digit' })}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right">
+                                                            <a
+                                                                href={`https://search.google.com/search-console/removals`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-xs font-semibold text-red-500 hover:text-red-700 hover:underline"
+                                                                title="Abrir Google Search Console para solicitar eliminación"
+                                                            >
+                                                                Eliminar de Google →
+                                                            </a>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    {/* INSTRUCCIONES GSC */}
+                                    <div className="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-xl text-sm text-amber-800">
+                                        <p className="font-semibold mb-1">Cómo eliminar estas URLs de Google:</p>
+                                        <ol className="list-decimal list-inside space-y-1 text-xs text-amber-700">
+                                            <li>Abre <strong>Google Search Console</strong> → pestaña <strong>Eliminaciones</strong></li>
+                                            <li>Haz clic en <strong>"Nueva solicitud"</strong> e ingresa la URL exacta</li>
+                                            <li>Selecciona <strong>"Eliminar esta URL de caché"</strong> (temporal) o espera a que Google la des-indexe sola al detectar el 404</li>
+                                            <li>Google de-indexa automáticamente en ~2 semanas las URLs que devuelven 404 consistentemente</li>
+                                        </ol>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center py-8 text-emerald-600">
+                                    <div className="text-3xl mb-2">✅</div>
+                                    <p className="font-semibold">Todas las URLs publicadas están activas.</p>
+                                    <p className="text-sm text-slate-400 mt-1">No se encontraron links rotos.</p>
+                                </div>
+                            )}
+
+                            {/* LINKS ACTIVOS (colapsado) */}
+                            {auditResult.ok?.length > 0 && (
+                                <details className="group">
+                                    <summary className="cursor-pointer text-sm font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-2 select-none">
+                                        <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                                        Ver {auditResult.ok.length} URLs activas
+                                    </summary>
+                                    <div className="mt-3 rounded-xl border border-emerald-100 overflow-hidden">
+                                        <table className="w-full text-sm">
+                                            <tbody className="divide-y divide-emerald-50">
+                                                {auditResult.ok.map((item, i) => (
+                                                    <tr key={i} className="hover:bg-emerald-50/50">
+                                                        <td className="px-4 py-2.5">
+                                                            <a href={item.url} target="_blank" rel="noopener noreferrer"
+                                                                className="text-xs font-mono text-slate-600 hover:text-blue-600 hover:underline break-all">
+                                                                {item.url}
+                                                            </a>
+                                                        </td>
+                                                        <td className="px-4 py-2.5 text-right">
+                                                            <span className="text-xs font-bold px-2 py-1 rounded-full bg-emerald-100 text-emerald-600">
+                                                                {item.status}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </details>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

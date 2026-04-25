@@ -181,6 +181,13 @@ export const launchService = {
     return handleApiResponse(response);
   },
 
+  getBrokenLinks: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/seo/broken-links`, {
+      headers: { 'Authorization': token, 'Content-Type': 'application/json' }
+    });
+    return handleApiResponse(response);
+  },
+
   clearSeoHistory: async (token) => {
     const response = await fetch(`${API_BASE_URL}/api/v1/admin/clear-seo-history`, {
       method: 'DELETE',
