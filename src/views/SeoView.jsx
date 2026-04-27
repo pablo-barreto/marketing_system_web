@@ -151,6 +151,39 @@ const SeoView = ({ rankings, content }) => {
         }
     };
 
+    const handleClearRankings = async () => {
+        const { value: scope } = await Swal.fire({
+            title: '🗑️ Limpiar Rankings',
+            text: '¿Qué registros deseas eliminar? Podrás re-ejecutar el chequeo luego.',
+            icon: 'warning',
+            input: 'select',
+            inputOptions: {
+                'international': '🌍 Solo Internacionales',
+                'national': '🇨🇴 Solo Nacional (Colombia)',
+                'all': '🌐 Todos'
+            },
+            inputValue: 'international',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, Limpiar',
+            confirmButtonColor: '#ef4444',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (scope) {
+            try {
+                const data = await launchService.clearSeoRankings(scope, basicAuthHeader);
+                const label = { international: 'internacionales', national: 'nacionales (Colombia)', all: 'todos' }[scope];
+                Swal.fire(
+                    'Limpiado',
+                    `Se eliminaron ${data.deleted} rankings ${label}. Ya puedes ejecutar un nuevo chequeo.`,
+                    'success'
+                ).then(() => window.location.reload());
+            } catch (e) {
+                Swal.fire('Error', e.message, 'error');
+            }
+        }
+    };
+
     const handleClearHistory = async () => {
         Swal.fire({
             title: '¿Limpiar Historial?',
@@ -221,6 +254,13 @@ const SeoView = ({ rankings, content }) => {
                             <span>🔍 Verificar Rankings</span>
                         </button>
                     </PremiumTooltip>
+
+                    <button
+                        onClick={handleClearRankings}
+                        className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-3 rounded-xl font-bold shadow-lg shadow-rose-900/20 transition-all active:scale-95 flex items-center gap-2 text-sm"
+                    >
+                        <span>🗑️ Limpiar Rankings</span>
+                    </button>
 
                     <button
                         onClick={handleScraping}
