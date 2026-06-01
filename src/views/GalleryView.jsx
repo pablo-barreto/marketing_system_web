@@ -107,6 +107,72 @@ const GalleryView = ({ config }) => {
         }
     };
 
+    const handleRelaunch = async (creative) => {
+        const { value: formValues } = await Swal.fire({
+            title: 'Relanzar Campaña',
+            html: `
+                <div class="flex flex-col text-left gap-3 p-2 font-sans">
+                    <label class="text-[11px] font-bold text-slate-500 uppercase">Servicio de la Campaña</label>
+                    <input id="swal-service" class="swal2-input !mt-0 !mx-0 !w-full !text-sm" value="${creative.service}" readonly disabled style="background-color: #f1f5f9; cursor: not-allowed;" />
+                    
+                    <label class="text-[11px] font-bold text-slate-500 uppercase">Plataformas de Publicación</label>
+                    <select id="swal-platform" class="swal2-select !mt-0 !mx-0 !w-full !text-sm">
+                        <option value="all">Todas (Meta & LinkedIn)</option>
+                        <option value="facebook">Meta (Facebook & Instagram)</option>
+                        <option value="linkedin">LinkedIn</option>
+                    </select>
+
+                    <label class="text-[11px] font-bold text-slate-500 uppercase">Presupuesto Diario (COP)</label>
+                    <input id="swal-budget" type="number" class="swal2-input !mt-0 !mx-0 !w-full !text-sm" value="${fixedBudget}" step="5000" min="20000" />
+                </div>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: '🚀 Relanzar',
+            cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+                const budgetInput = document.getElementById('swal-budget').value;
+                const budgetVal = parseFloat(budgetInput);
+                if (isNaN(budgetVal) || budgetVal < 20000) {
+                    Swal.showValidationMessage('El presupuesto mínimo es $20,000 COP');
+                    return false;
+                }
+                return {
+                    platform: document.getElementById('swal-platform').value,
+                    budget: budgetVal
+                };
+            }
+        });
+
+        if (!formValues) return;
+
+        setIsProcessing(true);
+        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+        Toast.fire({ icon: 'info', title: 'Generando campaña...' });
+
+        try {
+            await campaignService.relaunchCreative(
+                creative.id,
+                formValues.budget,
+                formValues.platform,
+                basicAuthHeader
+            );
+
+            Swal.fire({
+                title: '¡Campaña Lanzada!',
+                text: `Se relanzó exitosamente la campaña de: ${creative.service}`,
+                icon: 'success',
+                timer: 2500,
+                showConfirmButton: false
+            });
+        } catch (error) {
+            console.error(error);
+            Swal.fire('Error', error.message || 'No se pudo relanzar la campaña.', 'error');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
     const handleDelete = async (id) => {
         const result = await Swal.fire({
             title: '¿Eliminar?',
@@ -222,8 +288,21 @@ const GalleryView = ({ config }) => {
                                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                                     onError={(e) => { e.target.src = 'https://via.placeholder.com/300?text=Error' }}
                                 />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <button onClick={() => handleDelete(img.id)} className="bg-white text-red-500 p-1.5 rounded-full hover:bg-red-50 transition-colors shadow-lg" title="Eliminar">
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                                    <button 
+                                        onClick={() => handleRelaunch(img)} 
+                                        className="bg-blue-600 text-white p-1.5 rounded-full hover:bg-blue-700 transition-colors shadow-lg" 
+                                        title="Relanzar Campaña"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                        </svg>
+                                    </button>
+                                    <button 
+                                        onClick={() => handleDelete(img.id)} 
+                                        className="bg-white text-red-500 p-1.5 rounded-full hover:bg-red-50 transition-colors shadow-lg" 
+                                        title="Eliminar de Galería"
+                                    >
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                     </button>
                                 </div>

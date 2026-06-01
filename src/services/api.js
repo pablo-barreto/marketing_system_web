@@ -50,6 +50,18 @@ export const campaignService = {
     return handleApiResponse(response);
   },
 
+  relaunchCreative: async (creativeId, budget, platform, token) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/assets/relaunch`, {
+      method: 'POST',
+      headers: { 
+        'Authorization': token, 
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify({ creative_id: creativeId, budget, platform })
+    });
+    return handleApiResponse(response);
+  },
+
   getCreatives: async (token) => {
     const response = await fetch(`${API_BASE_URL}/api/v1/assets/creatives`, {
       headers: { 'Authorization': token, 'Content-Type': 'application/json' }
