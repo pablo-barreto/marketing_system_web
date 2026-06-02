@@ -6,14 +6,29 @@ import { AuthContext } from '../context/AuthContext';
 import { launchService } from '../services/api';
 import Swal from 'sweetalert2';
 
+import { useTaskStatus } from '../hooks/useTaskStatus';
+import { API_BASE_URL } from '../app/config';
+
 const SeoView = ({ rankings, content }) => {
     const { basicAuthHeader } = useContext(AuthContext);
     const [credits, setCredits] = React.useState(null);
     const [loadingCredits, setLoadingCredits] = React.useState(true);
+    const [rankingStatus, setRankingStatus] = React.useState(null);
     const [activeContentTab, setActiveContentTab] = React.useState('blog');
-    const [auditOpen, setAuditOpen] = React.useState(false);
-    const [auditLoading, setAuditLoading] = React.useState(false);
-    const [auditResult, setAuditResult] = React.useState(null);
+    const [activeJobId, setActiveJobId] = React.useState(null);
+
+    const { isRunning, progress, message: taskMessage, clear: clearTask } = useTaskStatus(activeJobId, basicAuthHeader, {
+        onFinished: () => {
+            Swal.fire('Completado', 'La verificación de rankings ha finalizado.', 'success');
+            clearTask();
+            setActiveJobId(null);
+        },
+        onFailed: (data) => {
+            Swal.fire('Error', data.error || 'La tarea falló', 'error');
+            clearTask();
+            setActiveJobId(null);
+        }
+    });
 
 
     // Filtrar contenido por tipo
@@ -39,7 +54,31 @@ const SeoView = ({ rankings, content }) => {
         fetchCredits();
     }, [basicAuthHeader]);
 
+    // Estado de cooldown: nacional 1 vez/semana, internacional 1 vez/mes
+    const fetchRankingStatus = React.useCallback(async () => {
+        try {
+            const data = await launchService.getRankingStatus(basicAuthHeader);
+            setRankingStatus(data?.data || null);
+        } catch (error) {
+            console.error("Error fetching ranking status:", error);
+        }
+    }, [basicAuthHeader]);
+
+    React.useEffect(() => {
+        fetchRankingStatus();
+    }, [fetchRankingStatus]);
+
     const hasLowCredits = credits !== null && credits < 100;
+
+    // Formatea una fecha ISO a dd/mm/aaaa (es-CO)
+    const formatDate = (iso) => {
+        if (!iso) return '';
+        return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+
+    const nationalLocked = rankingStatus?.national && !rankingStatus.national.allowed;
+    const internationalLocked = rankingStatus?.international && !rankingStatus.international.allowed;
+    const allRankingsLocked = nationalLocked && internationalLocked;
 
     const handleForceBoost = async () => {
         if (hasLowCredits) {
@@ -70,17 +109,38 @@ const SeoView = ({ rankings, content }) => {
             Swal.fire('Sin Créditos', 'No tienes créditos suficientes (< 100) para realizar una verificación de rankings.', 'error');
             return;
         }
+
+        // Solo se ofrecen los alcances que NO estén en periodo de espera.
+        // Nacional: 1 vez por semana · Internacional: 1 vez por mes.
+        const inputOptions = {};
+        if (!nationalLocked) {
+            inputOptions['national'] = '🇨🇴 Nacional (Colombia) — semanal';
+        }
+        if (!internationalLocked) {
+            inputOptions['international'] = '🌍 Internacional — mensual';
+        }
+
+        if (Object.keys(inputOptions).length === 0) {
+            const nextNat = formatDate(rankingStatus?.national?.next_allowed);
+            const nextInt = formatDate(rankingStatus?.international?.next_allowed);
+            Swal.fire({
+                title: '⏳ Verificación no disponible',
+                icon: 'info',
+                html: `Para cuidar los créditos, los rankings tienen una frecuencia fija:<br/><br/>` +
+                    `🇨🇴 <b>Nacional</b> (semanal): disponible el <b>${nextNat}</b><br/>` +
+                    `🌍 <b>Internacional</b> (mensual): disponible el <b>${nextInt}</b>`,
+                confirmButtonColor: '#2563eb'
+            });
+            return;
+        }
+
         const { value: scope } = await Swal.fire({
             title: '🔍 Verificar Rankings',
             text: '¿Qué alcance deseas verificar?',
             icon: 'question',
             input: 'select',
-            inputOptions: {
-                'national': '🇨🇴 Nacional (Colombia)',
-                'international': '🌍 Internacional',
-                'all': '🌐 Todos'
-            },
-            inputValue: 'all',
+            inputOptions,
+            inputValue: Object.keys(inputOptions)[0],
             showCancelButton: true,
             confirmButtonText: 'Verificar',
             confirmButtonColor: '#2563eb'
@@ -88,8 +148,31 @@ const SeoView = ({ rankings, content }) => {
 
         if (scope) {
             try {
-                await launchService.triggerRankingCheck(scope, basicAuthHeader);
-                Swal.fire('Iniciado', `Verificación de rankings (${scope}) ejecutándose en segundo plano. Recibirás una notificación al finalizar.`, 'success');
+                // Modificado para usar fetch directo y capturar el job_id
+                const res = await fetch(`${API_BASE_URL}/api/v1/seo/manual-ranking-check`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': basicAuthHeader,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ scope })
+                });
+                const data = await res.json();
+
+                if (res.status === 429 || data.status === 'blocked') {
+                    // El backend rechazó por cooldown (fuente de verdad). Refrescamos estado.
+                    fetchRankingStatus();
+                    Swal.fire('Verificación no disponible', data.message || 'Esta verificación aún no está disponible.', 'info');
+                    return;
+                }
+
+                if (data.status === 'success') {
+                    setActiveJobId(data.job_id);
+                    fetchRankingStatus();
+                    Swal.fire('Iniciado', `Verificación de rankings (${scope}) iniciada. Puedes ver el progreso en la barra superior.`, 'success');
+                } else {
+                    throw new Error(data.message || 'Error al iniciar');
+                }
             } catch (e) {
                 Swal.fire('Error', e.message, 'error');
             }
@@ -134,54 +217,6 @@ const SeoView = ({ rankings, content }) => {
                 }
             }
         });
-    };
-
-    const handleAudit = async () => {
-        setAuditOpen(true);
-        setAuditLoading(true);
-        setAuditResult(null);
-        try {
-            const data = await launchService.getBrokenLinks(basicAuthHeader);
-            setAuditResult(data);
-        } catch (e) {
-            Swal.fire('Error', e.message, 'error');
-            setAuditOpen(false);
-        } finally {
-            setAuditLoading(false);
-        }
-    };
-
-    const handleClearRankings = async () => {
-        const { value: scope } = await Swal.fire({
-            title: '🗑️ Limpiar Rankings',
-            text: '¿Qué registros deseas eliminar? Podrás re-ejecutar el chequeo luego.',
-            icon: 'warning',
-            input: 'select',
-            inputOptions: {
-                'international': '🌍 Solo Internacionales',
-                'national': '🇨🇴 Solo Nacional (Colombia)',
-                'all': '🌐 Todos'
-            },
-            inputValue: 'international',
-            showCancelButton: true,
-            confirmButtonText: 'Sí, Limpiar',
-            confirmButtonColor: '#ef4444',
-            cancelButtonText: 'Cancelar'
-        });
-
-        if (scope) {
-            try {
-                const data = await launchService.clearSeoRankings(scope, basicAuthHeader);
-                const label = { international: 'internacionales', national: 'nacionales (Colombia)', all: 'todos' }[scope];
-                Swal.fire(
-                    'Limpiado',
-                    `Se eliminaron ${data.deleted} rankings ${label}. Ya puedes ejecutar un nuevo chequeo.`,
-                    'success'
-                ).then(() => window.location.reload());
-            } catch (e) {
-                Swal.fire('Error', e.message, 'error');
-            }
-        }
     };
 
     const handleClearHistory = async () => {
@@ -230,6 +265,24 @@ const SeoView = ({ rankings, content }) => {
     return (
         <div className="p-2 md:p-6 w-full max-w-full overflow-x-hidden">
 
+            {/* BARRA DE PROGRESO DE TAREA */}
+            {isRunning && (
+                <div className="mb-8 bg-blue-50 border border-blue-100 p-4 rounded-2xl shadow-sm animate-pulse">
+                    <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-bold text-blue-700 flex items-center gap-2">
+                            <span className="animate-spin">⏳</span> {taskMessage || 'Procesando...'}
+                        </span>
+                        <span className="text-sm font-black text-blue-800">{progress}%</span>
+                    </div>
+                    <div className="w-full bg-blue-200 rounded-full h-3 overflow-hidden">
+                        <div 
+                            className="bg-blue-600 h-full transition-all duration-500 ease-out rounded-full"
+                            style={{ width: `${progress}%` }}
+                        ></div>
+                    </div>
+                </div>
+            )}
+
             {/* ENCABEZADO SUPERIOR CON BOTONES DE ACCIÓN */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6">
                 <div className="text-center md:text-left">
@@ -242,25 +295,36 @@ const SeoView = ({ rankings, content }) => {
                             </span>
                         )}
                     </div>
+                    {/* Próxima verificación disponible (cadencia: nacional semanal · internacional mensual) */}
+                    {(nationalLocked || internationalLocked) && (
+                        <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-2">
+                            {nationalLocked && (
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
+                                    🇨🇴 Nacional disponible el {formatDate(rankingStatus?.national?.next_allowed)}
+                                </span>
+                            )}
+                            {internationalLocked && (
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
+                                    🌍 Internacional disponible el {formatDate(rankingStatus?.international?.next_allowed)}
+                                </span>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex flex-wrap gap-2 justify-center md:justify-end">
                     <PremiumTooltip message="Se requiere al menos 100 créditos en SerpHouse para realizar una verificación de rankings." enabled={hasLowCredits}>
                         <button
                             onClick={handleRankingCheck}
-                            disabled={hasLowCredits}
-                            className={`${hasLowCredits ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/20 active:scale-95'} px-4 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 text-sm`}
+                            disabled={hasLowCredits || allRankingsLocked}
+                            title={allRankingsLocked
+                                ? `Disponible: 🇨🇴 ${formatDate(rankingStatus?.national?.next_allowed)} · 🌍 ${formatDate(rankingStatus?.international?.next_allowed)}`
+                                : undefined}
+                            className={`${(hasLowCredits || allRankingsLocked) ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/20 active:scale-95'} px-4 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 text-sm`}
                         >
                             <span>🔍 Verificar Rankings</span>
                         </button>
                     </PremiumTooltip>
-
-                    <button
-                        onClick={handleClearRankings}
-                        className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-3 rounded-xl font-bold shadow-lg shadow-rose-900/20 transition-all active:scale-95 flex items-center gap-2 text-sm"
-                    >
-                        <span>🗑️ Limpiar Rankings</span>
-                    </button>
 
                     <button
                         onClick={handleScraping}
@@ -285,14 +349,6 @@ const SeoView = ({ rankings, content }) => {
                             <span>⚡ Force SEO Boost</span>
                         </button>
                     </PremiumTooltip>
-
-                    <button
-                        onClick={handleAudit}
-                        disabled={auditLoading}
-                        className="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-xl font-bold shadow-lg shadow-red-900/20 transition-all active:scale-95 flex items-center gap-2 text-sm disabled:opacity-50"
-                    >
-                        <span>🔗 Auditar Links</span>
-                    </button>
                 </div>
             </div>
 
@@ -355,142 +411,6 @@ const SeoView = ({ rankings, content }) => {
                     )}
                 </div>
             </div>
-
-            {/* SECCIÓN: AUDITORÍA DE LINKS ROTOS */}
-            {auditOpen && (
-                <div className="animate-fade-in-up w-full bg-white rounded-2xl border border-slate-200 shadow-sm mt-8 overflow-hidden">
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-                        <div className="flex items-center gap-3">
-                            <span className="text-xl">🔗</span>
-                            <div>
-                                <h3 className="font-bold text-slate-800">Auditoría de Links Publicados</h3>
-                                {auditResult && !auditLoading && (
-                                    <p className="text-xs text-slate-400 mt-0.5">
-                                        {auditResult.total} URLs verificadas ·{' '}
-                                        <span className="text-red-500 font-semibold">{auditResult.broken?.length} rotas</span> ·{' '}
-                                        <span className="text-emerald-600 font-semibold">{auditResult.ok?.length} activas</span>
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                        <button onClick={() => setAuditOpen(false)} className="text-slate-400 hover:text-slate-700 text-lg">✕</button>
-                    </div>
-
-                    {auditLoading && (
-                        <div className="flex justify-center items-center py-16 text-slate-400 animate-pulse">
-                            Verificando URLs... esto puede tomar unos segundos.
-                        </div>
-                    )}
-
-                    {auditResult && !auditLoading && (
-                        <div className="p-6 space-y-6">
-
-                            {/* LINKS ROTOS */}
-                            {auditResult.broken?.length > 0 ? (
-                                <div>
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                                        <h4 className="font-semibold text-red-600 text-sm uppercase tracking-wide">
-                                            URLs con error ({auditResult.broken.length})
-                                        </h4>
-                                    </div>
-                                    <div className="rounded-xl border border-red-100 overflow-hidden">
-                                        <table className="w-full text-sm">
-                                            <thead>
-                                                <tr className="bg-red-50 text-xs text-red-400 uppercase tracking-wider">
-                                                    <th className="text-left px-4 py-2.5 font-medium">URL</th>
-                                                    <th className="text-center px-4 py-2.5 font-medium w-20">Código</th>
-                                                    <th className="text-center px-4 py-2.5 font-medium w-32">Publicado</th>
-                                                    <th className="text-right px-4 py-2.5 font-medium w-36">Acción</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-red-50">
-                                                {auditResult.broken.map((item, i) => (
-                                                    <tr key={i} className="hover:bg-red-50/50">
-                                                        <td className="px-4 py-3">
-                                                            <a href={item.url} target="_blank" rel="noopener noreferrer"
-                                                                className="text-slate-700 hover:text-blue-600 hover:underline break-all text-xs font-mono">
-                                                                {item.url}
-                                                            </a>
-                                                        </td>
-                                                        <td className="px-4 py-3 text-center">
-                                                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${item.status === 404 ? 'bg-red-100 text-red-600' : item.status === 0 ? 'bg-slate-100 text-slate-500' : 'bg-orange-100 text-orange-600'}`}>
-                                                                {item.status === 0 ? 'Error' : item.status}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-4 py-3 text-center text-xs text-slate-400">
-                                                            {new Date(item.published_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: '2-digit' })}
-                                                        </td>
-                                                        <td className="px-4 py-3 text-right">
-                                                            <a
-                                                                href={`https://search.google.com/search-console/removals`}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="text-xs font-semibold text-red-500 hover:text-red-700 hover:underline"
-                                                                title="Abrir Google Search Console para solicitar eliminación"
-                                                            >
-                                                                Eliminar de Google →
-                                                            </a>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-
-                                    {/* INSTRUCCIONES GSC */}
-                                    <div className="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-xl text-sm text-amber-800">
-                                        <p className="font-semibold mb-1">Cómo eliminar estas URLs de Google:</p>
-                                        <ol className="list-decimal list-inside space-y-1 text-xs text-amber-700">
-                                            <li>Abre <strong>Google Search Console</strong> → pestaña <strong>Eliminaciones</strong></li>
-                                            <li>Haz clic en <strong>"Nueva solicitud"</strong> e ingresa la URL exacta</li>
-                                            <li>Selecciona <strong>"Eliminar esta URL de caché"</strong> (temporal) o espera a que Google la des-indexe sola al detectar el 404</li>
-                                            <li>Google de-indexa automáticamente en ~2 semanas las URLs que devuelven 404 consistentemente</li>
-                                        </ol>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="text-center py-8 text-emerald-600">
-                                    <div className="text-3xl mb-2">✅</div>
-                                    <p className="font-semibold">Todas las URLs publicadas están activas.</p>
-                                    <p className="text-sm text-slate-400 mt-1">No se encontraron links rotos.</p>
-                                </div>
-                            )}
-
-                            {/* LINKS ACTIVOS (colapsado) */}
-                            {auditResult.ok?.length > 0 && (
-                                <details className="group">
-                                    <summary className="cursor-pointer text-sm font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-2 select-none">
-                                        <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
-                                        Ver {auditResult.ok.length} URLs activas
-                                    </summary>
-                                    <div className="mt-3 rounded-xl border border-emerald-100 overflow-hidden">
-                                        <table className="w-full text-sm">
-                                            <tbody className="divide-y divide-emerald-50">
-                                                {auditResult.ok.map((item, i) => (
-                                                    <tr key={i} className="hover:bg-emerald-50/50">
-                                                        <td className="px-4 py-2.5">
-                                                            <a href={item.url} target="_blank" rel="noopener noreferrer"
-                                                                className="text-xs font-mono text-slate-600 hover:text-blue-600 hover:underline break-all">
-                                                                {item.url}
-                                                            </a>
-                                                        </td>
-                                                        <td className="px-4 py-2.5 text-right">
-                                                            <span className="text-xs font-bold px-2 py-1 rounded-full bg-emerald-100 text-emerald-600">
-                                                                {item.status}
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </details>
-                            )}
-                        </div>
-                    )}
-                </div>
-            )}
         </div>
     );
 };

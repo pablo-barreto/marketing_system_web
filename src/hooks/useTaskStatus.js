@@ -21,12 +21,16 @@ const POLL_INTERVAL_MS = 3000;
  */
 export function useTaskStatus(jobId, token, { onFinished, onFailed } = {}) {
   const [status, setStatus] = useState(null);
+  const [progress, setProgress] = useState(0);
+  const [message, setMessage] = useState('');
   const intervalRef = useRef(null);
   const jobIdRef = useRef(jobId);
 
   const clear = useCallback(() => {
     clearInterval(intervalRef.current);
     setStatus(null);
+    setProgress(0);
+    setMessage('');
   }, []);
 
   useEffect(() => {
@@ -44,6 +48,8 @@ export function useTaskStatus(jobId, token, { onFinished, onFailed } = {}) {
         const data = await res.json();
         const newStatus = data.status;
         setStatus(newStatus);
+        setProgress(data.progress || 0);
+        setMessage(data.message || '');
 
         if (TERMINAL_STATUSES.has(newStatus)) {
           clearInterval(intervalRef.current);
@@ -63,5 +69,5 @@ export function useTaskStatus(jobId, token, { onFinished, onFailed } = {}) {
 
   const isRunning = status !== null && !TERMINAL_STATUSES.has(status);
 
-  return { status, isRunning, clear };
+  return { status, isRunning, progress, message, clear };
 }

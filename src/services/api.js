@@ -208,9 +208,9 @@ export const launchService = {
     return handleApiResponse(response);
   },
 
-  clearSeoRankings: async (scope, token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/seo/rankings/clear?scope=${scope}`, {
-      method: 'DELETE',
+  getRankingStatus: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/seo/ranking-status`, {
+      method: 'GET',
       headers: { 'Authorization': token, 'Content-Type': 'application/json' }
     });
     return handleApiResponse(response);
