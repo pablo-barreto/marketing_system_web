@@ -842,8 +842,17 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
             campaign.id.toLowerCase().includes(search) ||
             budgetStr.includes(search);
 
-        // 2. Filtro Estado
-        let matchesStatus = statusFilter === 'all' || s === statusFilter.toLowerCase();
+        // 2. Filtro Estado (con agrupación de estados equivalentes entre plataformas)
+        // LinkedIn devuelve REJECTED y Meta DISAPPROVED para un anuncio rechazado.
+        const STATUS_GROUPS = {
+            rejected: ['rejected', 'disapproved'],
+        };
+        let matchesStatus = true;
+        if (statusFilter !== 'all') {
+            const target = statusFilter.toLowerCase();
+            const group = STATUS_GROUPS[target];
+            matchesStatus = group ? group.includes(s) : s === target;
+        }
 
         // 3. Filtro Plataforma
         let matchesPlatform = true;
@@ -1054,6 +1063,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                         <option value="active">🟢 Activos</option>
                         <option value="paused">⏸️ Pausados</option>
                         <option value="pending_approval">⏳ Pendientes</option>
+                        <option value="rejected">🔴 Rechazadas</option>
                         <option value="with_issues">⚠️ Con Errores</option>
                         <option value="deleted">🗑️ Eliminadas</option>
                     </select>
