@@ -574,20 +574,21 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                     conversions: data.conversions // <--- Nuevo
                 });
 
-                const isError = data.status === 'WITH_ISSUES' || data.status === 'DISAPPROVED';
+                const isError = ['WITH_ISSUES', 'DISAPPROVED', 'REJECTED'].includes(data.status);
 
                 Swal.fire({
                     title: 'Datos Actualizados',
                     html: `
                         <div class="text-sm text-left">
                             <p><strong>Estado:</strong> ${data.label || data.status}</p>
+                            ${isError && data.reason ? `<p><strong>Motivo:</strong> ${data.reason}</p>` : ''}
                             <p><strong>Gasto Real:</strong> $${data.spend?.toLocaleString()}</p>
                             <p><strong>Leads/Conv:</strong> ${data.conversions}</p>
                         </div>
                     `,
                     icon: isError ? 'warning' : 'success',
-                    timer: 2000,
-                    showConfirmButton: false
+                    timer: isError ? undefined : 2000,
+                    showConfirmButton: isError
                 });
             } else {
                 throw new Error(data.error || 'Error API');

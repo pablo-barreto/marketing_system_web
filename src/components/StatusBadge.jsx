@@ -8,6 +8,7 @@ const StatusBadge = ({ status }) => {
         'PAUSED': '⏸️ Pausada',
         'PENDING_APPROVAL': '⏳ Pendiente',
         'DISAPPROVED': '🔴 Rechazada',
+        'REJECTED': '🔴 Rechazada',     // <--- LinkedIn devuelve REJECTED
         'WITH_ISSUES': '⚠️ Error Meta', // <--- Así se verá en la tabla
         'CAMPAIGN_PAUSED': '⏸️ Campaña Pausada',
         'ADSET_PAUSED': '⏸️ AdSet Pausado',
