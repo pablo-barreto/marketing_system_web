@@ -169,6 +169,7 @@ const GlobalLauncherUI = ({ onLaunch, onSyncAudience, isProcessing, availableRol
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-emerald-500 outline-none placeholder-slate-600"
               />
+              <p className="text-xs text-slate-600 mt-1 ml-1">Este texto aparece tal cual como titular del anuncio.</p>
             </div>
 
             {/* Presupuesto */}
