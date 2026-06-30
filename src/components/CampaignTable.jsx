@@ -374,6 +374,14 @@ const formatMoney = (amount) => {
     }).format(amount || 0);
 };
 
+// Fecha de publicación (created_at) en formato legible es-CO. Devuelve '—' si no hay dato.
+const formatDate = (value) => {
+    if (!value) return '—';
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
     const [localCampaigns, setLocalCampaigns] = useState(initialCampaigns || []);
     const [currentPage, setCurrentPage] = useState(1);
@@ -876,7 +884,11 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
             if (sortConfig === 'spend_asc') return (a.spend || 0) - (b.spend || 0);
             if (sortConfig === 'budget_desc') return (b.budget || 0) - (a.budget || 0);
             if (sortConfig === 'budget_asc') return (a.budget || 0) - (b.budget || 0);
-            return b.id.localeCompare(a.id);
+            if (sortConfig === 'oldest') return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+            // 'newest' (por defecto): más recientes primero por fecha de publicación.
+            // Antes ordenaba por b.id.localeCompare(a.id), pero el ID es un UUID aleatorio,
+            // así que el orden no tenía relación con la fecha real.
+            return new Date(b.created_at || 0) - new Date(a.created_at || 0);
         });
 
     const totalPages = Math.ceil(filteredCampaigns.length / itemsPerPage);
@@ -958,6 +970,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                     <div className="min-w-0 pr-2">
                         <h4 className="font-bold text-slate-800 text-sm mb-1 truncate">{c.service}</h4>
                         {renderPlatformBadge(c.platform)}
+                        <div className="text-[10px] text-slate-400 mt-1">📅 Publicada: {formatDate(c.created_at)}</div>
                     </div>
                     <div className="flex flex-col items-end gap-2 shrink-0">
                         <StatusBadge status={c.status} />
@@ -1078,6 +1091,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                         className="px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer shadow-sm min-w-[160px]"
                     >
                         <option value="newest">📅 Más Recientes</option>
+                        <option value="oldest">📆 Más Antiguas</option>
                         <option value="budget_desc">💰 Mayor Presupuesto</option>
                         <option value="budget_asc">💸 Menor Presupuesto</option>
                         {/* NUEVAS OPCIONES DE GASTO */}
@@ -1109,7 +1123,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                 <table className="min-w-full divide-y divide-slate-200">
                     <thead className="bg-slate-50">
                         <tr>
-                            {['Servicio', 'Plataforma', 'Estado', 'Gasto / Presupuesto', 'Rendimiento', 'Acción'].map(h => <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>)}
+                            {['Servicio', 'Publicada', 'Plataforma', 'Estado', 'Gasto / Presupuesto', 'Rendimiento', 'Acción'].map(h => <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>)}
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-200">
@@ -1127,6 +1141,9 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                                     <td className="px-6 py-4">
                                         <div className="text-sm font-bold text-slate-900">{c.service}</div>
                                         <div className="text-xs text-slate-400 font-mono mt-0.5">ID: {c.id.substring(0, 6)}...</div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="text-xs text-slate-600 whitespace-nowrap">{formatDate(c.created_at)}</div>
                                     </td>
                                     <td className="px-6 py-4">{renderPlatformBadge(c.platform)}</td>
                                     <td className="px-6 py-4">
