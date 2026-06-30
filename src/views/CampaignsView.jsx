@@ -257,6 +257,10 @@ const CampaignsView = ({
     const [statusMessage, setStatusMessage] = useState("");
     const [budget, setBudget] = useState(config?.default_budget || 50000);
     const [previewImage, setPreviewImage] = useState(null);
+    // True solo si el USUARIO cambió el selector a mano. Cuando la IA hace
+    // setSelectedService NO se activa, así que la IA puede volver a detectar el
+    // servicio en cada imagen nueva. Se reinicia al terminar cada publicación.
+    const [serviceTouched, setServiceTouched] = useState(false);
     const fileInputRef = useRef(null);
 
     // --- FUNCIÓN 1: ANALIZAR Y DISPARAR CREACIÓN (VERSIÓN FINAL) ---
@@ -266,7 +270,11 @@ const CampaignsView = ({
 
         // 🔥 Guardamos el servicio que el usuario tenía seleccionado ANTES de que la IA lo cambie
         const userSelectedService = selectedService;
-        const isDefaultSelection = userSelectedService === availableServices[0];
+        // Solo respetamos la selección si el USUARIO la tocó a mano. Antes se comparaba
+        // contra availableServices[0], pero tras la 1ª publicación el selector quedaba en
+        // el servicio detectado por la IA y el código lo confundía con elección manual,
+        // ignorando la detección de las imágenes siguientes.
+        const isDefaultSelection = !serviceTouched;
 
         try {
             const formData = new FormData();
@@ -372,6 +380,10 @@ const CampaignsView = ({
     const handleRemoveImage = () => {
         setPreviewImage(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
+        // Reiniciamos para que la próxima imagen vuelva a detectar servicio con la IA
+        // (sin esto, el selector quedaba "pegado" en el último servicio).
+        setServiceTouched(false);
+        if (availableServices?.length) setSelectedService(availableServices[0]);
     };
 
     const handleManualUpload = () => {
@@ -429,7 +441,7 @@ const CampaignsView = ({
                                 <select
                                     value={selectedService}
                                     disabled={isProcessing}
-                                    onChange={e => setSelectedService(e.target.value)}
+                                    onChange={e => { setSelectedService(e.target.value); setServiceTouched(true); }}
                                     className={`w-full px-4 py-3 rounded-xl border transition-colors outline-none text-sm text-slate-700 ${isProcessing ? 'bg-slate-100' : 'bg-white border-slate-200'}`}
                                 >
                                     {availableServices.map(s => <option key={s} value={s}>{s}</option>)}
