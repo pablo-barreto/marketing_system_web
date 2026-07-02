@@ -7,8 +7,8 @@ import { AuthContext } from '../context/AuthContext';
 import { API_BASE_URL } from '../app/config';
 
 // --- MODAL: CAMPAÑA MANUAL ---
-const ManualCampaignModal = ({ onClose, token }) => {
-    const [form, setForm] = useState({ title: '', body: '', redirect_url: '', whatsapp_number: '', platform: 'facebook', budget: 50000, end_date: '' });
+const ManualCampaignModal = ({ onClose, token, services = [] }) => {
+    const [form, setForm] = useState({ title: '', body: '', redirect_url: '', whatsapp_number: '', service: '', platform: 'facebook', budget: 50000, end_date: '' });
     const [file, setFile] = useState(null);
     const [preview, setPreview] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -35,6 +35,7 @@ const ManualCampaignModal = ({ onClose, token }) => {
             formData.append('body', form.body.trim());
             formData.append('redirect_url', form.redirect_url.trim());
             if (form.whatsapp_number.trim()) formData.append('whatsapp_number', form.whatsapp_number.trim());
+            if (form.service) formData.append('service', form.service);
             formData.append('platform', form.platform);
             formData.append('budget', form.budget);
             if (form.end_date) formData.append('end_date', form.end_date);
@@ -124,6 +125,20 @@ const ManualCampaignModal = ({ onClose, token }) => {
                             className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
                         />
                         <p className="text-xs text-slate-400 text-right">{form.body.length}/500</p>
+                    </div>
+
+                    {/* Servicio asociado */}
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Servicio asociado</label>
+                        <select
+                            value={form.service}
+                            onChange={e => setForm(f => ({ ...f, service: e.target.value }))}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                        >
+                            <option value="">— Sin servicio (usar el título) —</option>
+                            {services.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                        <p className="text-xs text-slate-400 mt-1">Opcional · Los leads y métricas de la campaña se atribuyen a este servicio.</p>
                     </div>
 
                     {/* URL + WhatsApp */}
@@ -397,6 +412,7 @@ const CampaignsView = ({
             {showManualModal && (
                 <ManualCampaignModal
                     token={basicAuthHeader}
+                    services={availableServices}
                     onClose={() => setShowManualModal(false)}
                 />
             )}
