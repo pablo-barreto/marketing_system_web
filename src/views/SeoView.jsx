@@ -6,30 +6,12 @@ import { AuthContext } from '../context/AuthContext';
 import { launchService } from '../services/api';
 import Swal from 'sweetalert2';
 
-import { useTaskStatus } from '../hooks/useTaskStatus';
-import { API_BASE_URL } from '../app/config';
-
 const SeoView = ({ rankings, content }) => {
     const { basicAuthHeader } = useContext(AuthContext);
     const [credits, setCredits] = React.useState(null);
     const [loadingCredits, setLoadingCredits] = React.useState(true);
     const [rankingStatus, setRankingStatus] = React.useState(null);
     const [activeContentTab, setActiveContentTab] = React.useState('blog');
-    const [activeJobId, setActiveJobId] = React.useState(null);
-
-    const { isRunning, progress, message: taskMessage, clear: clearTask } = useTaskStatus(activeJobId, basicAuthHeader, {
-        onFinished: () => {
-            Swal.fire('Completado', 'La verificación de rankings ha finalizado.', 'success');
-            clearTask();
-            setActiveJobId(null);
-        },
-        onFailed: (data) => {
-            Swal.fire('Error', data.error || 'La tarea falló', 'error');
-            clearTask();
-            setActiveJobId(null);
-        }
-    });
-
 
     // Filtrar contenido por tipo
     const blogContent = (content || []).filter(item => item.type === 'BLOG');
@@ -78,7 +60,6 @@ const SeoView = ({ rankings, content }) => {
 
     const nationalLocked = rankingStatus?.national && !rankingStatus.national.allowed;
     const internationalLocked = rankingStatus?.international && !rankingStatus.international.allowed;
-    const allRankingsLocked = nationalLocked && internationalLocked;
 
     const handleForceBoost = async () => {
         if (hasLowCredits) {
@@ -102,81 +83,6 @@ const SeoView = ({ rankings, content }) => {
                 }
             }
         });
-    };
-
-    const handleRankingCheck = async () => {
-        if (hasLowCredits) {
-            Swal.fire('Sin Créditos', 'No tienes créditos suficientes (< 100) para realizar una verificación de rankings.', 'error');
-            return;
-        }
-
-        // Solo se ofrecen los alcances que NO estén en periodo de espera.
-        // Nacional: 1 vez por semana · Internacional: 1 vez por mes.
-        const inputOptions = {};
-        if (!nationalLocked) {
-            inputOptions['national'] = '🇨🇴 Nacional (Colombia) — semanal';
-        }
-        if (!internationalLocked) {
-            inputOptions['international'] = '🌍 Internacional — mensual';
-        }
-
-        if (Object.keys(inputOptions).length === 0) {
-            const nextNat = formatDate(rankingStatus?.national?.next_allowed);
-            const nextInt = formatDate(rankingStatus?.international?.next_allowed);
-            Swal.fire({
-                title: '⏳ Verificación no disponible',
-                icon: 'info',
-                html: `Para cuidar los créditos, los rankings tienen una frecuencia fija:<br/><br/>` +
-                    `🇨🇴 <b>Nacional</b> (semanal): disponible el <b>${nextNat}</b><br/>` +
-                    `🌍 <b>Internacional</b> (mensual): disponible el <b>${nextInt}</b>`,
-                confirmButtonColor: '#2563eb'
-            });
-            return;
-        }
-
-        const { value: scope } = await Swal.fire({
-            title: '🔍 Verificar Rankings',
-            text: '¿Qué alcance deseas verificar?',
-            icon: 'question',
-            input: 'select',
-            inputOptions,
-            inputValue: Object.keys(inputOptions)[0],
-            showCancelButton: true,
-            confirmButtonText: 'Verificar',
-            confirmButtonColor: '#2563eb'
-        });
-
-        if (scope) {
-            try {
-                // Modificado para usar fetch directo y capturar el job_id
-                const res = await fetch(`${API_BASE_URL}/api/v1/seo/manual-ranking-check`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': basicAuthHeader,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ scope })
-                });
-                const data = await res.json();
-
-                if (res.status === 429 || data.status === 'blocked') {
-                    // El backend rechazó por cooldown (fuente de verdad). Refrescamos estado.
-                    fetchRankingStatus();
-                    Swal.fire('Verificación no disponible', data.message || 'Esta verificación aún no está disponible.', 'info');
-                    return;
-                }
-
-                if (data.status === 'success') {
-                    setActiveJobId(data.job_id);
-                    fetchRankingStatus();
-                    Swal.fire('Iniciado', `Verificación de rankings (${scope}) iniciada. Puedes ver el progreso en la barra superior.`, 'success');
-                } else {
-                    throw new Error(data.message || 'Error al iniciar');
-                }
-            } catch (e) {
-                Swal.fire('Error', e.message, 'error');
-            }
-        }
     };
 
     const handleScraping = async () => {
@@ -265,24 +171,6 @@ const SeoView = ({ rankings, content }) => {
     return (
         <div className="p-2 md:p-6 w-full max-w-full overflow-x-hidden">
 
-            {/* BARRA DE PROGRESO DE TAREA */}
-            {isRunning && (
-                <div className="mb-8 bg-blue-50 border border-blue-100 p-4 rounded-2xl shadow-sm animate-pulse">
-                    <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-bold text-blue-700 flex items-center gap-2">
-                            <span className="animate-spin">⏳</span> {taskMessage || 'Procesando...'}
-                        </span>
-                        <span className="text-sm font-black text-blue-800">{progress}%</span>
-                    </div>
-                    <div className="w-full bg-blue-200 rounded-full h-3 overflow-hidden">
-                        <div 
-                            className="bg-blue-600 h-full transition-all duration-500 ease-out rounded-full"
-                            style={{ width: `${progress}%` }}
-                        ></div>
-                    </div>
-                </div>
-            )}
-
             {/* ENCABEZADO SUPERIOR CON BOTONES DE ACCIÓN */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6">
                 <div className="text-center md:text-left">
@@ -295,17 +183,17 @@ const SeoView = ({ rankings, content }) => {
                             </span>
                         )}
                     </div>
-                    {/* Próxima verificación disponible (cadencia: nacional semanal · internacional mensual) */}
+                    {/* Próxima verificación automática (cadencia: nacional semanal · internacional mensual) */}
                     {(nationalLocked || internationalLocked) && (
                         <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-2">
                             {nationalLocked && (
                                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
-                                    🇨🇴 Nacional disponible el {formatDate(rankingStatus?.national?.next_allowed)}
+                                    🇨🇴 Próxima verificación nacional: {formatDate(rankingStatus?.national?.next_allowed)}
                                 </span>
                             )}
                             {internationalLocked && (
                                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
-                                    🌍 Internacional disponible el {formatDate(rankingStatus?.international?.next_allowed)}
+                                    🌍 Próxima verificación internacional: {formatDate(rankingStatus?.international?.next_allowed)}
                                 </span>
                             )}
                         </div>
@@ -313,19 +201,6 @@ const SeoView = ({ rankings, content }) => {
                 </div>
 
                 <div className="flex flex-wrap gap-2 justify-center md:justify-end">
-                    <PremiumTooltip message="Se requiere al menos 100 créditos en SerpHouse para realizar una verificación de rankings." enabled={hasLowCredits}>
-                        <button
-                            onClick={handleRankingCheck}
-                            disabled={hasLowCredits || allRankingsLocked}
-                            title={allRankingsLocked
-                                ? `Disponible: 🇨🇴 ${formatDate(rankingStatus?.national?.next_allowed)} · 🌍 ${formatDate(rankingStatus?.international?.next_allowed)}`
-                                : undefined}
-                            className={`${(hasLowCredits || allRankingsLocked) ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/20 active:scale-95'} px-4 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 text-sm`}
-                        >
-                            <span>🔍 Verificar Rankings</span>
-                        </button>
-                    </PremiumTooltip>
-
                     <button
                         onClick={handleScraping}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-xl font-bold shadow-lg shadow-emerald-900/20 transition-all active:scale-95 flex items-center gap-2 text-sm"
