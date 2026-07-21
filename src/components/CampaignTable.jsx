@@ -1213,31 +1213,23 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                                             <button onClick={() => handleDeleteCampaign(c)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100" title="Eliminar campaña">
                                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                             </button>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
-                                            {/* Botones de Ver y Audiencia que ya tienes... [cite: 808, 810] */}
 
-                                            {/* BOTÓN DE RESETEO TÉCNICO */}
+                                            {/* Botón Resetear gasto/leads (manual) */}
                                             <button
                                                 onClick={() => handleResetMetrics(c.id, c.service)}
-                                                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl hover:bg-rose-600 hover:text-white transition-all duration-200 text-[10px] font-black shadow-sm active:scale-95 group"
-                                                title="Resetear métricas locales"
+                                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-100 group"
+                                                title="Resetear gasto/leads (manual)"
                                             >
                                                 <svg
-                                                    className="w-3.5 h-3.5 transition-transform duration-500 group-hover:rotate-180"
+                                                    className="w-5 h-5 transition-transform duration-500 group-hover:rotate-180"
                                                     fill="none"
                                                     viewBox="0 0 24 24"
                                                     stroke="currentColor"
-                                                    strokeWidth={3}
+                                                    strokeWidth={2}
                                                 >
                                                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                                 </svg>
-                                                <span className="tracking-widest">RESET</span>
                                             </button>
-
-                                            {/* Lógica de botones Condicionales (Aprobar/Pausar) [cite: 812, 814] */}
                                         </div>
                                     </td>
                                 </tr>
