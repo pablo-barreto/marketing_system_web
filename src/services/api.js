@@ -50,14 +50,22 @@ export const campaignService = {
     return handleApiResponse(response);
   },
 
-  relaunchCreative: async (creativeId, budget, platform, token) => {
+  relaunchCreative: async (creativeId, budget, platform, token, audienceType = 'empresa') => {
     const response = await fetch(`${API_BASE_URL}/api/v1/assets/relaunch`, {
       method: 'POST',
-      headers: { 
-        'Authorization': token, 
-        'Content-Type': 'application/json' 
+      headers: {
+        'Authorization': token,
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ creative_id: creativeId, budget, platform })
+      body: JSON.stringify({ creative_id: creativeId, budget, platform, audience_type: audienceType })
+    });
+    return handleApiResponse(response);
+  },
+
+  // Métricas comparadas por público (empresa / persona natural)
+  getAudienceStats: async (days, token) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/stats/audience?days=${encodeURIComponent(days)}`, {
+      headers: { 'Authorization': token }
     });
     return handleApiResponse(response);
   },

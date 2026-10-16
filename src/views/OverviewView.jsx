@@ -2,6 +2,7 @@
 import SystemLogs from '../components/SystemLogs';
 import React, { useState, useMemo } from 'react';
 import ServiceTrafficModal from '../components/ServiceTrafficModal';
+import AudienceStatsPanel from '../components/AudienceStatsPanel';
 
 // Iconos SVG (Sin cambios)
 const Icons = {
@@ -317,6 +318,11 @@ const OverviewView = ({ data, days, setDays, loading }) => {
                         </div>
                     </div>
                 )}
+            </div>
+
+            {/* 5b. RESULTADOS POR PÚBLICO (empresa vs persona natural) */}
+            <div className="w-full mt-6">
+                <AudienceStatsPanel days={days} />
             </div>
 
             {/* 6. CONSOLA */}

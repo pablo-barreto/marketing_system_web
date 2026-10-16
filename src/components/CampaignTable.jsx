@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import StatusBadge from './StatusBadge';
 import Swal from 'sweetalert2';
 import AudienceModal from './AudienceModal';
+import { AudienceBadge } from './AudienceSelect';
 import { URL_IMAGES, API_BASE_URL } from '../app/config';
 import { campaignService, launchService } from '../services/api';
 
@@ -983,7 +984,10 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                 <div className="flex justify-between items-start mb-3">
                     <div className="min-w-0 pr-2">
                         <h4 className="font-bold text-slate-800 text-sm mb-1 truncate">{c.service}</h4>
-                        {renderPlatformBadge(c.platform)}
+                        <div className="flex items-center gap-2 flex-wrap">
+                            {renderPlatformBadge(c.platform)}
+                            <AudienceBadge audienceType={c.audience_type} />
+                        </div>
                         <div className="text-[10px] text-slate-400 mt-1">📅 Publicada: {formatDate(c.created_at)}</div>
                     </div>
                     <div className="flex flex-col items-end gap-2 shrink-0">
@@ -1137,7 +1141,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                 <table className="min-w-full divide-y divide-slate-200">
                     <thead className="bg-slate-50">
                         <tr>
-                            {['Servicio', 'Publicada', 'Plataforma', 'Estado', 'Gasto / Presupuesto', 'Rendimiento', 'Acción'].map(h => <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>)}
+                            {['Servicio', 'Publicada', 'Plataforma', 'Público', 'Estado', 'Gasto / Presupuesto', 'Rendimiento', 'Acción'].map(h => <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>)}
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-200">
@@ -1160,6 +1164,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                                         <div className="text-xs text-slate-600 whitespace-nowrap">{formatDate(c.created_at)}</div>
                                     </td>
                                     <td className="px-6 py-4">{renderPlatformBadge(c.platform)}</td>
+                                    <td className="px-6 py-4"><AudienceBadge audienceType={c.audience_type} /></td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
                                             <StatusBadge status={c.status} />

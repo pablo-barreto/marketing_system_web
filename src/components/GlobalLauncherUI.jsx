@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import Swal from 'sweetalert2';
+import AudienceSelect, { DEFAULT_AUDIENCE } from './AudienceSelect';
 
 const COUNTRIES = [
   { code: 'CO', label: 'Colombia' },
@@ -31,6 +32,7 @@ const GlobalLauncherUI = ({ onLaunch, onSyncAudience, isProcessing, availableRol
   const [budget, setBudget] = useState(50000);
   const [targetCountries, setTargetCountries] = useState(COUNTRIES.map(c => c.code));
   const [targetServices, setTargetServices] = useState(SERVICES.map(s => s.value));
+  const [audienceType, setAudienceType] = useState(DEFAULT_AUDIENCE);
 
   // Modo de lanzamiento: 'new' = crear campañas nuevas, 'existing' = enviar a existentes
   const [launchType, setLaunchType] = useState('new');
@@ -67,7 +69,7 @@ const GlobalLauncherUI = ({ onLaunch, onSyncAudience, isProcessing, availableRol
         return Swal.fire('Sin campañas', 'Selecciona al menos una campaña existente.', 'warning');
       }
       const rolesString = selectedRoles.join(',');
-      onSyncAudience(segmentationMode, rolesString, selectedCampaignIds);
+      onSyncAudience(segmentationMode, rolesString, selectedCampaignIds, audienceType);
       return;
     }
 
@@ -87,7 +89,7 @@ const GlobalLauncherUI = ({ onLaunch, onSyncAudience, isProcessing, availableRol
     }
 
     const rolesString = selectedRoles.join(',');
-    onLaunch(file, title, segmentationMode, rolesString, budget, targetCountries, targetServices);
+    onLaunch(file, title, segmentationMode, rolesString, budget, targetCountries, targetServices, audienceType);
   };
 
   const handleToggleCountry = (code) => {
@@ -112,6 +114,7 @@ const GlobalLauncherUI = ({ onLaunch, onSyncAudience, isProcessing, availableRol
     setSelectedCampaignIds([]);
     setTargetCountries(COUNTRIES.map(c => c.code));
     setTargetServices(SERVICES.map(s => s.value));
+    setAudienceType(DEFAULT_AUDIENCE);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -191,6 +194,11 @@ const GlobalLauncherUI = ({ onLaunch, onSyncAudience, isProcessing, availableRol
             </div>
           </>
         )}
+
+        {/* Público (compartido por ambos modos): define tono del anuncio, plataformas y leads */}
+        <div className="mb-4">
+          <AudienceSelect value={audienceType} onChange={setAudienceType} variant="dark" />
+        </div>
 
         {/* Estrategia de Segmentación (compartida por ambos modos) */}
         <div className="mb-4">

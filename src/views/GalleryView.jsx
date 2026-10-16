@@ -5,6 +5,7 @@ import { campaignService } from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 import { API_BASE_URL, URL_IMAGES } from '../app/config';
 import FormattedDate from '../components/FormattedDate';
+import AudienceSelect, { AUDIENCE_OPTIONS, DEFAULT_AUDIENCE, skippedNotice } from '../components/AudienceSelect';
 
 const GalleryView = ({ config }) => {
     const { basicAuthHeader } = useContext(AuthContext);
@@ -15,6 +16,7 @@ const GalleryView = ({ config }) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [detectedService, setDetectedService] = useState("---"); // Estado visual
     const [fixedBudget] = useState(config?.default_budget || 50000); // Presupuesto fijo visual
+    const [audienceType, setAudienceType] = useState(DEFAULT_AUDIENCE); // Público de la subida automática
     const fileInputRef = useRef(null);
 
     // Función para normalizar rutas de imágenes (Novedad para corregir fallos de carga)
@@ -84,14 +86,16 @@ const GalleryView = ({ config }) => {
             createForm.append('service_name', serviceName);
             createForm.append('budget', fixedBudget);
             createForm.append('platform', 'all');
+            createForm.append('audience_type', audienceType);
 
-            await campaignService.uploadCreative(createForm, basicAuthHeader);
+            const createRes = await campaignService.uploadCreative(createForm, basicAuthHeader);
+            const notice = skippedNotice(createRes?.skipped);
 
             Swal.fire({
                 title: '¡Campaña Lanzada!',
-                text: `Se creó exitosamente para: ${serviceName}`,
+                text: `Se creó exitosamente para: ${serviceName}${notice ? `. ${notice}` : ''}`,
                 icon: 'success',
-                timer: 2000,
+                timer: notice ? 3500 : 2000,
                 showConfirmButton: false
             });
 
@@ -122,6 +126,12 @@ const GalleryView = ({ config }) => {
                         <option value="linkedin">LinkedIn</option>
                     </select>
 
+                    <label class="text-[11px] font-bold text-slate-500 uppercase">Público</label>
+                    <select id="swal-audience" class="swal2-select !mt-0 !mx-0 !w-full !text-sm">
+                        ${AUDIENCE_OPTIONS.map(o => `<option value="${o.value}">${o.label}</option>`).join('')}
+                    </select>
+                    <p class="text-[11px] text-slate-400 -mt-2">Con personas naturales y "Todas", se publica solo en Meta.</p>
+
                     <label class="text-[11px] font-bold text-slate-500 uppercase">Presupuesto Diario (COP)</label>
                     <input id="swal-budget" type="number" class="swal2-input !mt-0 !mx-0 !w-full !text-sm" value="${fixedBudget}" step="5000" min="20000" />
                 </div>
@@ -139,6 +149,7 @@ const GalleryView = ({ config }) => {
                 }
                 return {
                     platform: document.getElementById('swal-platform').value,
+                    audienceType: document.getElementById('swal-audience').value,
                     budget: budgetVal
                 };
             }
@@ -151,16 +162,18 @@ const GalleryView = ({ config }) => {
         Toast.fire({ icon: 'info', title: 'Generando campaña...' });
 
         try {
-            await campaignService.relaunchCreative(
+            const relaunchRes = await campaignService.relaunchCreative(
                 creative.id,
                 formValues.budget,
                 formValues.platform,
-                basicAuthHeader
+                basicAuthHeader,
+                formValues.audienceType
             );
+            const notice = skippedNotice(relaunchRes?.skipped);
 
             Swal.fire({
                 title: '¡Campaña Lanzada!',
-                text: `Se relanzó exitosamente la campaña de: ${creative.service}`,
+                text: `Se relanzó exitosamente la campaña de: ${creative.service}${notice ? `. ${notice}` : ''}`,
                 icon: 'success',
                 timer: 2500,
                 showConfirmButton: false
@@ -228,6 +241,14 @@ const GalleryView = ({ config }) => {
                             className="bg-slate-100 border border-transparent text-slate-500 text-xs font-medium py-1.5 px-2 rounded w-24 focus:outline-none cursor-not-allowed"
                         />
                     </div>
+
+                    {/* Público: se elige antes de subir, porque la subida crea la campaña al instante */}
+                    <AudienceSelect
+                        value={audienceType}
+                        onChange={setAudienceType}
+                        disabled={isProcessing}
+                        variant="compact"
+                    />
 
                     {/* Separador */}
                     <div className="h-8 w-[1px] bg-slate-200 mx-1"></div>

@@ -61,7 +61,7 @@ const LaunchView = ({ crmData }) => {
   // -----------------------------------------------------------------------
 
   // A. Lanzamiento Global: crea campañas nuevas
-  const handleGlobalLaunch = async (file, title, mode, roles, budget, targetCountries = [], targetServices = []) => {
+  const handleGlobalLaunch = async (file, title, mode, roles, budget, targetCountries = [], targetServices = [], audienceType = 'empresa') => {
     setLoading(true);
     try {
       const formData = new FormData();
@@ -70,6 +70,7 @@ const LaunchView = ({ crmData }) => {
       formData.append('context', 'seminario');
       formData.append('segmentation_mode', mode);
       formData.append('budget', budget);
+      formData.append('audience_type', audienceType);
       if (mode === 'specific' && roles) {
         formData.append('target_roles', roles);
       }
@@ -85,6 +86,8 @@ const LaunchView = ({ crmData }) => {
       let successMsg = `Se impactaron ${res.leads_impacted || 'múltiples'} leads.`;
       if (res.segment === 'top_roles') successMsg += ` Roles Top: [${res.roles_targeted?.join(', ')}]`;
       if (res.segment === 'specific') successMsg += ` Roles: [${res.roles_targeted?.join(', ')}]`;
+      // El lanzamiento corre en segundo plano: la omisión de LinkedIn llega en la notificación final.
+      if (audienceType === 'persona_natural') successMsg += ' Público: personas naturales (solo Meta; LinkedIn se omite).';
 
       Swal.fire({ title: '¡Lanzamiento Exitoso!', text: successMsg, icon: 'success' });
     } catch (error) {
@@ -96,13 +99,14 @@ const LaunchView = ({ crmData }) => {
   };
 
   // B. Sincronizar audiencia a campañas existentes
-  const handleSyncAudience = async (mode, roles, campaignIds) => {
+  const handleSyncAudience = async (mode, roles, campaignIds, audienceType = 'empresa') => {
     setLoading(true);
     try {
       const body = {
         campaign_ids: campaignIds,
         segmentation_mode: mode,
-        target_roles: roles ? roles.split(',').filter(Boolean) : []
+        target_roles: roles ? roles.split(',').filter(Boolean) : [],
+        audience_type: audienceType
       };
 
       await launchService.syncAudienceToCampaigns(body, basicAuthHeader);

@@ -5,10 +5,20 @@ import CampaignTable from '../components/CampaignTable';
 import { campaignService } from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 import { API_BASE_URL } from '../app/config';
+import AudienceSelect, { DEFAULT_AUDIENCE, skippedNotice } from '../components/AudienceSelect';
+
+const PLATFORM_NAMES = { facebook: 'Meta', linkedin: 'LinkedIn', google: 'Google Ads' };
+
+// Plataformas donde realmente se publicó, descontando las que el backend omitió por el público.
+const publishedPlatforms = (platform, skipped = []) => {
+    const requested = platform === 'all' ? ['facebook', 'linkedin'] : [platform];
+    const names = requested.filter(p => !skipped.includes(p)).map(p => PLATFORM_NAMES[p] || p);
+    return names.length ? names.join(' y ') : 'ninguna plataforma';
+};
 
 // --- MODAL: CAMPAÑA MANUAL ---
 const ManualCampaignModal = ({ onClose, token, services = [] }) => {
-    const [form, setForm] = useState({ title: '', body: '', redirect_url: '', whatsapp_number: '', service: '', platform: 'facebook', budget: 50000, end_date: '' });
+    const [form, setForm] = useState({ title: '', body: '', redirect_url: '', whatsapp_number: '', service: '', platform: 'facebook', budget: 50000, end_date: '', audience_type: DEFAULT_AUDIENCE });
     const [file, setFile] = useState(null);
     const [preview, setPreview] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -38,11 +48,13 @@ const ManualCampaignModal = ({ onClose, token, services = [] }) => {
             if (form.service) formData.append('service', form.service);
             formData.append('platform', form.platform);
             formData.append('budget', form.budget);
+            formData.append('audience_type', form.audience_type);
             if (form.end_date) formData.append('end_date', form.end_date);
 
             const res = await campaignService.createManualCampaign(formData, token);
             const platforms = res.created?.map(c => c.platform).join(', ') || 'plataformas';
-            Swal.fire({ title: '¡Campaña Creada!', text: `Publicada en: ${platforms}`, icon: 'success' });
+            const notice = skippedNotice(res.skipped);
+            Swal.fire({ title: '¡Campaña Creada!', text: `Publicada en: ${platforms}${notice ? `. ${notice}` : ''}`, icon: 'success' });
             onClose();
         } catch (error) {
             Swal.fire('Error', error.message, 'error');
@@ -201,6 +213,13 @@ const ManualCampaignModal = ({ onClose, token, services = [] }) => {
                         </div>
                     </div>
 
+                    {/* Público */}
+                    <AudienceSelect
+                        value={form.audience_type}
+                        onChange={v => setForm(f => ({ ...f, audience_type: v }))}
+                        platform={form.platform}
+                    />
+
                     {/* Fecha límite */}
                     <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
@@ -276,6 +295,9 @@ const CampaignsView = ({
     // setSelectedService NO se activa, así que la IA puede volver a detectar el
     // servicio en cada imagen nueva. Se reinicia al terminar cada publicación.
     const [serviceTouched, setServiceTouched] = useState(false);
+    // Público de la campaña automática: se elige ANTES de subir la imagen,
+    // porque subirla dispara la creación de inmediato.
+    const [audienceType, setAudienceType] = useState(DEFAULT_AUDIENCE);
     const fileInputRef = useRef(null);
 
     // --- FUNCIÓN 1: ANALIZAR Y DISPARAR CREACIÓN (VERSIÓN FINAL) ---
@@ -354,12 +376,14 @@ const CampaignsView = ({
             formData.append('service_name', serviceName || "General");
             formData.append('budget', budgetAmount);
             formData.append('platform', platformName);
+            formData.append('audience_type', audienceType);
 
-            await campaignService.uploadCreative(formData, basicAuthHeader);
+            const res = await campaignService.uploadCreative(formData, basicAuthHeader);
+            const notice = skippedNotice(res?.skipped);
 
             Swal.fire({
                 title: '¡Proceso Completo!',
-                html: `Se detectó <b>${serviceName}</b> y se crearon las campañas en <b>Meta y LinkedIn</b> automáticamente.`,
+                html: `Se detectó <b>${serviceName}</b> y se creó la campaña en <b>${publishedPlatforms(platformName, res?.skipped)}</b> automáticamente.${notice ? `<br/><small>${notice}</small>` : ''}`,
                 icon: 'success',
                 timer: 3000,
                 showConfirmButton: false
@@ -479,6 +503,13 @@ const CampaignsView = ({
                                     <option value="linkedin">💼 Solo LinkedIn</option>
                                 </select>
                             </div>
+
+                            <AudienceSelect
+                                value={audienceType}
+                                onChange={setAudienceType}
+                                disabled={isProcessing}
+                                platform={selectedPlatform}
+                            />
 
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Presupuesto Base</label>
