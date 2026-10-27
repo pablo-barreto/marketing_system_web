@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import StatusBadge from './StatusBadge';
+import { Button, Icon, Pagination, Pill, ProgressBar, SearchInput, cx, tableClass, tdClass, thClass, trClass } from './ui';
 import Swal from 'sweetalert2';
 import AudienceModal from './AudienceModal';
 import { AudienceBadge } from './AudienceSelect';
@@ -419,6 +420,7 @@ const CampaignTable = ({ onApprove, config }) => {
 
     const [selectedCampaign, setSelectedCampaign] = useState(null);
     const [selectedAudienceCampaign, setSelectedAudienceCampaign] = useState(null);
+    const [openMenuId, setOpenMenuId] = useState(null);
 
     useEffect(() => {
         if (initialCampaigns) setLocalCampaigns(initialCampaigns);
@@ -430,7 +432,6 @@ const CampaignTable = ({ onApprove, config }) => {
         if (serverPages && currentPage > serverPages) setCurrentPage(serverPages);
     }, [serverPages, currentPage]);
 
-    const handlePageSizeChange = (e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); };
 
     const updateLocalCampaignData = (campaignId, newData) => {
         setLocalCampaigns(prev => prev.map(c =>
@@ -614,18 +615,6 @@ const CampaignTable = ({ onApprove, config }) => {
                 }
             }
         });
-    };
-
-    const renderPlatformBadge = (platform) => {
-        const p = (platform || '').toLowerCase();
-        if (p.includes('linkedin')) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border bg-sky-50 text-sky-700 border-sky-100">in LinkedIn</span>;
-        return (
-            <div className="flex items-center gap-1">
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border bg-blue-50 text-blue-700 border-blue-100">Facebook</span>
-                <span className="text-slate-300 text-[10px]">/</span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border bg-pink-50 text-pink-700 border-pink-100">Instagram</span>
-            </div>
-        );
     };
 
     const handleConfirmApprove = (campaignId, serviceName) => {
@@ -861,295 +850,204 @@ const CampaignTable = ({ onApprove, config }) => {
     };
 
     // =========================================================================
-    // VISTA MÓVIL OPTIMIZADA
-    // =============================================================================
-    const MobileCard = ({ c }) => {
-        const budget = c.budget || 0;
-        const spend = c.spend || 0;
-        const spendPercent = budget > 0 ? Math.min((spend / budget) * 100, 100) : 0;
-        const conversions = c.conversions || 0;
-        const leadVal = config?.lead_value || 15;
-        const roi = spend > 0 ? (((conversions * leadVal) - spend) / spend) * 100 : 0;
-        const isSyncSupported = c.platform && (c.platform.toLowerCase().includes('facebook') || c.platform.toLowerCase().includes('instagram') || c.platform.toLowerCase().includes('linkedin'));
-
-        return (
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm mb-4">
-                <div className="flex justify-between items-start mb-3">
-                    <div className="min-w-0 pr-2">
-                        <h4 className="font-bold text-slate-800 text-sm mb-1 truncate">{c.service}</h4>
-                        <div className="flex items-center gap-2 flex-wrap">
-                            {renderPlatformBadge(c.platform)}
-                            <AudienceBadge audienceType={c.audience_type} />
-                        </div>
-                        <div className="text-[10px] text-slate-400 mt-1">📅 Publicada: {formatDate(c.created_at)}</div>
-                    </div>
-                    <div className="flex flex-col items-end gap-2 shrink-0">
-                        <StatusBadge status={c.status} />
-                        {isSyncSupported && (
-                            <button onClick={() => handleVerifyMetaStatus(c.id)} className="p-1.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100 shadow-sm" title="Sincronizar ahora">
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                        <div className="flex justify-between items-center mb-1">
-                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Gasto</span>
-                            {isSyncSupported && <button onClick={() => handleEditBudget(c, budget)} className="text-blue-500 p-0.5 rounded" title="Editar Presupuesto">✏️</button>}
-                        </div>
-                        <div className="text-xs font-semibold text-slate-700">
-                            {formatMoney(spend)} <span className="text-slate-400 text-[10px] font-normal">/ {formatMoney(budget)}</span>
-                        </div>
-                        <div className="w-full h-1 bg-slate-200 rounded-full mt-2 overflow-hidden">
-                            <div style={{ width: `${spendPercent}%` }} className={`h-full rounded-full transition-all duration-500 ${spendPercent > 90 ? 'bg-red-500' : 'bg-blue-500'}`}></div>
-                        </div>
-                    </div>
-                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tight block mb-1">ROI & Leads</span>
-                        <div className={`text-xs font-bold ${roi > 0 ? 'text-emerald-600' : 'text-amber-500'}`}>
-                            {roi > 0 ? '+' : ''}{roi.toFixed(0)}% <span className="text-slate-400 font-normal ml-1">({conversions})</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex gap-2">
-                    <button onClick={() => setSelectedCampaign(c)} className="flex-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold py-2.5 rounded-xl shadow-sm">👁️ Ver</button>
-                    {isSyncSupported && (
-                        <button onClick={() => handleEditTargeting(c)} className="px-3 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl" title="Editar países">🌍</button>
-                    )}
-                    {c.status === 'ACTIVE' && <button onClick={() => handleToggleStatus(c.id, c.status)} className="flex-1 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold py-2.5 rounded-xl">⏸️ Pausar</button>}
-                    {c.status === 'PAUSED' && <button onClick={() => handleToggleStatus(c.id, c.status)} className="flex-1 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold py-2.5 rounded-xl">▶️ Activar</button>}
-                    {c.status === 'pending_approval' && <button onClick={() => handleConfirmApprove(c.id, c.service)} className="flex-1 bg-emerald-500 text-white text-xs font-bold py-2.5 rounded-xl shadow-md">✅ APROBAR</button>}
-                    <button onClick={() => handleDeleteCampaign(c)} className="flex items-center justify-center gap-1 px-3 py-2.5 bg-red-50 border border-red-200 text-red-600 text-xs font-bold rounded-xl hover:bg-red-600 hover:text-white transition-all active:scale-95" title="Eliminar campaña">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                        DEL
-                    </button>
-
-                    {/* BOTÓN DE RESETEO AL LADO DE LAS ACCIONES DE ESTADO */}
-                    <button
-                        onClick={() => handleResetMetrics(c.id, c.service)}
-                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-50 text-slate-500 border border-slate-200 rounded-xl hover:text-rose-600 hover:bg-rose-50 transition-colors active:scale-95"
-                        title="Resetear"
-                    >
-                        <span className="text-[11px] font-bold tracking-tight">RESET</span>
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        );
+    // TABLA (diseño "Historial de campañas")
+    // =========================================================================
+    const isSyncable = (c) => {
+        const p = (c.platform || '').toLowerCase();
+        return p.includes('facebook') || p.includes('instagram') || p.includes('linkedin');
     };
+
+    // Acción principal de cada fila según su estado; el resto va al menú "Más acciones"
+    const primaryAction = (c) => {
+        const s = String(c.status || '').toUpperCase();
+        if (s === 'PENDING_APPROVAL') return { label: 'Aprobar', variant: 'primary', run: () => handleConfirmApprove(c.id, c.service) };
+        if (s === 'ACTIVE' || s === 'LOW PERFORMANCE' || s === 'LOW_PERFORMANCE') return { label: 'Pausar', run: () => handleToggleStatus(c.id, 'ACTIVE') };
+        if (s === 'PAUSED') return { label: 'Reanudar', run: () => handleToggleStatus(c.id, 'PAUSED') };
+        return { label: 'Ver anuncio', run: () => setSelectedCampaign(c) };
+    };
+
+    const menuItems = (c) => [
+        { label: 'Ver detalle del anuncio', run: () => setSelectedCampaign(c) },
+        { label: 'Ver audiencia asignada', run: () => setSelectedAudienceCampaign(c) },
+        isSyncable(c) && { label: 'Editar presupuesto', run: () => handleEditBudget(c, c.budget || 0) },
+        isSyncable(c) && { label: 'Editar países objetivo', run: () => handleEditTargeting(c) },
+        isSyncable(c) && { label: 'Sincronizar métricas', run: () => handleVerifyMetaStatus(c.id) },
+        { label: 'Resetear gasto y leads', run: () => handleResetMetrics(c.id, c.service) },
+        'separator',
+        { label: 'Eliminar campaña', danger: true, run: () => handleDeleteCampaign(c) },
+    ].filter(Boolean);
+
+    const channels = (platform) => {
+        const p = (platform || '').toLowerCase();
+        if (p.includes('linkedin')) return ['LinkedIn'];
+        if (p.includes('google')) return ['Google Ads'];
+        return ['Facebook', 'Instagram'];
+    };
+
+    const selectClass = 'h-10 rounded-lg border border-slate-300 bg-white px-2.5 text-sm';
 
     return (
         <div className="w-full">
             {selectedCampaign && <CampaignPreviewModal campaign={selectedCampaign} onClose={() => setSelectedCampaign(null)} onApprove={handleConfirmApprove} onToggleStatus={handleToggleStatus} onUpdateBudget={handleDirectBudgetUpdate} onUpdateEndDate={handleDirectEndDateUpdate} onUpdateBid={handleDirectBidUpdate} />}
             {selectedAudienceCampaign && <AudienceModal campaign={selectedAudienceCampaign} onClose={() => setSelectedAudienceCampaign(null)} />}
 
-            {/* --- BARRA DE HERRAMIENTAS ACTUALIZADA --- */}
-            <div className="p-4 md:p-5 border-b border-slate-200 bg-white flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center">
-
-                {/* 1. BUSCADOR UNIFICADO */}
-                <div className="relative w-full xl:w-96">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
-                    <input
-                        type="text"
-                        placeholder="Buscar por servicio, ID o valor..."
+            <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-200">
+                <h2 id="hist-title" className="m-0 text-base font-bold">Historial de campañas</h2>
+                <div className="flex flex-wrap items-center gap-2.5">
+                    <SearchInput
                         value={searchTerm}
-                        onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                        className="pl-9 pr-4 py-2.5 w-full border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
+                        onChange={(v) => { setSearchTerm(v); setCurrentPage(1); }}
+                        placeholder="Buscar por servicio, ID o valor"
+                        label="Buscar campaña"
+                        className="w-full sm:w-64"
                     />
-                </div>
-
-                {/* 2. SELECTORES DE FILTRO SEPARADOS */}
-                <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
-
-                    {/* Filtro Plataforma */}
-                    <select
-                        value={platformFilter}
-                        onChange={(e) => { setPlatformFilter(e.target.value); setCurrentPage(1); }}
-                        className="px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer shadow-sm min-w-[140px]"
-                    >
-                        <option value="all">🌐 Todas las Redes</option>
-                        <option value="meta">♾️ Meta (FB/IG)</option>
-                        <option value="linkedin">💼 LinkedIn</option>
-                    </select>
-
-                    {/* Filtro Estado */}
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-                        className="px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer shadow-sm min-w-[140px]"
-                    >
-                        <option value="all">📊 Todos los Estados</option>
-                        <option value="active">🟢 Activos</option>
-                        <option value="paused">⏸️ Pausados</option>
-                        <option value="pending_approval">⏳ Pendientes</option>
-                        <option value="rejected">🔴 Rechazadas</option>
-                        <option value="with_issues">⚠️ Con Errores</option>
-                        <option value="deleted">🗑️ Eliminadas</option>
-                    </select>
-
-                    {/* Ordenar por Presupuesto */}
-                    <select
-                        value={sortConfig}
-                        onChange={(e) => {
-                            setSortConfig(e.target.value);
-                            setCurrentPage(1);
-                        }}
-                        className="px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer shadow-sm min-w-[160px]"
-                    >
-                        <option value="newest">📅 Más Recientes</option>
-                        <option value="oldest">📆 Más Antiguas</option>
-                        <option value="budget_desc">💰 Mayor Presupuesto</option>
-                        <option value="budget_asc">💸 Menor Presupuesto</option>
-                        {/* NUEVAS OPCIONES DE GASTO */}
-                        <option value="spend_desc">📈 Mayor Gasto Real</option>
-                        <option value="spend_asc">📉 Menor Gasto Real</option>
-                    </select>
-                    {/* Botones administrativos ocultos temporalmente 
-                    <button
-                        onClick={handleFixLinkedInBids}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-sky-50 text-sky-700 border border-sky-200 rounded-lg hover:bg-sky-100 transition-all font-bold text-xs shadow-sm"
-                    >
-                        <span>🛠️ Reparar Pujas</span>
-                    </button>
-                    <button
-                        onClick={handleFixLinkedInTargeting}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-all font-bold text-xs shadow-sm"
-                    >
-                        <span>🎯 Targeting LinkedIn</span>
-                    </button>
-                    */}
+                    <label className="flex items-center gap-2 text-[13px] font-semibold text-slate-600">
+                        Red
+                        <select value={platformFilter} onChange={(e) => { setPlatformFilter(e.target.value); setCurrentPage(1); }} className={selectClass}>
+                            <option value="all">Todas</option>
+                            <option value="meta">Meta (Facebook / Instagram)</option>
+                            <option value="linkedin">LinkedIn</option>
+                        </select>
+                    </label>
+                    <label className="flex items-center gap-2 text-[13px] font-semibold text-slate-600">
+                        Estado
+                        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }} className={selectClass}>
+                            <option value="all">Todos</option>
+                            <option value="active">Activas</option>
+                            <option value="paused">Pausadas</option>
+                            <option value="pending_approval">Pendientes</option>
+                            <option value="rejected">Rechazadas</option>
+                            <option value="with_issues">Con errores</option>
+                            <option value="deleted">Eliminadas</option>
+                        </select>
+                    </label>
+                    <label className="flex items-center gap-2 text-[13px] font-semibold text-slate-600">
+                        Orden
+                        <select value={sortConfig} onChange={(e) => { setSortConfig(e.target.value); setCurrentPage(1); }} className={selectClass}>
+                            <option value="newest">Más recientes</option>
+                            <option value="oldest">Más antiguas</option>
+                            <option value="budget_desc">Mayor presupuesto</option>
+                            <option value="budget_asc">Menor presupuesto</option>
+                            <option value="spend_desc">Mayor gasto real</option>
+                            <option value="spend_asc">Menor gasto real</option>
+                        </select>
+                    </label>
                 </div>
             </div>
 
-            <div className="md:hidden p-4 bg-slate-50">
-                {currentItems.length > 0 ? currentItems.map(c => <MobileCard key={c.id} c={c} />) : <div className="text-center text-slate-400 py-10">{loading ? 'Cargando...' : 'No hay resultados.'}</div>}
-            </div>
-
-            <div className="hidden md:block overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-slate-50">
+            <div className="overflow-x-auto">
+                <table className={cx(tableClass, 'min-w-[980px]')}>
+                    <thead>
                         <tr>
-                            {['Servicio', 'Publicada', 'Plataforma', 'Público', 'Estado', 'Gasto / Presupuesto', 'Rendimiento', 'Acción'].map(h => <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>)}
+                            <th scope="col" className={thClass}>Campaña</th>
+                            <th scope="col" className={thClass}>Canales</th>
+                            <th scope="col" className={thClass}>Público</th>
+                            <th scope="col" className={thClass}>Estado</th>
+                            <th scope="col" className={thClass}>Gasto / presupuesto</th>
+                            <th scope="col" className={thClass}>Resultado</th>
+                            <th scope="col" className={cx(thClass, 'text-right')}>Acciones</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-slate-200">
+                    <tbody>
                         {currentItems.map((c) => {
                             const budget = c.budget || 0;
                             const spend = c.spend || 0;
                             const spendPercent = budget > 0 ? Math.min((spend / budget) * 100, 100) : 0;
                             const conversions = c.conversions || 0;
                             const leadVal = config?.lead_value || 0;
-                            const roi = spend > 0 ? (((conversions * leadVal) - spend) / spend) * 100 : 0;
-                            const isSyncSupported = c.platform && (c.platform.toLowerCase().includes('facebook') || c.platform.toLowerCase().includes('instagram') || c.platform.toLowerCase().includes('linkedin'));
+                            const roi = spend > 0 ? (((conversions * leadVal) - spend) / spend) * 100 : null;
+                            const primary = primaryAction(c);
+                            const menuOpen = openMenuId === c.id;
 
                             return (
-                                <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                                    <td className="px-6 py-4">
-                                        <div className="text-sm font-bold text-slate-900">{c.service}</div>
-                                        <div className="text-xs text-slate-400 font-mono mt-0.5">ID: {c.id.substring(0, 6)}...</div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="text-xs text-slate-600 whitespace-nowrap">{formatDate(c.created_at)}</div>
-                                    </td>
-                                    <td className="px-6 py-4">{renderPlatformBadge(c.platform)}</td>
-                                    <td className="px-6 py-4"><AudienceBadge audienceType={c.audience_type} /></td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <StatusBadge status={c.status} />
-                                            {isSyncSupported && (
-                                                <button onClick={() => handleVerifyMetaStatus(c.id)} className="p-1 text-slate-400 hover:text-blue-500 transition-colors rounded-full hover:bg-blue-50" title="Sincronizar ahora">
-                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                                                </button>
-                                            )}
+                                <tr key={c.id} className={trClass}>
+                                    <td className={tdClass}>
+                                        <div className="flex flex-col gap-0.5 max-w-[260px]">
+                                            <span className="font-semibold text-slate-900">{c.service}</span>
+                                            <span className="text-xs text-slate-500">
+                                                {formatDate(c.created_at)} · <span className="font-mono">{c.id.substring(0, 8)}</span>
+                                            </span>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex flex-col gap-1">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs font-bold text-slate-700">{formatMoney(spend)} <span className="text-slate-400 font-normal">/ {formatMoney(budget)}</span></span>
-                                                {isSyncSupported && <button onClick={() => handleEditBudget(c, budget)} className="text-slate-300 hover:text-blue-500 transition-colors" title="Editar Presupuesto">✏️</button>}
-                                            </div>
-                                            <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                <div style={{ width: `${spendPercent}%` }} className={`h-full ${spendPercent > 90 ? 'bg-red-500' : 'bg-blue-500'}`}></div>
-                                            </div>
+                                    <td className={tdClass}>
+                                        <div className="flex flex-wrap gap-1">
+                                            {channels(c.platform).map((ch) => <Pill key={ch} tone={ch === 'LinkedIn' ? 'blue' : 'neutral'}>{ch}</Pill>)}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <div className={`text-sm font-bold ${roi > 0 ? 'text-emerald-600' : 'text-amber-500'}`}>{roi > 0 ? '+' : ''}{roi.toFixed(0)}% ROI</div>
-                                        <div className="text-xs text-slate-500">{conversions} leads</div>
+                                    <td className={tdClass}><AudienceBadge audienceType={c.audience_type} /></td>
+                                    <td className={tdClass}><StatusBadge status={c.status} /></td>
+                                    <td className={tdClass}>
+                                        <div className="flex flex-col gap-1.5 min-w-[150px]">
+                                            <span className="text-[13px]">
+                                                <strong className="text-slate-900">{formatMoney(spend)}</strong>{' '}
+                                                <span className="text-slate-500">de {formatMoney(budget)}</span>
+                                            </span>
+                                            <ProgressBar value={spendPercent} color={spendPercent > 90 ? 'bg-red-500' : 'bg-blue-600'} />
+                                        </div>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <button onClick={() => setSelectedCampaign(c)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100" title="Ver Anuncio Real">
-                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                                            </button>
-                                            <button onClick={() => setSelectedAudienceCampaign(c)} className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors border border-transparent hover:border-purple-100" title="Ver Audiencia Asignada">
-                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                                            </button>
-                                            {isSyncSupported && (
-                                                <button onClick={() => handleEditTargeting(c)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border border-transparent hover:border-emerald-100" title="Editar países objetivo">
-                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                                </button>
-                                            )}
-                                            {c.status === 'pending_approval' ? (
-                                                <button onClick={() => handleConfirmApprove(c.id, c.service)} className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-1.5 px-3 rounded-lg shadow-sm active:scale-95 transition-all">APROBAR</button>
-                                            ) : (c.status === 'ACTIVE' || c.status === 'LOW PERFORMANCE') ? (
-                                                <button onClick={() => handleToggleStatus(c.id, 'ACTIVE')} className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors" title="Pausar Campaña">
-                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                                </button>
-                                            ) : (c.status === 'PAUSED') ? (
-                                                <button onClick={() => handleToggleStatus(c.id, 'PAUSED')} className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors" title="Reactivar Campaña">
-                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                                </button>
-                                            ) : null}
-                                            {/* Botón Eliminar — siempre visible */}
-                                            <button onClick={() => handleDeleteCampaign(c)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100" title="Eliminar campaña">
-                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                            </button>
-
-                                            {/* Botón Resetear gasto/leads (manual) */}
+                                    <td className={tdClass}>
+                                        <div className="flex flex-col gap-0.5">
+                                            <span className="font-semibold text-slate-900">{conversions} leads</span>
+                                            <span className={cx('text-xs', roi === null ? 'text-slate-400' : roi > 0 ? 'text-emerald-700' : 'text-amber-700')}>
+                                                {roi === null ? 'Sin gasto' : `${roi > 0 ? '+' : ''}${roi.toFixed(0)} % ROI`}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className={cx(tdClass, 'text-right')}>
+                                        <div className="relative inline-flex items-center gap-1.5">
+                                            <Button size="sm" variant={primary.variant || 'secondary'} onClick={primary.run}>{primary.label}</Button>
                                             <button
-                                                onClick={() => handleResetMetrics(c.id, c.service)}
-                                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-100 group"
-                                                title="Resetear gasto/leads (manual)"
+                                                type="button"
+                                                aria-label={`Más acciones para ${c.service}`}
+                                                aria-haspopup="menu"
+                                                aria-expanded={menuOpen}
+                                                onClick={() => setOpenMenuId(menuOpen ? null : c.id)}
+                                                className="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 cursor-pointer"
                                             >
-                                                <svg
-                                                    className="w-5 h-5 transition-transform duration-500 group-hover:rotate-180"
-                                                    fill="none"
-                                                    viewBox="0 0 24 24"
-                                                    stroke="currentColor"
-                                                    strokeWidth={2}
-                                                >
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                                </svg>
+                                                <Icon name="more" size={16} />
                                             </button>
+                                            {menuOpen && (
+                                                <>
+                                                    <button type="button" aria-label="Cerrar menú" onClick={() => setOpenMenuId(null)} className="fixed inset-0 z-10 cursor-default border-0 bg-transparent" />
+                                                    <div role="menu" className="absolute right-0 top-full mt-1 z-20 w-56 py-1.5 bg-white border border-slate-200 rounded-lg shadow-lg text-left">
+                                                        {menuItems(c).map((item, i) => item === 'separator' ? (
+                                                            <div key={`sep-${i}`} className="my-1 border-t border-slate-100" />
+                                                        ) : (
+                                                            <button
+                                                                key={item.label}
+                                                                type="button"
+                                                                role="menuitem"
+                                                                onClick={() => { setOpenMenuId(null); item.run(); }}
+                                                                className={cx('w-full min-h-10 px-3.5 text-left text-sm border-0 bg-transparent cursor-pointer hover:bg-slate-50', item.danger ? 'text-red-700' : 'text-slate-800')}
+                                                            >
+                                                                {item.label}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
                             );
                         })}
+                        {currentItems.length === 0 && (
+                            <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-500">{loading ? 'Cargando campañas…' : 'No hay campañas con estos filtros.'}</td></tr>
+                        )}
                     </tbody>
                 </table>
             </div>
             {totalItems > 0 && (
-                <div className="bg-white px-4 py-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-                        <span>Filas:</span>
-                        <select value={itemsPerPage} onChange={handlePageSizeChange} className="bg-white border border-slate-300 text-slate-700 text-xs rounded focus:ring-blue-500 focus:border-blue-500 p-1 cursor-pointer outline-none">
-                            <option value={5}>5</option><option value={10}>10</option><option value={20}>20</option>
-                        </select>
-                    </div>
-                    <div className="text-xs text-slate-500">{currentPage} de {totalPages} pág · {totalItems} campañas</div>
-                    <div className="flex gap-2">
-                        <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1.5 border border-slate-300 rounded text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50">Anterior</button>
-                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} className="px-3 py-1.5 border border-slate-300 rounded text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50">Siguiente</button>
-                    </div>
-                </div>
+                <Pagination
+                    page={currentPage}
+                    pages={totalPages}
+                    onPage={setCurrentPage}
+                    pageSize={itemsPerPage}
+                    onPageSize={(n) => { setItemsPerPage(n); setCurrentPage(1); }}
+                    sizes={[5, 10, 25]}
+                    total={totalItems}
+                    noun="campañas"
+                />
             )}
         </div>
     );

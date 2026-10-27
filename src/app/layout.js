@@ -1,29 +1,19 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
+import Providers from "./providers";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata = {
-  title: "Marketing System",
-  description: "Systema de gestión de marketing todo en uno",
+  title: "Marketing OS",
+  description: "Panel de control de marketing de CR Consultores Colombia",
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body
-        suppressHydrationWarning={true}  // <--- ¡ESTA ES LA LÍNEA MÁGICA!
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
+    <html lang="es">
+      <body suppressHydrationWarning className={`${inter.variable} antialiased`}>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

@@ -1,3 +1,4 @@
+'use client';
 import React from 'react';
 
 const IntentDashboard = ({ urgentCount = 0, generalCount = 0, onSyncLookalikes }) => {

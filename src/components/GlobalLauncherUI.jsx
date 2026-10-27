@@ -1,3 +1,4 @@
+'use client';
 import React, { useState, useRef } from 'react';
 import Swal from 'sweetalert2';
 import AudienceSelect, { DEFAULT_AUDIENCE } from './AudienceSelect';

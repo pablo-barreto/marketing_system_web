@@ -1,3 +1,4 @@
+'use client';
 import React, { useState, useContext, useMemo, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import { AuthContext } from '../context/AuthContext';

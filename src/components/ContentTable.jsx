@@ -1,3 +1,4 @@
+'use client';
 import React, { useState } from 'react';
 import Swal from 'sweetalert2'; // <--- 1. IMPORTAR SWEETALERT
 import FormattedDate from './FormattedDate';
