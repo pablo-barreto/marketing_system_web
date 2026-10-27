@@ -1,474 +1,349 @@
 'use client';
-import React, { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { Card, Pagination, Pill, SearchInput, Tabs, cx, tableClass, tdClass, thClass, trClass } from './ui';
 
-// Mapa de países con banderas y nombres legibles
+// Nombres legibles de los países que verifica el rastreador SEO
 const COUNTRY_MAP = {
     // --- PAÍSES DE HABLA HISPANA (21) ---
-    'AR': { flag: '🇦🇷', name: 'Argentina' },
-    'BO': { flag: '🇧🇴', name: 'Bolivia' },
-    'CL': { flag: '🇨🇱', name: 'Chile' },
-    'CO': { flag: '🇨🇴', name: 'Colombia' },
-    'CR': { flag: '🇨🇷', name: 'Costa Rica' },
-    'CU': { flag: '🇨🇺', name: 'Cuba' },
-    'DO': { flag: '🇩🇴', name: 'República Dominicana' },
-    'EC': { flag: '🇪🇨', name: 'Ecuador' },
-    'SV': { flag: '🇸🇻', name: 'El Salvador' },
-    'ES': { flag: '🇪🇸', name: 'España' },
-    'GT': { flag: '🇬🇹', name: 'Guatemala' },
-    'GQ': { flag: '🇬🇶', name: 'Guinea Ecuatorial' },
-    'HN': { flag: '🇭🇳', name: 'Honduras' },
-    'MX': { flag: '🇲🇽', name: 'México' },
-    'NI': { flag: '🇳🇮', name: 'Nicaragua' },
-    'PA': { flag: '🇵🇦', name: 'Panamá' },
-    'PY': { flag: '🇵🇾', name: 'Paraguay' },
-    'PE': { flag: '🇵🇪', name: 'Perú' },
-    'PR': { flag: '🇵🇷', name: 'Puerto Rico' },
-    'UY': { flag: '🇺🇾', name: 'Uruguay' },
-    'VE': { flag: '🇻🇪', name: 'Venezuela' },
+    'AR': { name: 'Argentina' },
+    'BO': { name: 'Bolivia' },
+    'CL': { name: 'Chile' },
+    'CO': { name: 'Colombia' },
+    'CR': { name: 'Costa Rica' },
+    'CU': { name: 'Cuba' },
+    'DO': { name: 'República Dominicana' },
+    'EC': { name: 'Ecuador' },
+    'SV': { name: 'El Salvador' },
+    'ES': { name: 'España' },
+    'GT': { name: 'Guatemala' },
+    'GQ': { name: 'Guinea Ecuatorial' },
+    'HN': { name: 'Honduras' },
+    'MX': { name: 'México' },
+    'NI': { name: 'Nicaragua' },
+    'PA': { name: 'Panamá' },
+    'PY': { name: 'Paraguay' },
+    'PE': { name: 'Perú' },
+    'PR': { name: 'Puerto Rico' },
+    'UY': { name: 'Uruguay' },
+    'VE': { name: 'Venezuela' },
 
     // --- NORTEAMÉRICA & CARIBE (14) ---
-    'AG': { flag: '🇦🇬', name: 'Antigua y Barbuda' },
-    'BS': { flag: '🇧🇸', name: 'Bahamas' },
-    'BB': { flag: '🇧🇧', name: 'Barbados' },
-    'BZ': { flag: '🇧🇿', name: 'Belice' },
-    'CA': { flag: '🇨🇦', name: 'Canadá' },
-    'DM': { flag: '🇩🇲', name: 'Dominica' },
-    'US': { flag: '🇺🇸', name: 'Estados Unidos' },
-    'GD': { flag: '🇬🇩', name: 'Granada' },
-    'HT': { flag: '🇭🇹', name: 'Haití' },
-    'JM': { flag: '🇯🇲', name: 'Jamaica' },
-    'KN': { flag: '🇰🇳', name: 'San Cristóbal y Nieves' },
-    'LC': { flag: '🇱🇨', name: 'Santa Lucía' },
-    'VC': { flag: '🇻🇨', name: 'San Vicente y las Granadinas' },
-    'TT': { flag: '🇹🇹', name: 'Trinidad y Tobago' },
+    'AG': { name: 'Antigua y Barbuda' },
+    'BS': { name: 'Bahamas' },
+    'BB': { name: 'Barbados' },
+    'BZ': { name: 'Belice' },
+    'CA': { name: 'Canadá' },
+    'DM': { name: 'Dominica' },
+    'US': { name: 'Estados Unidos' },
+    'GD': { name: 'Granada' },
+    'HT': { name: 'Haití' },
+    'JM': { name: 'Jamaica' },
+    'KN': { name: 'San Cristóbal y Nieves' },
+    'LC': { name: 'Santa Lucía' },
+    'VC': { name: 'San Vicente y las Granadinas' },
+    'TT': { name: 'Trinidad y Tobago' },
 
     // --- SUDAMÉRICA ADICIONAL (3) ---
-    'BR': { flag: '🇧🇷', name: 'Brasil' },
-    'GY': { flag: '🇬🇾', name: 'Guyana' },
-    'SR': { flag: '🇸🇷', name: 'Surinam' },
+    'BR': { name: 'Brasil' },
+    'GY': { name: 'Guyana' },
+    'SR': { name: 'Surinam' },
 
     // --- EUROPA (44) ---
-    'AL': { flag: '🇦🇱', name: 'Albania' },
-    'AD': { flag: '🇦🇩', name: 'Andorra' },
-    'AT': { flag: '🇦🇹', name: 'Austria' },
-    'BY': { flag: '🇧🇾', name: 'Bielorrusia' },
-    'BE': { flag: '🇧🇪', name: 'Bélgica' },
-    'BA': { flag: '🇧🇦', name: 'Bosnia y Herzegovina' },
-    'BG': { flag: '🇧🇬', name: 'Bulgaria' },
-    'HR': { flag: '🇭🇷', name: 'Croacia' },
-    'CZ': { flag: '🇨🇿', name: 'República Checa' },
-    'DK': { flag: '🇩🇰', name: 'Dinamarca' },
-    'EE': { flag: '🇪🇪', name: 'Estonia' },
-    'FI': { flag: '🇫🇮', name: 'Finlandia' },
-    'FR': { flag: '🇫🇷', name: 'Francia' },
-    'DE': { flag: '🇩🇪', name: 'Alemania' },
-    'GR': { flag: '🇬🇷', name: 'Grecia' },
-    'HU': { flag: '🇭🇺', name: 'Hungría' },
-    'IS': { flag: '🇮🇸', name: 'Islandia' },
-    'IE': { flag: '🇮🇪', name: 'Irlanda' },
-    'IT': { flag: '🇮🇹', name: 'Italia' },
-    'XK': { flag: '🇽🇰', name: 'Kosovo' },
-    'LV': { flag: '🇱🇻', name: 'Letonia' },
-    'LI': { flag: '🇱🇮', name: 'Liechtenstein' },
-    'LT': { flag: '🇱🇹', name: 'Lituania' },
-    'LU': { flag: '🇱🇺', name: 'Luxemburgo' },
-    'MK': { flag: '🇲🇰', name: 'Macedonia del Norte' },
-    'MT': { flag: '🇲🇹', name: 'Malta' },
-    'MD': { flag: '🇲🇩', name: 'Moldavia' },
-    'MC': { flag: '🇲🇨', name: 'Mónaco' },
-    'ME': { flag: '🇲🇪', name: 'Montenegro' },
-    'NL': { flag: '🇳🇱', name: 'Países Bajos' },
-    'NO': { flag: '🇳🇴', name: 'Noruega' },
-    'PL': { flag: '🇵🇱', name: 'Polonia' },
-    'PT': { flag: '🇵🇹', name: 'Portugal' },
-    'RO': { flag: '🇷🇴', name: 'Rumanía' },
-    'RU': { flag: '🇷🇺', name: 'Rusia' },
-    'SM': { flag: '🇸🇲', name: 'San Marino' },
-    'RS': { flag: '🇷🇸', name: 'Serbia' },
-    'SK': { flag: '🇸🇰', name: 'Eslovaquia' },
-    'SI': { flag: '🇸🇮', name: 'Eslovenia' },
-    'ES': { flag: '🇪🇸', name: 'España' },
-    'SE': { flag: '🇸🇪', name: 'Suecia' },
-    'CH': { flag: '🇨🇭', name: 'Suiza' },
-    'UA': { flag: '🇺🇦', name: 'Ucrania' },
-    'GB': { flag: '🇬🇧', name: 'Reino Unido' },
-    'VA': { flag: '🇻🇦', name: 'Ciudad del Vaticano' },
+    'AL': { name: 'Albania' },
+    'AD': { name: 'Andorra' },
+    'AT': { name: 'Austria' },
+    'BY': { name: 'Bielorrusia' },
+    'BE': { name: 'Bélgica' },
+    'BA': { name: 'Bosnia y Herzegovina' },
+    'BG': { name: 'Bulgaria' },
+    'HR': { name: 'Croacia' },
+    'CZ': { name: 'República Checa' },
+    'DK': { name: 'Dinamarca' },
+    'EE': { name: 'Estonia' },
+    'FI': { name: 'Finlandia' },
+    'FR': { name: 'Francia' },
+    'DE': { name: 'Alemania' },
+    'GR': { name: 'Grecia' },
+    'HU': { name: 'Hungría' },
+    'IS': { name: 'Islandia' },
+    'IE': { name: 'Irlanda' },
+    'IT': { name: 'Italia' },
+    'XK': { name: 'Kosovo' },
+    'LV': { name: 'Letonia' },
+    'LI': { name: 'Liechtenstein' },
+    'LT': { name: 'Lituania' },
+    'LU': { name: 'Luxemburgo' },
+    'MK': { name: 'Macedonia del Norte' },
+    'MT': { name: 'Malta' },
+    'MD': { name: 'Moldavia' },
+    'MC': { name: 'Mónaco' },
+    'ME': { name: 'Montenegro' },
+    'NL': { name: 'Países Bajos' },
+    'NO': { name: 'Noruega' },
+    'PL': { name: 'Polonia' },
+    'PT': { name: 'Portugal' },
+    'RO': { name: 'Rumanía' },
+    'RU': { name: 'Rusia' },
+    'SM': { name: 'San Marino' },
+    'RS': { name: 'Serbia' },
+    'SK': { name: 'Eslovaquia' },
+    'SI': { name: 'Eslovenia' },
+    'ES': { name: 'España' },
+    'SE': { name: 'Suecia' },
+    'CH': { name: 'Suiza' },
+    'UA': { name: 'Ucrania' },
+    'GB': { name: 'Reino Unido' },
+    'VA': { name: 'Ciudad del Vaticano' },
 
     // --- ASIA (48) ---
-    'AF': { flag: '🇦🇫', name: 'Afganistán' },
-    'AM': { flag: '🇦🇲', name: 'Armenia' },
-    'AZ': { flag: '🇦🇿', name: 'Azerbaiyán' },
-    'BH': { flag: '🇧🇭', name: 'Baréin' },
-    'BD': { flag: '🇧🇩', name: 'Bangladés' },
-    'BT': { flag: '🇧🇹', name: 'Bután' },
-    'BN': { flag: '🇧🇳', name: 'Brunéi' },
-    'KH': { flag: '🇰🇭', name: 'Camboya' },
-    'CN': { flag: '🇨🇳', name: 'China' },
-    'CY': { flag: '🇨🇾', name: 'Chipre' },
-    'GE': { flag: '🇬🇪', name: 'Georgia' },
-    'IN': { flag: '🇮🇳', name: 'India' },
-    'ID': { flag: '🇮🇩', name: 'Indonesia' },
-    'IR': { flag: '🇮🇷', name: 'Irán' },
-    'IQ': { flag: '🇮🇶', name: 'Irak' },
-    'IL': { flag: '🇮🇱', name: 'Israel' },
-    'JP': { flag: '🇯🇵', name: 'Japón' },
-    'JO': { flag: '🇯🇴', name: 'Jordania' },
-    'KZ': { flag: '🇰🇿', name: 'Kazajistán' },
-    'KW': { flag: '🇰🇼', name: 'Kuwait' },
-    'KG': { flag: '🇰🇬', name: 'Kirguistán' },
-    'LA': { flag: '🇱🇦', name: 'Laos' },
-    'LB': { flag: '🇱🇧', name: 'Líbano' },
-    'MY': { flag: '🇲🇾', name: 'Malasia' },
-    'MV': { flag: '🇲🇻', name: 'Maldivas' },
-    'MN': { flag: '🇲🇳', name: 'Mongolia' },
-    'MM': { flag: '🇲🇲', name: 'Myanmar' },
-    'NP': { flag: '🇳🇵', name: 'Nepal' },
-    'KP': { flag: '🇰🇵', name: 'Corea del Norte' },
-    'OM': { flag: '🇴🇲', name: 'Omán' },
-    'PK': { flag: '🇵🇰', name: 'Pakistán' },
-    'PS': { flag: '🇵🇸', name: 'Palestina' },
-    'PH': { flag: '🇵🇭', name: 'Filipinas' },
-    'QA': { flag: '🇶🇦', name: 'Catar' },
-    'SA': { flag: '🇸🇦', name: 'Arabia Saudita' },
-    'SG': { flag: '🇸🇬', name: 'Singapur' },
-    'KR': { flag: '🇰🇷', name: 'Corea del Sur' },
-    'LK': { flag: '🇱🇰', name: 'Sri Lanka' },
-    'SY': { flag: '🇸🇾', name: 'Siria' },
-    'TW': { flag: '🇹🇼', name: 'Taiwán' },
-    'TJ': { flag: '🇹🇯', name: 'Tayikistán' },
-    'TH': { flag: '🇹🇭', name: 'Tailandia' },
-    'TL': { flag: '🇹🇱', name: 'Timor Oriental' },
-    'TR': { flag: '🇹🇷', name: 'Turquía' },
-    'TM': { flag: '🇹🇲', name: 'Turkmenistán' },
-    'AE': { flag: '🇦🇪', name: 'Emiratos Árabes Unidos' },
-    'UZ': { flag: '🇺🇿', name: 'Uzbekistán' },
-    'VN': { flag: '🇻🇳', name: 'Vietnam' },
-    'YE': { flag: '🇾🇪', name: 'Yemen' },
+    'AF': { name: 'Afganistán' },
+    'AM': { name: 'Armenia' },
+    'AZ': { name: 'Azerbaiyán' },
+    'BH': { name: 'Baréin' },
+    'BD': { name: 'Bangladés' },
+    'BT': { name: 'Bután' },
+    'BN': { name: 'Brunéi' },
+    'KH': { name: 'Camboya' },
+    'CN': { name: 'China' },
+    'CY': { name: 'Chipre' },
+    'GE': { name: 'Georgia' },
+    'IN': { name: 'India' },
+    'ID': { name: 'Indonesia' },
+    'IR': { name: 'Irán' },
+    'IQ': { name: 'Irak' },
+    'IL': { name: 'Israel' },
+    'JP': { name: 'Japón' },
+    'JO': { name: 'Jordania' },
+    'KZ': { name: 'Kazajistán' },
+    'KW': { name: 'Kuwait' },
+    'KG': { name: 'Kirguistán' },
+    'LA': { name: 'Laos' },
+    'LB': { name: 'Líbano' },
+    'MY': { name: 'Malasia' },
+    'MV': { name: 'Maldivas' },
+    'MN': { name: 'Mongolia' },
+    'MM': { name: 'Myanmar' },
+    'NP': { name: 'Nepal' },
+    'KP': { name: 'Corea del Norte' },
+    'OM': { name: 'Omán' },
+    'PK': { name: 'Pakistán' },
+    'PS': { name: 'Palestina' },
+    'PH': { name: 'Filipinas' },
+    'QA': { name: 'Catar' },
+    'SA': { name: 'Arabia Saudita' },
+    'SG': { name: 'Singapur' },
+    'KR': { name: 'Corea del Sur' },
+    'LK': { name: 'Sri Lanka' },
+    'SY': { name: 'Siria' },
+    'TW': { name: 'Taiwán' },
+    'TJ': { name: 'Tayikistán' },
+    'TH': { name: 'Tailandia' },
+    'TL': { name: 'Timor Oriental' },
+    'TR': { name: 'Turquía' },
+    'TM': { name: 'Turkmenistán' },
+    'AE': { name: 'Emiratos Árabes Unidos' },
+    'UZ': { name: 'Uzbekistán' },
+    'VN': { name: 'Vietnam' },
+    'YE': { name: 'Yemen' },
 
     // --- ÁFRICA (54) ---
-    'DZ': { flag: '🇩🇿', name: 'Argelia' },
-    'AO': { flag: '🇦🇴', name: 'Angola' },
-    'BJ': { flag: '🇧🇯', name: 'Benín' },
-    'BW': { flag: '🇧🇼', name: 'Botsuana' },
-    'BF': { flag: '🇧🇫', name: 'Burkina Faso' },
-    'BI': { flag: '🇧🇮', name: 'Burundi' },
-    'CV': { flag: '🇨🇻', name: 'Cabo Verde' },
-    'CM': { flag: '🇨🇲', name: 'Camerún' },
-    'CF': { flag: '🇨🇫', name: 'República Centroafricana' },
-    'TD': { flag: '🇹🇩', name: 'Chad' },
-    'KM': { flag: '🇰🇲', name: 'Comoras' },
-    'CG': { flag: '🇨🇬', name: 'Congo' },
-    'CD': { flag: '🇨🇩', name: 'República Democrática del Congo' },
-    'CI': { flag: '🇨🇮', name: 'Costa de Marfil' },
-    'DJ': { flag: '🇩🇯', name: 'Yibuti' },
-    'EG': { flag: '🇪🇬', name: 'Egipto' },
-    'ER': { flag: '🇪🇷', name: 'Eritrea' },
-    'SZ': { flag: '🇸🇿', name: 'Esuatini' },
-    'ET': { flag: '🇪🇹', name: 'Etiopía' },
-    'GA': { flag: '🇬🇦', name: 'Gabón' },
-    'GM': { flag: '🇬🇲', name: 'Gambia' },
-    'GH': { flag: '🇬🇭', name: 'Ghana' },
-    'GN': { flag: '🇬🇳', name: 'Guinea' },
-    'GW': { flag: '🇬🇼', name: 'Guinea-Bisáu' },
-    'KE': { flag: '🇰🇪', name: 'Kenia' },
-    'LS': { flag: '🇱🇸', name: 'Lesoto' },
-    'LR': { flag: '🇱🇷', name: 'Liberia' },
-    'LY': { flag: '🇱🇾', name: 'Libia' },
-    'MG': { flag: '🇲🇬', name: 'Madagascar' },
-    'MW': { flag: '🇲🇼', name: 'Malaui' },
-    'ML': { flag: '🇲🇱', name: 'Malí' },
-    'MR': { flag: '🇲🇷', name: 'Mauritania' },
-    'MU': { flag: '🇲🇺', name: 'Mauricio' },
-    'MA': { flag: '🇲🇦', name: 'Marruecos' },
-    'MZ': { flag: '🇲🇿', name: 'Mozambique' },
-    'NA': { flag: '🇳🇦', name: 'Namibia' },
-    'NE': { flag: '🇳🇪', name: 'Níger' },
-    'NG': { flag: '🇳🇬', name: 'Nigeria' },
-    'RW': { flag: '🇷🇼', name: 'Ruanda' },
-    'ST': { flag: '🇸🇹', name: 'Santo Tomé y Príncipe' },
-    'SN': { flag: '🇸🇳', name: 'Senegal' },
-    'SC': { flag: '🇸🇨', name: 'Seychelles' },
-    'SL': { flag: '🇸🇱', name: 'Sierra Leona' },
-    'SO': { flag: '🇸🇴', name: 'Somalia' },
-    'ZA': { flag: '🇿🇦', name: 'Sudáfrica' },
-    'SS': { flag: '🇸🇸', name: 'Sudán del Sur' },
-    'SD': { flag: '🇸🇩', name: 'Sudán' },
-    'TZ': { flag: '🇹🇿', name: 'Tanzania' },
-    'TG': { flag: '🇹🇬', name: 'Togo' },
-    'TN': { flag: '🇹🇳', name: 'Túnez' },
-    'UG': { flag: '🇺🇬', name: 'Uganda' },
-    'ZM': { flag: '🇿🇲', name: 'Zambia' },
-    'ZW': { flag: '🇿🇼', name: 'Zimbabue' },
+    'DZ': { name: 'Argelia' },
+    'AO': { name: 'Angola' },
+    'BJ': { name: 'Benín' },
+    'BW': { name: 'Botsuana' },
+    'BF': { name: 'Burkina Faso' },
+    'BI': { name: 'Burundi' },
+    'CV': { name: 'Cabo Verde' },
+    'CM': { name: 'Camerún' },
+    'CF': { name: 'República Centroafricana' },
+    'TD': { name: 'Chad' },
+    'KM': { name: 'Comoras' },
+    'CG': { name: 'Congo' },
+    'CD': { name: 'República Democrática del Congo' },
+    'CI': { name: 'Costa de Marfil' },
+    'DJ': { name: 'Yibuti' },
+    'EG': { name: 'Egipto' },
+    'ER': { name: 'Eritrea' },
+    'SZ': { name: 'Esuatini' },
+    'ET': { name: 'Etiopía' },
+    'GA': { name: 'Gabón' },
+    'GM': { name: 'Gambia' },
+    'GH': { name: 'Ghana' },
+    'GN': { name: 'Guinea' },
+    'GW': { name: 'Guinea-Bisáu' },
+    'KE': { name: 'Kenia' },
+    'LS': { name: 'Lesoto' },
+    'LR': { name: 'Liberia' },
+    'LY': { name: 'Libia' },
+    'MG': { name: 'Madagascar' },
+    'MW': { name: 'Malaui' },
+    'ML': { name: 'Malí' },
+    'MR': { name: 'Mauritania' },
+    'MU': { name: 'Mauricio' },
+    'MA': { name: 'Marruecos' },
+    'MZ': { name: 'Mozambique' },
+    'NA': { name: 'Namibia' },
+    'NE': { name: 'Níger' },
+    'NG': { name: 'Nigeria' },
+    'RW': { name: 'Ruanda' },
+    'ST': { name: 'Santo Tomé y Príncipe' },
+    'SN': { name: 'Senegal' },
+    'SC': { name: 'Seychelles' },
+    'SL': { name: 'Sierra Leona' },
+    'SO': { name: 'Somalia' },
+    'ZA': { name: 'Sudáfrica' },
+    'SS': { name: 'Sudán del Sur' },
+    'SD': { name: 'Sudán' },
+    'TZ': { name: 'Tanzania' },
+    'TG': { name: 'Togo' },
+    'TN': { name: 'Túnez' },
+    'UG': { name: 'Uganda' },
+    'ZM': { name: 'Zambia' },
+    'ZW': { name: 'Zimbabue' },
 
     // --- OCEANÍA (14) ---
-    'AU': { flag: '🇦🇺', name: 'Australia' },
-    'FJ': { flag: '🇫🇯', name: 'Fiyi' },
-    'KI': { flag: '🇰🇮', name: 'Kiribati' },
-    'MH': { flag: '🇲🇭', name: 'Islas Marshall' },
-    'FM': { flag: '🇫🇲', name: 'Micronesia' },
-    'NR': { flag: '🇳🇷', name: 'Nauru' },
-    'NZ': { flag: '🇳🇿', name: 'Nueva Zelanda' },
-    'PW': { flag: '🇵🇼', name: 'Palaos' },
-    'PG': { flag: '🇵🇬', name: 'Papúa Nueva Guinea' },
-    'WS': { flag: '🇼🇸', name: 'Samoa' },
-    'SB': { flag: '🇸🇧', name: 'Islas Salomón' },
-    'TO': { flag: '🇹🇴', name: 'Tonga' },
-    'TV': { flag: '🇹🇻', name: 'Tuvalu' },
-    'VU': { flag: '🇻🇺', name: 'Vanuatu' },
-    'AW': { flag: '🇦🇼', name: 'Aruba' },
-    'HK': { flag: '🇭🇰', name: 'Hong Kong' },
-    'MQ': { flag: '🇲🇶', name: 'Martinica' },
+    'AU': { name: 'Australia' },
+    'FJ': { name: 'Fiyi' },
+    'KI': { name: 'Kiribati' },
+    'MH': { name: 'Islas Marshall' },
+    'FM': { name: 'Micronesia' },
+    'NR': { name: 'Nauru' },
+    'NZ': { name: 'Nueva Zelanda' },
+    'PW': { name: 'Palaos' },
+    'PG': { name: 'Papúa Nueva Guinea' },
+    'WS': { name: 'Samoa' },
+    'SB': { name: 'Islas Salomón' },
+    'TO': { name: 'Tonga' },
+    'TV': { name: 'Tuvalu' },
+    'VU': { name: 'Vanuatu' },
+    'AW': { name: 'Aruba' },
+    'HK': { name: 'Hong Kong' },
+    'MQ': { name: 'Martinica' },
 };
 
-const getCountryDisplay = (code) => {
-    const info = COUNTRY_MAP[code];
-    return info || { flag: '🌐', name: code };
+const countryName = (code) => COUNTRY_MAP[code]?.name || code;
+
+// El backend arma la palabra clave como "consulta (dispositivo)"
+const splitKeyword = (keyword = '') => {
+    const m = keyword.match(/^(.*)\s\((desktop|mobile)\)$/i);
+    if (!m) return { query: keyword, device: null };
+    return { query: m[1], device: m[2].toLowerCase() === 'mobile' ? 'Móvil' : 'Escritorio' };
 };
 
-// Badge de estado según posición
-const getStatusBadge = (rank) => {
-    if (rank <= 3) return { label: '🏆 Top 3', bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200' };
-    if (rank <= 10) return { label: '✅ Página 1', bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-200' };
-    if (rank <= 20) return { label: '📈 Página 2', bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200' };
-    if (rank <= 50) return { label: '⚠️ Lejos', bg: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-200' };
-    return { label: '❌ No visible', bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-200' };
+const STATUS = (rank) => {
+    if (rank <= 3) return ['Top 3', 'green'];
+    if (rank <= 10) return ['Página 1', 'green'];
+    if (rank <= 20) return ['Página 2', 'amber'];
+    if (rank <= 50) return ['Lejos', 'amber'];
+    return ['No visible', 'red'];
+};
+
+const rankColor = (rank) => {
+    if (rank <= 10) return 'text-emerald-700';
+    if (rank <= 20) return 'text-amber-700';
+    if (rank <= 50) return 'text-orange-700';
+    return 'text-red-700';
 };
 
 // Tiempo relativo legible
-const timeAgo = (isoDate) => {
+export const timeAgo = (isoDate) => {
     if (!isoDate) return '—';
-    const diff = Date.now() - new Date(isoDate).getTime();
-    const mins = Math.floor(diff / 60000);
+    const mins = Math.floor((Date.now() - new Date(isoDate).getTime()) / 60000);
     if (mins < 1) return 'Ahora';
     if (mins < 60) return `Hace ${mins} min`;
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return `Hace ${hours}h`;
+    if (hours < 24) return `Hace ${hours} h`;
     const days = Math.floor(hours / 24);
-    if (days === 1) return 'Ayer';
-    return `Hace ${days} días`;
+    return days === 1 ? 'Ayer' : `Hace ${days} días`;
 };
 
-const getRankingColor = (rank) => {
-    if (rank <= 3) return 'text-emerald-600';
-    if (rank <= 10) return 'text-green-600';
-    if (rank <= 20) return 'text-amber-500';
-    if (rank > 50) return 'text-red-500';
-    return 'text-orange-500';
-};
+export const isNational = (r) => r.country === 'CO';
 
-const SeoRankingTable = ({ rankings }) => {
-    const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(10);
-    const [activeTab, setActiveTab] = useState('nacional');
-    const [searchTerm, setSearchTerm] = useState('');
+// Posiciones en Google por servicio. `scope`: 'national' | 'international' (lo controla la página)
+const SeoRankingTable = ({ rankings, scope, onScopeChange, loading }) => {
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const [search, setSearch] = useState('');
 
-    const safeRankings = rankings || [];
-
-    const filteredRankings = useMemo(() => {
-        return safeRankings
-            .filter(r => {
-                // Filtro por pestaña (Nacional vs Internacional)
-                const matchesTab = activeTab === 'nacional' ? r.country === 'CO' : r.country !== 'CO';
-
-                // Nuevo: Filtro por búsqueda de servicio o keyword
-                const matchesSearch = r.service.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    r.keyword.toLowerCase().includes(searchTerm.toLowerCase());
-
-                return matchesTab && matchesSearch;
-            })
+    const rows = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        return (rankings || [])
+            .filter((r) => (scope === 'national' ? isNational(r) : !isNational(r)))
+            .filter((r) => !q || r.service.toLowerCase().includes(q) || r.keyword.toLowerCase().includes(q))
             .sort((a, b) => a.ranking - b.ranking);
-    }, [safeRankings, activeTab, searchTerm]);
+    }, [rankings, scope, search]);
 
-    // Contadores de resumen
-    const summary = useMemo(() => {
-        const top10 = filteredRankings.filter(r => r.ranking <= 10).length;
-        const total = filteredRankings.length;
-        return { top10, total };
-    }, [filteredRankings]);
-
-    const totalPages = Math.ceil(filteredRankings.length / itemsPerPage);
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentItems = filteredRankings.slice(indexOfFirstItem, indexOfLastItem);
-
-    const handlePageSizeChange = (e) => {
-        setItemsPerPage(Number(e.target.value));
-        setCurrentPage(1);
-    };
+    const pages = Math.max(Math.ceil(rows.length / pageSize), 1);
+    const visible = rows.slice((page - 1) * pageSize, page * pageSize);
+    const top10 = rows.filter((r) => r.ranking <= 10).length;
 
     return (
-        <div className="flex flex-col w-full min-h-0 overflow-visible">
-
-            {/* PESTAÑAS + RESUMEN */}
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4 border-b border-slate-100 pb-3">
-                <div className="flex gap-4">
-                    <button
-                        onClick={() => { setActiveTab('nacional'); setCurrentPage(1); }}
-                        className={`pb-2 px-1 text-sm font-bold transition-all ${activeTab === 'nacional' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400'}`}
-                    >
-                        🇨🇴 Nacional
-                    </button>
-                    <button
-                        onClick={() => { setActiveTab('internacional'); setCurrentPage(1); }}
-                        className={`pb-2 px-1 text-sm font-bold transition-all ${activeTab === 'internacional' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400'}`}
-                    >
-                        🌍 Internacional
-                    </button>
+        <Card aria-labelledby="rank-title" className="overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-5 border-b border-slate-200">
+                <div className="flex items-center gap-5 self-stretch">
+                    <h2 id="rank-title" className="m-0 py-4 text-base font-bold">Posiciones</h2>
+                    <Tabs
+                        label="Mercado"
+                        tabs={[{ value: 'national', label: 'Nacional' }, { value: 'international', label: 'Internacional' }]}
+                        value={scope}
+                        onChange={(v) => { onScopeChange(v); setPage(1); }}
+                    />
                 </div>
-
-                <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-                    {/* Buscador de servicios en rankings */}
-                    <div className="relative w-full sm:w-64">
-                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">🔍</span>
-                        <input
-                            type="text"
-                            placeholder="Buscar servicio o palabra clave..."
-                            value={searchTerm}
-                            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                            className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                        />
-                    </div>
-
-                    {summary.total > 0 && (
-                        <div className="text-xs text-slate-500 whitespace-nowrap">
-                            <span className="font-bold text-emerald-600">{summary.top10}</span> de {summary.total} en Top 10
-                        </div>
-                    )}
+                <div className="flex flex-wrap items-center gap-3 py-2.5">
+                    {rows.length > 0 && <span className="text-[13px] text-slate-600"><strong className="text-emerald-700">{top10}</strong> de {rows.length} en el Top 10</span>}
+                    <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Buscar servicio o palabra clave" className="w-full sm:w-72" />
                 </div>
             </div>
-
-            {/* --- VISTA MÓVIL (CARDS) --- */}
-            <div className="block md:hidden space-y-3 w-full">
-                {currentItems.length > 0 ? (
-                    currentItems.map((r, i) => {
-                        const country = getCountryDisplay(r.country);
-                        const status = getStatusBadge(r.ranking);
-                        return (
-                            <div key={i} className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
-                                <div className="flex justify-between items-start mb-2">
-                                    <div className="min-w-0 flex-1 pr-2">
-                                        <div className="font-bold text-slate-800 text-sm truncate">{r.service}</div>
-                                        <div className="text-xs text-slate-400 mt-0.5 italic truncate">"{r.keyword}"</div>
-                                    </div>
-                                    <div className={`text-2xl font-black shrink-0 ${getRankingColor(r.ranking)}`}>
-                                        #{r.ranking}
-                                    </div>
-                                </div>
-                                <div className="flex items-center justify-between mt-2">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm">{country.flag}</span>
-                                        <span className="text-xs text-slate-500">{country.name}</span>
-                                    </div>
-                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${status.bg} ${status.text} ${status.border}`}>
-                                        {status.label}
-                                    </span>
-                                </div>
-                                <div className="text-[10px] text-slate-400 mt-2 text-right">{timeAgo(r.checked_at)}</div>
-                            </div>
-                        );
-                    })
-                ) : (
-                    <div className="text-center text-slate-400 py-8 text-sm italic">
-                        Sin datos disponibles.
-                    </div>
-                )}
-            </div>
-
-            {/* --- VISTA ESCRITORIO (TABLA) --- */}
-            <div className="hidden md:block overflow-x-auto w-full">
-                <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-slate-50">
+            <div className="overflow-x-auto">
+                <table className={cx(tableClass, 'min-w-[860px]')}>
+                    <thead>
                         <tr>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Nombre del Servicio</th>
-                            <th className="px-4 py-3 text-left text-s font-semibold text-slate-500 uppercase">Busqueda en Google</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">País</th>
-                            <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Posición de página</th>
-                            <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Estado</th>
-                            <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Verificado</th>
+                            <th scope="col" className={thClass}>Servicio</th>
+                            <th scope="col" className={thClass}>Búsqueda en Google</th>
+                            <th scope="col" className={thClass}>Dispositivo</th>
+                            <th scope="col" className={thClass}>País</th>
+                            <th scope="col" className={cx(thClass, 'text-center')}>Posición</th>
+                            <th scope="col" className={thClass}>Estado</th>
+                            <th scope="col" className={cx(thClass, 'text-right')}>Verificado</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-slate-100">
-                        {currentItems.length > 0 ? (
-                            currentItems.map((r, i) => {
-                                const country = getCountryDisplay(r.country);
-                                const status = getStatusBadge(r.ranking);
-                                return (
-                                    <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="px-4 py-3">
-                                            <div className="text-sm font-medium text-slate-800">{r.service}</div>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <div className="text-s text-slate-500 italic">"{r.keyword}"</div>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-sm">{country.flag}</span>
-                                                <span className="text-xs text-slate-600">{country.name}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            <span className={`text-lg font-black ${getRankingColor(r.ranking)}`}>
-                                                #{r.ranking}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold border ${status.bg} ${status.text} ${status.border}`}>
-                                                {status.label}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-right">
-                                            <span className="text-xs text-slate-400">{timeAgo(r.checked_at)}</span>
-                                        </td>
-                                    </tr>
-                                );
-                            })
-                        ) : (
-                            <tr>
-                                <td colSpan="6" className="px-6 py-12 text-center text-slate-400 italic">No hay datos.</td>
-                            </tr>
+                    <tbody>
+                        {visible.map((r, i) => {
+                            const { query, device } = splitKeyword(r.keyword);
+                            const [label, tone] = STATUS(r.ranking);
+                            return (
+                                <tr key={`${r.service}-${r.country}-${r.keyword}-${i}`} className={trClass}>
+                                    <th scope="row" className={cx(tdClass, 'text-left font-semibold text-slate-900 max-w-[240px]')}>{r.service}</th>
+                                    <td className={cx(tdClass, 'max-w-[300px]')}>“{query}”</td>
+                                    <td className={tdClass}>{device ? <Pill>{device}</Pill> : '—'}</td>
+                                    <td className={tdClass}>{countryName(r.country)}</td>
+                                    <td className={cx(tdClass, 'text-center text-base font-bold', rankColor(r.ranking))}>#{r.ranking}</td>
+                                    <td className={tdClass}><Pill tone={tone}>{label}</Pill></td>
+                                    <td className={cx(tdClass, 'text-right text-slate-600 whitespace-nowrap')}>{timeAgo(r.checked_at)}</td>
+                                </tr>
+                            );
+                        })}
+                        {visible.length === 0 && (
+                            <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-500">
+                                {loading ? 'Cargando posiciones…' : search ? 'Ningún resultado para la búsqueda.' : 'Aún no hay posiciones verificadas en este mercado.'}
+                            </td></tr>
                         )}
                     </tbody>
                 </table>
             </div>
-
-            {/* PAGINACIÓN */}
-            {filteredRankings.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <span>Filas:</span>
-                        <select
-                            value={itemsPerPage}
-                            onChange={handlePageSizeChange}
-                            className="bg-white border border-slate-300 text-slate-700 text-xs rounded p-1 outline-none"
-                        >
-                            <option value={5}>5</option>
-                            <option value={10}>10</option>
-                            <option value={20}>20</option>
-                        </select>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        <span className="text-xs text-slate-400">{currentPage} / {totalPages}</span>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
-                                className="px-3 py-1.5 border border-slate-300 bg-white rounded text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                            >
-                                Anterior
-                            </button>
-                            <button
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={currentPage === totalPages}
-                                className="px-3 py-1.5 border border-slate-300 bg-white rounded text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                            >
-                                Siguiente
-                            </button>
-                        </div>
-                    </div>
-                </div>
+            {rows.length > 0 && (
+                <Pagination
+                    page={page}
+                    pages={pages}
+                    onPage={setPage}
+                    pageSize={pageSize}
+                    onPageSize={(n) => { setPageSize(n); setPage(1); }}
+                    sizes={[10, 25, 50]}
+                    total={rows.length}
+                    noun="búsquedas"
+                />
             )}
-        </div>
+        </Card>
     );
 };
 

@@ -113,9 +113,7 @@ const LinkedInPreview = ({ content, service, imageUrl, domain }) => (
 // 2. MODAL PRINCIPAL
 // =============================================================================
 
-const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, onUpdateBudget, onUpdateEndDate, onUpdateBid }) => {
-    if (!campaign) return null;
-
+const CampaignPreviewModal = ({ campaign, leadValue: leadValueProp, onClose, onApprove, onToggleStatus, onUpdateBudget, onUpdateEndDate, onUpdateBid }) => {
     const [bidInfo, setBidInfo] = useState(null);
     const [bidLoading, setBidLoading] = useState(true);
 
@@ -251,123 +249,89 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, on
         return null;
     };
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm animate-fade-in font-sans">
-            <div className="bg-white w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[95vh]">
+    const status = String(campaign.status || '').toUpperCase();
+    const leadValue = leadValueProp || 15;
+    const roi = campaign.spend > 0 ? (((campaign.conversions || 0) * leadValue - campaign.spend) / campaign.spend) * 100 : null;
 
-                {/* IZQUIERDA: PREVIEW */}
-                <div className="w-full md:w-[70%] bg-[#eef0f4] p-6 flex flex-col items-center justify-center border-r border-slate-200 overflow-y-auto relative custom-scrollbar">
-                    <div className="absolute top-4 left-4 bg-white/90 backdrop-blur border border-slate-200 text-slate-700 text-xs px-3 py-1.5 rounded-full shadow-sm font-bold uppercase tracking-wide flex items-center gap-2 z-10">
-                        <span className={`w-2 h-2 rounded-full ${isMeta ? 'bg-indigo-600' : platform.includes('google') ? 'bg-orange-500' : 'bg-blue-700'}`}></span>
-                        Vista Previa: {isMeta ? 'Meta (FB + IG)' : campaign.platform}
-                    </div>
-                    <div className="w-full flex justify-center py-4">
-                        {renderPreview()}
-                    </div>
+    const EditButton = ({ onClick, label }) => (
+        <button type="button" onClick={onClick} aria-label={label} className="w-8 h-8 inline-flex items-center justify-center rounded-lg border-0 bg-transparent text-blue-700 hover:bg-blue-50 cursor-pointer text-[13px] font-semibold">
+            Editar
+        </button>
+    );
+
+    const Row = ({ label, children }) => (
+        <div className="flex items-center justify-between gap-3 py-3 border-t border-slate-100 first:border-t-0">
+            <span className="text-[13px] text-slate-500">{label}</span>
+            <div className="flex items-center gap-1 text-sm font-semibold text-slate-900 text-right">{children}</div>
+        </div>
+    );
+
+    return (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+            <button type="button" aria-label="Cerrar" onClick={onClose} className="absolute inset-0 bg-slate-900/60 border-0 cursor-default" />
+            <div role="dialog" aria-modal="true" aria-labelledby="ad-preview-title" className="relative bg-white w-full max-w-6xl rounded-xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[95vh]">
+                <div className="w-full md:w-[65%] bg-slate-100 p-6 flex flex-col items-center gap-4 overflow-y-auto">
+                    <Pill tone="neutral" className="self-start">Vista previa · {isMeta ? 'Meta (Facebook + Instagram)' : campaign.platform}</Pill>
+                    <div className="w-full flex justify-center py-2">{renderPreview()}</div>
                 </div>
 
-                {/* DERECHA: DATOS */}
-                <div className="w-full md:w-[30%] p-6 flex flex-col h-full bg-white overflow-y-auto">
-                    <div className="flex justify-between items-start mb-6">
-                        <div>
-                            <h2 className="text-xl font-bold text-slate-800">Revisión</h2>
-                            <p className="text-slate-500 text-xs mt-1">ID: <span className="font-mono bg-slate-100 px-1 rounded">{campaign.id.substring(0, 8)}</span></p>
+                <div className="w-full md:w-[35%] flex flex-col overflow-y-auto">
+                    <div className="flex items-start justify-between gap-3 px-6 py-4 border-b border-slate-200">
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                            <span className="text-xs text-slate-500">Detalle del anuncio · <span className="font-mono">{campaign.id.substring(0, 8)}</span></span>
+                            <h2 id="ad-preview-title" className="m-0 text-lg font-bold text-slate-900">{campaign.service}</h2>
                         </div>
-                        <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded-full">
-                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        <button type="button" onClick={onClose} aria-label="Cerrar detalle" className="w-11 h-11 flex items-center justify-center rounded-lg border-0 bg-transparent text-slate-600 hover:bg-slate-100 cursor-pointer">
+                            <Icon name="close" />
                         </button>
                     </div>
 
-                    <div className="space-y-4 flex-1">
-                        <div className="p-3 rounded-lg bg-slate-50 border border-slate-100 flex justify-between items-center">
-                            <span className="text-xs font-bold text-slate-500 uppercase">Estado</span>
-                            <StatusBadge status={campaign.status} />
-                        </div>
-
-                        <div>
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Resumen</label>
-                            <div className="space-y-2">
-                                <div className="p-3 border border-slate-100 rounded-lg">
-                                    <span className="block text-slate-400 text-[10px] mb-0.5">Servicio</span>
-                                    <span className="font-bold text-slate-800 text-sm block leading-tight">{campaign.service}</span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div className="p-2 border border-slate-100 rounded-lg relative group">
-                                        <span className="block text-slate-400 text-[10px]">Presupuesto</span>
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-bold text-slate-800 text-sm">${campaign.budget?.toLocaleString()}</span>
-                                            {isSyncSupported && (
-                                                <button onClick={handleEditBudgetInModal} className="p-1 text-slate-300 hover:text-blue-500 transition-colors rounded hover:bg-blue-50" title="Editar Presupuesto">
-                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                    </svg>
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="p-2 border border-slate-100 rounded-lg">
-                                        <span className="block text-slate-400 text-[10px]">ROI Est.</span>
-                                        <span className="font-bold text-emerald-600 text-sm">
-                                            {campaign.spend > 0 ? (((campaign.conversions * 15) - campaign.spend) / campaign.spend * 100).toFixed(0) : 0}%
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="p-2 border border-slate-100 rounded-lg">
-                                    <span className="block text-slate-400 text-[10px]">Fecha límite</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-bold text-slate-800 text-sm">
-                                            {campaign.end_date
-                                                ? new Date(campaign.end_date).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
-                                                : <span className="text-slate-400 font-normal">Sin fecha</span>}
-                                        </span>
-                                        {isSyncSupported && (
-                                            <button onClick={handleEditEndDateInModal} className="p-1 text-slate-300 hover:text-blue-500 transition-colors rounded hover:bg-blue-50" title="Editar Fecha Límite">
-                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                </svg>
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                                {isSyncSupported && (
-                                    <div className="p-2 border border-slate-100 rounded-lg">
-                                        <span className="block text-slate-400 text-[10px]">Puja</span>
-                                        <div className="flex items-center gap-2">
-                                            {bidLoading ? (
-                                                <span className="text-slate-400 text-xs animate-pulse">Cargando...</span>
-                                            ) : bidInfo?.amount ? (
-                                                <span className="font-bold text-slate-800 text-sm">${bidInfo.amount.toLocaleString()} COP</span>
-                                            ) : bidInfo?.strategy ? (
-                                                <span className="font-bold text-emerald-600 text-xs">Auto ({bidInfo.strategy.replace('LOWEST_COST_', '').replace('_', ' ')})</span>
-                                            ) : (
-                                                <span className="text-slate-400 text-xs">No disponible</span>
-                                            )}
-                                            <button onClick={handleEditBidInModal} className="p-1 text-slate-300 hover:text-blue-500 transition-colors rounded hover:bg-blue-50" title="Editar Puja">
-                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                        {bidInfo?.strategy && !bidInfo?.amount && isMeta && (
-                                            <span className="text-[9px] text-slate-400">Editar activa puja manual (bid cap)</span>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                    <div className="px-6 py-2 flex-1">
+                        <Row label="Estado"><StatusBadge status={campaign.status} /></Row>
+                        <Row label="Presupuesto diario">
+                            {formatMoney(campaign.budget)}
+                            {isSyncSupported && <EditButton onClick={handleEditBudgetInModal} label="Editar presupuesto" />}
+                        </Row>
+                        <Row label="Gasto">{formatMoney(campaign.spend)}</Row>
+                        <Row label="Leads">{campaign.conversions || 0}</Row>
+                        <Row label="ROI estimado">
+                            <span className={roi === null ? 'text-slate-400' : roi > 0 ? 'text-emerald-700' : 'text-amber-700'}>
+                                {roi === null ? 'Sin gasto' : `${roi > 0 ? '+' : ''}${roi.toFixed(0)} %`}
+                            </span>
+                        </Row>
+                        <Row label="Fecha límite">
+                            {campaign.end_date
+                                ? new Date(campaign.end_date).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+                                : <span className="font-normal text-slate-500">Sin fecha</span>}
+                            {isSyncSupported && <EditButton onClick={handleEditEndDateInModal} label="Editar fecha límite" />}
+                        </Row>
+                        {isSyncSupported && (
+                            <Row label="Puja">
+                                {bidLoading ? <span className="font-normal text-slate-500">Cargando…</span>
+                                    : bidInfo?.amount ? `${formatMoney(bidInfo.amount)}`
+                                        : bidInfo?.strategy ? <span className="text-emerald-700">Automática</span>
+                                            : <span className="font-normal text-slate-500">No disponible</span>}
+                                <EditButton onClick={handleEditBidInModal} label="Editar puja" />
+                            </Row>
+                        )}
+                        {destinationLink && (
+                            <Row label="Destino">
+                                <a href={destinationLink} target="_blank" rel="noopener noreferrer" className="font-normal text-blue-700 truncate max-w-[200px]">{displayDomain}</a>
+                            </Row>
+                        )}
                     </div>
 
-                    <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col gap-2">
-                        {campaign.status === 'pending_approval' && (
-                            <button onClick={() => { onApprove(campaign.id, campaign.service); onClose(); }} className="w-full py-3 bg-emerald-500 text-white rounded-lg font-bold hover:bg-emerald-600 shadow-md shadow-emerald-200 transition-all active:scale-[0.98]">Aprobar Campaña</button>
+                    <div className="px-6 py-4 border-t border-slate-200 flex flex-col gap-2">
+                        {status === 'PENDING_APPROVAL' && (
+                            <Button variant="primary" size="lg" onClick={() => { onApprove(campaign.id, campaign.service); onClose(); }}>Aprobar campaña</Button>
                         )}
-                        {(campaign.status === 'ACTIVE' || campaign.status === 'LOW PERFORMANCE') && (
-                            <button onClick={() => { onToggleStatus(campaign.id, 'ACTIVE'); onClose(); }} className="w-full py-3 bg-amber-500 text-white rounded-lg font-bold hover:bg-amber-600 shadow-md shadow-amber-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2">⏸️ Pausar Campaña</button>
+                        {(status === 'ACTIVE' || status === 'LOW PERFORMANCE') && (
+                            <Button size="lg" onClick={() => { onToggleStatus(campaign.id, 'ACTIVE'); onClose(); }}>Pausar campaña</Button>
                         )}
-                        {campaign.status === 'PAUSED' && (
-                            <button onClick={() => { onToggleStatus(campaign.id, 'PAUSED'); onClose(); }} className="w-full py-3 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 shadow-md shadow-emerald-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2">▶️ Activar Campaña</button>
+                        {status === 'PAUSED' && (
+                            <Button variant="primary" size="lg" onClick={() => { onToggleStatus(campaign.id, 'PAUSED'); onClose(); }}>Reanudar campaña</Button>
                         )}
-                        <button onClick={onClose} className="w-full py-3 border border-slate-300 rounded-lg font-bold text-slate-600 hover:bg-slate-50 transition-colors">Cerrar</button>
+                        <Button size="lg" onClick={onClose}>Cerrar</Button>
                     </div>
                 </div>
             </div>
@@ -888,7 +852,7 @@ const CampaignTable = ({ onApprove, config }) => {
 
     return (
         <div className="w-full">
-            {selectedCampaign && <CampaignPreviewModal campaign={selectedCampaign} onClose={() => setSelectedCampaign(null)} onApprove={handleConfirmApprove} onToggleStatus={handleToggleStatus} onUpdateBudget={handleDirectBudgetUpdate} onUpdateEndDate={handleDirectEndDateUpdate} onUpdateBid={handleDirectBidUpdate} />}
+            {selectedCampaign && <CampaignPreviewModal campaign={selectedCampaign} leadValue={config?.lead_value} onClose={() => setSelectedCampaign(null)} onApprove={handleConfirmApprove} onToggleStatus={handleToggleStatus} onUpdateBudget={handleDirectBudgetUpdate} onUpdateEndDate={handleDirectEndDateUpdate} onUpdateBid={handleDirectBidUpdate} />}
             {selectedAudienceCampaign && <AudienceModal campaign={selectedAudienceCampaign} onClose={() => setSelectedAudienceCampaign(null)} />}
 
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-200">

@@ -1,6 +1,6 @@
 // src/services/api.js
 // Todas las llamadas pasan por apiFetch, que agrega la sesión y maneja los errores.
-import { ADMIN_PANEL_ENDPOINT, MARK_READ_ENDPOINT } from '../app/config';
+import { MARK_READ_ENDPOINT } from '../app/config';
 import { apiFetch } from '../lib/apiClient';
 
 // Algunos endpoints POST sin cuerpo se llamaban con Content-Type JSON; se conserva igual
@@ -8,10 +8,7 @@ const JSON_CT = { 'Content-Type': 'application/json' };
 
 export const campaignService = {
   approve: (campaignId) =>
-    apiFetch(ADMIN_PANEL_ENDPOINT, { method: 'POST', json: { action: 'approve', campaign_id: campaignId } }),
-
-  createOnDemand: (service, platform) =>
-    apiFetch(ADMIN_PANEL_ENDPOINT, { method: 'POST', json: { action: 'create_on_demand_campaign', service, platform } }),
+    apiFetch(`/api/v1/campaigns/${encodeURIComponent(campaignId)}/approve`, { method: 'POST', headers: JSON_CT }),
 
   uploadCreative: (formData) =>
     apiFetch('/api/v1/assets/upload_creative', { method: 'POST', body: formData }),
@@ -21,10 +18,6 @@ export const campaignService = {
       method: 'POST',
       json: { creative_id: creativeId, budget, platform, audience_type: audienceType }
     }),
-
-  // Métricas comparadas por público (empresa / persona natural)
-  getAudienceStats: (days) =>
-    apiFetch(`/api/v1/stats/audience?days=${encodeURIComponent(days)}`),
 
   getCreatives: () => apiFetch('/api/v1/assets/creatives', { headers: JSON_CT }),
 
@@ -49,11 +42,6 @@ export const campaignService = {
 export const launchService = {
   executeGlobalLaunch: (formData) =>
     apiFetch('/api/v1/launch/global', { method: 'POST', body: formData }),
-
-  getActiveCampaigns: async () => {
-    const data = await apiFetch('/api/v1/campaigns?status=active&page_size=200');
-    return data.items || [];
-  },
 
   syncAudienceToCampaigns: (body) =>
     apiFetch('/api/v1/launch/sync-audience', { method: 'POST', json: body }),

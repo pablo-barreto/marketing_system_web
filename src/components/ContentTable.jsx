@@ -1,132 +1,69 @@
 'use client';
-import React, { useState } from 'react';
-import Swal from 'sweetalert2'; // <--- 1. IMPORTAR SWEETALERT
+import { useState } from 'react';
+import Swal from 'sweetalert2';
 import FormattedDate from './FormattedDate';
 import { useApi, withQuery } from '../hooks/useApi';
+import { Pagination, buttonClass } from './ui';
 
-// type: 'BLOG' o 'Q&A'. La tabla pide al servidor solo la página que muestra.
-const ContentTable = ({ type, title = "Contenido Publicado" }) => {
-    const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(5);
+// type: 'BLOG' o 'Q&A'. La lista pide al servidor solo la página que muestra.
+export default function ContentTable({ type }) {
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(5);
 
-    const { data } = useApi(withQuery('/api/v1/seo/content', { type, page: currentPage, page_size: itemsPerPage }));
-    const currentItems = data?.items || [];
-    const totalItems = data?.total || 0;
-    const totalPages = Math.max(data?.pages || 1, 1);
+    const { data, loading } = useApi(withQuery('/api/v1/seo/content', { type, page, page_size: pageSize }));
+    const items = data?.items || [];
+    const total = data?.total || 0;
 
-    const goToNextPage = () => { if (currentPage < totalPages) setCurrentPage(currentPage + 1); };
-    const goToPrevPage = () => { if (currentPage > 1) setCurrentPage(currentPage - 1); };
-    const handlePageSizeChange = (e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); };
-
-    // --- 2. NUEVA FUNCIÓN PARA MANEJAR EL CLIC ---
-    const handleViewContent = (e, item) => {
-        e.preventDefault(); // Evita que la página salte al inicio (#)
-
-        // A. Si el backend nos mandó una URL real (ej: WordPress link), la abrimos
-        if (item.url && item.url !== '#' && item.url.startsWith('http')) {
-            window.open(item.url, '_blank');
-            return;
-        }
-
-        // B. Si no hay URL (Simulación/Borrador), mostramos alerta
+    // Sin URL pública (borrador o simulación) se muestra un resumen en lugar de abrir el enlace
+    const openContent = (e, item) => {
+        if (item.url && item.url !== '#' && item.url.startsWith('http')) return;
+        e.preventDefault();
         Swal.fire({
-            title: 'Vista Previa de Contenido',
-            html: `
-                <div style="text-align: left; font-size: 0.9rem">
-                    <p><b>Título:</b> ${item.title || 'Sin título'}</p>
-                    <p><b>Servicio:</b> ${item.service}</p>
-                    <p><b>Tipo:</b> ${item.type}</p>
-                    <hr style="margin: 10px 0; border: 0; border-top: 1px solid #eee" />
-                    <p style="color: #64748b; font-style: italic;">
-                        ⚠️ Este contenido fue generado por la IA pero aún no tiene una URL pública o es un borrador interno.
-                        <br/><br/>
-                        En producción, este botón te llevará directamente a tu blog o CMS.
-                    </p>
-                </div>
-            `,
+            title: item.title || 'Contenido generado',
+            html: `<p><b>Servicio:</b> ${item.service}</p><p style="color:#64748b">Este contenido aún no tiene una URL pública (borrador interno).</p>`,
             icon: 'info',
             confirmButtonText: 'Entendido',
-            confirmButtonColor: '#3b82f6'
+            confirmButtonColor: '#2563EB',
         });
     };
 
-    // Estilos
-    const buttonStyle = (disabled) => ({
-        padding: '4px 10px', borderRadius: '6px', border: '1px solid #e2e8f0',
-        backgroundColor: disabled ? '#f1f5f9' : 'white', color: disabled ? '#94a3b8' : '#0f172a',
-        cursor: disabled ? 'not-allowed' : 'pointer', fontSize: '0.75rem', fontWeight: '600'
-    });
-
-    const selectStyle = { padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.8rem', color: '#475569', backgroundColor: 'white', cursor: 'pointer' };
-
     return (
-        <div style={{ backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', flex: 1, display: 'flex', flexDirection: 'column' }}>
-
-            {/* Header */}
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, fontSize: '1rem', color: '#0f172a', fontWeight: '700' }}>{title}</h3>
-                <span style={{ fontSize: '0.75rem', color: '#64748b', backgroundColor: '#e2e8f0', padding: '2px 8px', borderRadius: '10px' }}>Total: {totalItems}</span>
-            </div>
-
-            {/* Lista Scrollable */}
-            <div style={{ flex: 1, overflowY: 'auto' }}>
-                {currentItems.length > 0 ? (
-                    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                        {currentItems.map((c, i) => (
-                            <li key={i} style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'background 0.2s' }}>
-                                <div>
-                                    <span style={{ display: 'block', fontWeight: '600', color: '#334155', fontSize: '0.9rem', marginBottom: '2px' }}>
-                                        {c.title || c.service}
-                                    </span>
-                                    <span style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', backgroundColor: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>
-                                        {c.type || 'BLOG'} • <FormattedDate dateString={c.created_at} />
-                                    </span>
-                                </div>
-
-                                {/* --- 3. BOTÓN DE ACCIÓN CONECTADO --- */}
-                                <a
-                                    href={c.url || '#'}
-                                    onClick={(e) => handleViewContent(e, c)}
-                                    style={{
-                                        color: '#2563eb', textDecoration: 'none', fontSize: '0.75rem',
-                                        fontWeight: '600', padding: '6px 12px', backgroundColor: '#eff6ff',
-                                        borderRadius: '6px', cursor: 'pointer', border: '1px solid transparent',
-                                        transition: 'all 0.2s'
-                                    }}
-                                    onMouseEnter={(e) => { e.target.style.backgroundColor = '#dbeafe'; e.target.style.borderColor = '#bfdbfe'; }}
-                                    onMouseLeave={(e) => { e.target.style.backgroundColor = '#eff6ff'; e.target.style.borderColor = 'transparent'; }}
-                                >
-                                    Ver &rarr;
-                                </a>
-                                {/* ----------------------------------- */}
-                            </li>
-                        ))}
-                    </ul>
-                ) : (
-                    <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-                        La IA aún no ha publicado contenido.
-                    </div>
-                )}
-            </div>
-
-            {/* Footer */}
-            {totalItems > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderTop: '1px solid #e2e8f0', backgroundColor: '#fff' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Filas:</span>
-                        <select value={itemsPerPage} onChange={handlePageSizeChange} style={selectStyle}>
-                            <option value={5}>5</option><option value={10}>10</option><option value={20}>20</option>
-                        </select>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.75rem', color: '#64748b', marginRight: '4px' }}>{currentPage} / {totalPages}</span>
-                        <button onClick={goToPrevPage} disabled={currentPage === 1} style={buttonStyle(currentPage === 1)}>Anterior</button>
-                        <button onClick={goToNextPage} disabled={currentPage >= totalPages} style={buttonStyle(currentPage >= totalPages)}>Siguiente</button>
-                    </div>
-                </div>
+        <div>
+            {items.length > 0 ? (
+                <ul className="list-none m-0 p-0">
+                    {items.map((c, i) => (
+                        <li key={`${c.created_at}-${i}`} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-t border-slate-100 first:border-t-0">
+                            <div className="flex flex-col gap-1 min-w-0">
+                                <span className="font-semibold text-slate-900">{c.title || c.service}</span>
+                                <span className="text-xs text-slate-500">{c.service} · <FormattedDate dateString={c.created_at} /></span>
+                            </div>
+                            <a
+                                href={c.url || '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => openContent(e, c)}
+                                className={buttonClass('secondary', 'sm', 'no-underline')}
+                            >
+                                Ver
+                            </a>
+                        </li>
+                    ))}
+                </ul>
+            ) : (
+                <p className="m-0 px-5 py-10 text-center text-slate-500">{loading ? 'Cargando…' : 'La IA aún no ha publicado contenido de este tipo.'}</p>
+            )}
+            {total > 0 && (
+                <Pagination
+                    page={page}
+                    pages={data?.pages}
+                    onPage={setPage}
+                    pageSize={pageSize}
+                    onPageSize={(n) => { setPageSize(n); setPage(1); }}
+                    sizes={[5, 10, 20]}
+                    total={total}
+                    noun="publicaciones"
+                />
             )}
         </div>
     );
-};
-
-export default ContentTable;
+}

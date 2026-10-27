@@ -1,313 +1,227 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
 import { servicesService } from '../services/api';
+import { useApi, useRevalidate } from '../hooks/useApi';
+import { PageBody, PageHeader } from '../components/shell/AppShell';
+import {
+    Button, Card, EmptyState, Field, Icon, SearchInput, Switch, Tabs, cx, inputClass,
+    tableClass, tdClass, thClass, trClass,
+} from '../components/ui';
 
-const ServicesView = () => {
-    const [services, setServices] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [showAddForm, setShowAddForm] = useState(false);
-    const [newService, setNewService] = useState({ name: '', url: '', description: '', is_promoted: false });
+const EMPTY = { name: '', url: '', description: '', is_promoted: false };
+
+const shortUrl = (url) => {
+    try {
+        const u = new URL(url);
+        return `${u.host.replace(/^www\./, '')}${u.pathname === '/' ? '' : u.pathname}`;
+    } catch {
+        return url;
+    }
+};
+
+function AddServiceForm({ onCancel, onSaved }) {
+    const [form, setForm] = useState(EMPTY);
+    const [saving, setSaving] = useState(false);
+    const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
+
+    const submit = async (e) => {
+        e.preventDefault();
+        if (!form.name.trim()) return;
+        setSaving(true);
+        try {
+            await servicesService.add({ ...form, name: form.name.trim() });
+            onSaved();
+        } catch (err) {
+            Swal.fire('No se pudo agregar', err.message, 'error');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <Card as="form" onSubmit={submit} aria-label="Nuevo servicio" className="p-5 flex flex-col gap-4">
+            <h2 className="m-0 text-base font-bold">Nuevo servicio</h2>
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                <Field label="Nombre" required>
+                    <input type="text" required value={form.name} onChange={set('name')} placeholder="Ej.: Auditoría interna" className={inputClass} />
+                </Field>
+                <Field label="URL" optional>
+                    <input type="url" value={form.url} onChange={set('url')} placeholder="https://crconsultorescolombia.com/…" className={inputClass} />
+                </Field>
+                <Field label="Descripción" optional className="sm:col-span-2">
+                    <input type="text" value={form.description} onChange={set('description')} placeholder="Breve descripción del servicio" className={inputClass} />
+                </Field>
+            </div>
+            <label className="flex items-center gap-2.5 cursor-pointer select-none self-start min-h-11">
+                <input type="checkbox" checked={form.is_promoted} onChange={set('is_promoted')} className="w-4 h-4 accent-blue-600" />
+                <span className="text-sm text-slate-700">Marcar como servicio principal</span>
+            </label>
+            <div className="flex gap-2">
+                <Button type="submit" variant="primary" disabled={saving}>{saving ? 'Guardando…' : 'Agregar servicio'}</Button>
+                <Button onClick={onCancel}>Cancelar</Button>
+            </div>
+        </Card>
+    );
+}
+
+export default function ServicesView() {
+    const revalidate = useRevalidate();
+    const { data, loading, refresh } = useApi('/api/v1/admin/services');
+    const services = useMemo(() => (Array.isArray(data) ? data : []), [data]);
+
+    const [tab, setTab] = useState('all');
+    const [query, setQuery] = useState('');
+    const [adding, setAdding] = useState(false);
     const [saving, setSaving] = useState(null);
 
-    const load = async () => {
-        setLoading(true);
-        try {
-            const data = await servicesService.list();
-            setServices(data);
-        } catch (e) {
-            Swal.fire('Error', e.message, 'error');
-        } finally {
-            setLoading(false);
-        }
+    const promotedCount = services.filter((s) => s.is_promoted).length;
+    const disabledCount = services.filter((s) => !s.is_active).length;
+
+    const rows = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        return services
+            .filter((s) => (tab === 'promoted' ? s.is_promoted : tab === 'disabled' ? !s.is_active : true))
+            .filter((s) => !q || s.name.toLowerCase().includes(q))
+            .sort((a, b) => Number(b.is_promoted) - Number(a.is_promoted) || a.name.localeCompare(b.name, 'es'));
+    }, [services, tab, query]);
+
+    // El menú de las demás secciones (selector de servicios) sale del resumen: se refresca también
+    const afterChange = () => {
+        refresh();
+        revalidate('/api/v1/dashboard/summary');
     };
 
-    useEffect(() => { load(); }, []);
-
-    const handleToggle = async (name, field, currentValue) => {
-        setSaving(`${name}_${field}`);
+    const toggle = async (service, field) => {
+        const key = `${service.name}:${field}`;
+        setSaving(key);
         try {
-            if (field === 'is_promoted') {
-                await servicesService.setPromoted(name, !currentValue);
-            } else {
-                await servicesService.setActive(name, !currentValue);
-            }
-            setServices(prev =>
-                prev.map(s => s.name === name ? { ...s, [field]: !currentValue } : s)
-            );
+            if (field === 'is_promoted') await servicesService.setPromoted(service.name, !service.is_promoted);
+            else await servicesService.setActive(service.name, !service.is_active);
+            afterChange();
         } catch (e) {
-            Swal.fire('Error', e.message, 'error');
+            Swal.fire('No se pudo guardar', e.message, 'error');
         } finally {
             setSaving(null);
         }
     };
 
-    const handleDelete = async (name) => {
-        const result = await Swal.fire({
-            title: `¿Eliminar "${name}"?`,
-            text: 'Esta acción no se puede deshacer.',
+    const remove = async (service) => {
+        const ok = await Swal.fire({
+            title: `Eliminar “${service.name}”`,
+            text: 'Las piezas de la galería asociadas quedarán sin servicio. Esta acción no se puede deshacer.',
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cancelar'
+            confirmButtonColor: '#B91C1C',
+            confirmButtonText: 'Eliminar',
+            cancelButtonText: 'Cancelar',
         });
-        if (!result.isConfirmed) return;
-
+        if (!ok.isConfirmed) return;
         try {
-            await servicesService.remove(name);
-            setServices(prev => prev.filter(s => s.name !== name));
-            Swal.fire({ title: 'Eliminado', icon: 'success', timer: 1200, showConfirmButton: false });
+            await servicesService.remove(service.name);
+            afterChange();
         } catch (e) {
-            Swal.fire('Error', e.message, 'error');
+            Swal.fire('No se pudo eliminar', e.message, 'error');
         }
     };
 
-    const handleAdd = async (e) => {
-        e.preventDefault();
-        if (!newService.name.trim()) return;
-        setSaving('new');
-        try {
-            await servicesService.add(newService);
-            await load();
-            setNewService({ name: '', url: '', description: '', is_promoted: false });
-            setShowAddForm(false);
-            Swal.fire({ title: 'Servicio agregado', icon: 'success', timer: 1200, showConfirmButton: false });
-        } catch (e) {
-            Swal.fire('Error', e.message, 'error');
-        } finally {
-            setSaving(null);
-        }
-    };
-
-    const promoted = services.filter(s => s.is_promoted);
-    const rest = services.filter(s => !s.is_promoted);
-
-    if (loading) return (
-        <div className="flex justify-center items-center h-64 text-slate-400 animate-pulse text-lg">
-            Cargando servicios...
-        </div>
-    );
-
     return (
-        <div className="space-y-8">
+        <>
+            <PageHeader
+                eyebrow="Configuración"
+                title="Servicios"
+                actions={!adding && <Button variant="primary" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Agregar servicio</Button>}
+            />
+            <PageBody>
+                <p className="m-0 text-slate-600">
+                    {services.length} servicios · {promotedCount} principales · {disabledCount} deshabilitados. Los <strong>principales</strong> tienen prioridad en campañas automáticas y SEO.
+                </p>
 
-            {/* ENCABEZADO */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h3 className="text-xl font-bold text-slate-900">Gestión de Servicios</h3>
-                    <p className="text-sm text-slate-500 mt-1">
-                        {services.length} servicios · {promoted.length} promovidos · {services.filter(s => !s.is_active).length} deshabilitados
-                    </p>
-                </div>
-                <button
-                    onClick={() => setShowAddForm(!showAddForm)}
-                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm transition-all shadow-sm"
-                >
-                    {showAddForm ? 'Cancelar' : '+ Agregar Servicio'}
-                </button>
-            </div>
+                {adding && <AddServiceForm onCancel={() => setAdding(false)} onSaved={() => { setAdding(false); afterChange(); }} />}
 
-            {/* FORMULARIO AGREGAR */}
-            {showAddForm && (
-                <form onSubmit={handleAdd} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                    <h4 className="font-semibold text-slate-800">Nuevo Servicio</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-medium text-slate-500 mb-1">Nombre *</label>
-                            <input
-                                type="text"
-                                value={newService.name}
-                                onChange={e => setNewService(p => ({ ...p, name: e.target.value }))}
-                                placeholder="Ej: Auditoría Interna"
-                                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
+                <Card aria-labelledby="svc-title" className="overflow-hidden">
+                    <div className="flex flex-wrap items-center justify-between gap-3 px-5 border-b border-slate-200">
+                        <div className="flex items-center gap-5 self-stretch">
+                            <h2 id="svc-title" className="m-0 py-4 text-base font-bold">Listado de servicios</h2>
+                            <Tabs
+                                label="Filtrar servicios"
+                                tabs={[
+                                    { value: 'all', label: `Todos (${services.length})` },
+                                    { value: 'promoted', label: `Principales (${promotedCount})` },
+                                    { value: 'disabled', label: `Deshabilitados (${disabledCount})` },
+                                ]}
+                                value={tab}
+                                onChange={setTab}
                             />
                         </div>
-                        <div>
-                            <label className="block text-xs font-medium text-slate-500 mb-1">URL (opcional)</label>
-                            <input
-                                type="text"
-                                value={newService.url}
-                                onChange={e => setNewService(p => ({ ...p, url: e.target.value }))}
-                                placeholder="https://crconsultorescolombia.com/..."
-                                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-                        <div className="sm:col-span-2">
-                            <label className="block text-xs font-medium text-slate-500 mb-1">Descripción (opcional)</label>
-                            <input
-                                type="text"
-                                value={newService.description}
-                                onChange={e => setNewService(p => ({ ...p, description: e.target.value }))}
-                                placeholder="Breve descripción del servicio"
-                                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
+                        <SearchInput value={query} onChange={setQuery} placeholder="Buscar servicio" className="w-full sm:w-64 my-2.5" />
                     </div>
-                    <label className="flex items-center gap-2 cursor-pointer select-none w-fit">
-                        <input
-                            type="checkbox"
-                            checked={newService.is_promoted}
-                            onChange={e => setNewService(p => ({ ...p, is_promoted: e.target.checked }))}
-                            className="w-4 h-4 accent-yellow-500"
+
+                    {loading && !data ? (
+                        <p className="m-0 px-5 py-10 text-center text-slate-500">Cargando servicios…</p>
+                    ) : rows.length === 0 ? (
+                        <EmptyState
+                            title={services.length ? 'Ningún servicio coincide' : 'No hay servicios registrados'}
+                            description={services.length ? 'Prueba con otra búsqueda o pestaña.' : 'Agrega uno o sincroniza desde el sitio web en SEO y contenido.'}
                         />
-                        <span className="text-sm text-slate-600">Marcar como servicio principal</span>
-                    </label>
-                    <div className="flex gap-3 pt-2">
-                        <button
-                            type="submit"
-                            disabled={saving === 'new'}
-                            className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition-all"
-                        >
-                            {saving === 'new' ? 'Guardando...' : 'Agregar'}
-                        </button>
-                        <button type="button" onClick={() => setShowAddForm(false)} className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-all">
-                            Cancelar
-                        </button>
-                    </div>
-                </form>
-            )}
-
-            {/* TABLA DE SERVICIOS PRINCIPALES */}
-            {promoted.length > 0 && (
-                <ServiceGroup
-                    title="Servicios Principales"
-                    badge={`${promoted.length}`}
-                    badgeColor="bg-yellow-100 text-yellow-700"
-                    services={promoted}
-                    saving={saving}
-                    onToggle={handleToggle}
-                    onDelete={handleDelete}
-                />
-            )}
-
-            {/* TABLA RESTO DE SERVICIOS */}
-            {rest.length > 0 && (
-                <ServiceGroup
-                    title="Otros Servicios"
-                    badge={`${rest.length}`}
-                    badgeColor="bg-slate-100 text-slate-600"
-                    services={rest}
-                    saving={saving}
-                    onToggle={handleToggle}
-                    onDelete={handleDelete}
-                />
-            )}
-
-            {services.length === 0 && (
-                <div className="text-center py-16 text-slate-400">
-                    <div className="text-4xl mb-3">📋</div>
-                    <p className="font-medium">No hay servicios registrados.</p>
-                    <p className="text-sm mt-1">Agrega uno manualmente o sincroniza desde el sitio web.</p>
-                </div>
-            )}
-        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className={cx(tableClass, 'min-w-[640px]')}>
+                                <thead>
+                                    <tr>
+                                        <th scope="col" className={thClass}>Servicio</th>
+                                        <th scope="col" className={cx(thClass, 'text-center')}>Principal</th>
+                                        <th scope="col" className={cx(thClass, 'text-center')}>Habilitado</th>
+                                        <th scope="col" className={cx(thClass, 'text-right')}><span className="sr-only">Acciones</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {rows.map((s) => (
+                                        <tr key={s.name} className={cx(trClass, !s.is_active && 'text-slate-500')}>
+                                            <th scope="row" className={cx(tdClass, 'text-left')}>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className={cx('font-semibold', s.is_active ? 'text-slate-900' : 'text-slate-500')}>{s.name}</span>
+                                                    {s.url && (
+                                                        <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-xs font-normal text-blue-700 hover:text-blue-900 truncate max-w-[420px]">
+                                                            {shortUrl(s.url)}
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </th>
+                                            <td className={cx(tdClass, 'text-center')}>
+                                                <Switch
+                                                    checked={!!s.is_promoted}
+                                                    onChange={() => toggle(s, 'is_promoted')}
+                                                    disabled={saving === `${s.name}:is_promoted`}
+                                                    label={`${s.name}: servicio principal`}
+                                                />
+                                            </td>
+                                            <td className={cx(tdClass, 'text-center')}>
+                                                <Switch
+                                                    checked={!!s.is_active}
+                                                    onChange={() => toggle(s, 'is_active')}
+                                                    disabled={saving === `${s.name}:is_active`}
+                                                    label={`${s.name}: habilitado`}
+                                                />
+                                            </td>
+                                            <td className={cx(tdClass, 'text-right')}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => remove(s)}
+                                                    aria-label={`Eliminar ${s.name}`}
+                                                    className="w-10 h-10 inline-flex items-center justify-center rounded-lg border-0 bg-transparent text-slate-500 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+                                                >
+                                                    <Icon name="trash" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </Card>
+            </PageBody>
+        </>
     );
-};
-
-const ServiceGroup = ({ title, badge, badgeColor, services, saving, onToggle, onDelete }) => (
-    <div>
-        <div className="flex items-center gap-2 mb-3">
-            <h4 className="font-semibold text-slate-700 text-sm uppercase tracking-wide">{title}</h4>
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badgeColor}`}>{badge}</span>
-        </div>
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-            <table className="w-full text-sm">
-                <thead>
-                    <tr className="border-b border-slate-100 text-xs text-slate-400 uppercase tracking-wider">
-                        <th className="text-left px-5 py-3 font-medium">Servicio</th>
-                        <th className="text-center px-4 py-3 font-medium">Principal</th>
-                        <th className="text-center px-4 py-3 font-medium">Habilitado</th>
-                        <th className="text-right px-5 py-3 font-medium"></th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                    {services.map(s => (
-                        <ServiceRow
-                            key={s.name}
-                            service={s}
-                            saving={saving}
-                            onToggle={onToggle}
-                            onDelete={onDelete}
-                        />
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    </div>
-);
-
-const ServiceRow = ({ service, saving, onToggle, onDelete }) => {
-    const { name, url, is_promoted, is_active } = service;
-    const isLoadingPromoted = saving === `${name}_is_promoted`;
-    const isLoadingActive = saving === `${name}_is_active`;
-
-    return (
-        <tr className={`transition-colors hover:bg-slate-50 ${!is_active ? 'opacity-50' : ''}`}>
-            <td className="px-5 py-4">
-                <div className="flex items-center gap-2">
-                    {is_promoted && <span className="text-yellow-500 text-base">★</span>}
-                    <div>
-                        <p className="font-medium text-slate-800">{name}</p>
-                        {url && (
-                            <a
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-blue-400 hover:underline truncate max-w-xs block"
-                            >
-                                {url}
-                            </a>
-                        )}
-                    </div>
-                </div>
-            </td>
-
-            <td className="px-4 py-4 text-center">
-                <Toggle
-                    value={is_promoted}
-                    loading={isLoadingPromoted}
-                    onColor="bg-yellow-500"
-                    onClick={() => onToggle(name, 'is_promoted', is_promoted)}
-                />
-            </td>
-
-            <td className="px-4 py-4 text-center">
-                <Toggle
-                    value={is_active}
-                    loading={isLoadingActive}
-                    onColor="bg-emerald-500"
-                    onClick={() => onToggle(name, 'is_active', is_active)}
-                />
-            </td>
-
-            <td className="px-5 py-4 text-right">
-                <button
-                    onClick={() => onDelete(name)}
-                    className="text-slate-300 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-50"
-                    title="Eliminar"
-                >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                </button>
-            </td>
-        </tr>
-    );
-};
-
-const Toggle = ({ value, loading, onColor, onClick }) => (
-    <button
-        onClick={onClick}
-        disabled={loading}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none disabled:opacity-40 ${value ? onColor : 'bg-slate-200'}`}
-    >
-        <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${value ? 'translate-x-6' : 'translate-x-1'}`}
-        />
-    </button>
-);
-
-export default ServicesView;
+}

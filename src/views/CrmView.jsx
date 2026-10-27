@@ -1,201 +1,191 @@
 'use client';
-import React, { useState } from 'react';
+import { useState } from 'react';
+import Link from 'next/link';
 import StatusBadge from '../components/StatusBadge';
+import { PageBody, PageHeader } from '../components/shell/AppShell';
+import {
+    Button, Card, Chips, Drawer, EmptyState, Pagination, Pill, SearchInput, StatCard, Tabs, cx,
+    tableClass, tdClass, thClass, trClass,
+} from '../components/ui';
 import { useApi, withQuery } from '../hooks/useApi';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 
-const PAGE_SIZE = 12;
+const PLATFORM_CHIPS = ['Todos', 'Facebook', 'Instagram', 'LinkedIn', 'Google'].map((v) => ({ value: v, label: v }));
 
-const CrmView = () => {
-    const [viewMode, setViewMode] = useState('platforms'); 
-    const [activeFilter, setActiveFilter] = useState('Todos');
-    const [selectedLead, setSelectedLead] = useState(null);
-    
-    // Paginación y búsqueda en el servidor
-    const [currentPage, setCurrentPage] = useState(1);
-    const [searchTerm, setSearchTerm] = useState('');
-    const debouncedSearch = useDebouncedValue(searchTerm);
+const fmt = (n) => (n || 0).toLocaleString('es-CO');
+
+const origin = (platform) => {
+    const p = (platform || '').toLowerCase();
+    if (p.includes('facebook')) return ['Facebook', 'blue'];
+    if (p.includes('instagram')) return ['Instagram', 'violet'];
+    if (p.includes('linkedin')) return ['LinkedIn', 'blue'];
+    if (p.includes('google')) return ['Google', 'amber'];
+    return ['Visitante web', 'neutral'];
+};
+
+const when = (value) => {
+    if (!value) return '—';
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
+};
+
+function Trend({ points }) {
+    const max = Math.max(...points.map((p) => p.count), 1);
+    const label = points.map((p) => `${p.date}: ${p.count}`).join(', ');
+    return (
+        <div role="img" aria-label={`Leads por día: ${label}`} className="flex items-end gap-1 h-12">
+            {points.map((p) => (
+                <div key={p.date} title={`${p.date}: ${p.count}`} className="flex-1 rounded-t-sm bg-blue-200" style={{ height: `${Math.max(6, (p.count / max) * 100)}%` }} />
+            ))}
+            {points.length === 0 && <span className="text-xs text-slate-500 self-center">Sin datos esta semana</span>}
+        </div>
+    );
+}
+
+function DetailRow({ label, value }) {
+    return (
+        <div className="flex flex-col gap-0.5 py-3 border-t border-slate-100 first:border-t-0">
+            <dt className="text-xs font-semibold text-slate-500">{label}</dt>
+            <dd className="m-0 text-slate-900 break-words">{value || '—'}</dd>
+        </div>
+    );
+}
+
+export default function CrmView() {
+    const [kind, setKind] = useState('web');
+    const [platform, setPlatform] = useState('Todos');
+    const [search, setSearch] = useState('');
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(25);
+    const [selected, setSelected] = useState(null);
+    const q = useDebouncedValue(search).trim();
 
     const { data: performance } = useApi('/api/v1/crm/performance', { refreshInterval: 60000 });
     const { data: leadsPage, loading } = useApi(withQuery('/api/v1/crm/leads', {
-        kind: viewMode,
-        platform: viewMode === 'platforms' && activeFilter !== 'Todos' ? activeFilter : null,
-        q: debouncedSearch.trim(),
-        page: currentPage,
-        page_size: PAGE_SIZE
+        kind,
+        platform: kind === 'platforms' && platform !== 'Todos' ? platform : null,
+        q,
+        page,
+        page_size: pageSize,
     }), { refreshInterval: 60000 });
 
+    const items = leadsPage?.items || [];
+    const total = leadsPage?.total || 0;
+    const counts = leadsPage?.counts || {};
     const stats = performance || { total_accumulated: 0, generated_today: 0, weekly_trend: [] };
 
-    const getPlatformInfo = (platform) => {
-        const p = (platform || 'web').toLowerCase();
-        if (p.includes('facebook')) return { name: 'Facebook', icon: '👥', color: 'text-blue-600', bg: 'bg-blue-50' };
-        if (p.includes('instagram')) return { name: 'Instagram', icon: '📸', color: 'text-pink-600', bg: 'bg-pink-50' };
-        if (p.includes('google')) return { name: 'Google', icon: '🔍', color: 'text-orange-600', bg: 'bg-orange-50' };
-        return { name: 'Escucha Web', icon: '👻', color: 'text-slate-500', bg: 'bg-slate-100' };
-    };
-
-    const currentItems = leadsPage?.items || [];
-    const totalItems = leadsPage?.total || 0;
-    const totalPages = Math.max(leadsPage?.pages || 1, 1);
-    const countPlatforms = leadsPage?.counts?.platforms ?? 0;
-    const countWeb = leadsPage?.counts?.web ?? 0;
-
-    const changeViewMode = (mode) => { setViewMode(mode); setCurrentPage(1); };
+    const changeKind = (k) => { setKind(k); setPage(1); };
 
     return (
-        <div className="animate-fade-in-up">
-            {/* KPI Cards Superiores */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                    <p className="text-xs font-bold text-blue-500 uppercase mb-1">Récord Diario</p>
-                    <h3 className="text-4xl font-black text-slate-800">{stats.generated_today}</h3>
-                </div>
-                <div className="bg-slate-900 p-6 rounded-2xl text-white shadow-lg">
-                    <p className="text-xs font-bold text-emerald-400 uppercase mb-1">Histórico Total</p>
-                    <h3 className="text-4xl font-black">{stats.total_accumulated}</h3>
-                </div>
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-end">
-                    <p className="text-xs font-bold text-slate-400 uppercase mb-3">Tendencia</p>
-                    <div className="flex items-end justify-between h-12 gap-1">
-                        {stats.weekly_trend?.map((day, i) => (
-                            <div key={i} className="w-full bg-blue-100 rounded-t-sm" 
-                                 style={{ height: `${(day.count / Math.max(...stats.weekly_trend.map(d => d.count), 1)) * 100}%` }}>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-            
-            {/* Tabs de Selección Estilo Móvil */}
-            <div className="bg-slate-100 p-1 rounded-xl inline-flex mb-6 border border-slate-200">
-                <button onClick={() => changeViewMode('platforms')}
-                    className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'platforms' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>
-                    🚀 RRSS ({countPlatforms})
-                </button>
-                <button onClick={() => changeViewMode('web')}
-                    className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'web' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>
-                    👻 Escucha Web ({countWeb})
-                </button>
-            </div>
+        <>
+            <PageHeader eyebrow="Clientes" title="Inteligencia de clientes" />
+            <PageBody>
+                <section aria-label="Resumen" className="grid gap-4 grid-cols-1 md:grid-cols-3">
+                    <StatCard label="Leads de hoy" value={fmt(stats.generated_today)} />
+                    <StatCard label="Histórico total" value={fmt(stats.total_accumulated)} />
+                    <StatCard label="Tendencia (7 días)" value="">
+                        <Trend points={stats.weekly_trend || []} />
+                    </StatCard>
+                </section>
 
-            {/* CONTENEDOR TIPO TABLA QUE ENVUELVE LAS CARDS */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                
-                {/* Header de la "Tabla" (Buscador y Filtros) */}
-                <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center bg-slate-50 gap-4">
-                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                        {viewMode === 'web' ? '👻 Tráfico Web (Fantasmas)' : '🚀 Leads de Campañas'}
-                    </h3>
-                    
-                    <div className="flex gap-4 w-full sm:w-auto">
-                        {viewMode === 'platforms' && (
-                            <select value={activeFilter} onChange={(e) => { setActiveFilter(e.target.value); setCurrentPage(1); }}
-                                    className="px-3 py-2 bg-white border rounded-lg text-xs font-bold outline-none">
-                                {['Todos', 'Facebook', 'Instagram', 'Google'].map(f => <option key={f} value={f}>{f}</option>)}
-                            </select>
-                        )}
-                        <input type="text" placeholder="Buscar por rol o interés..." 
-                               value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                               className="px-4 py-2 border rounded-lg text-sm outline-none w-full sm:w-64 focus:ring-2 focus:ring-blue-500" />
-                    </div>
-                </div>
-
-                {/* Grid de Cards (Diseño Original de image_2faba1.png) */}
-                <div className="p-6 bg-slate-50/50">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {currentItems.map((lead) => {
-                            const info = getPlatformInfo(lead.platform);
-                            return (
-                                <div key={lead.user_id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all group relative">
-                                    <div className="flex justify-between items-start mb-4">
-                                        {/* Score Circular (Como en image_2faba1.png) */}
-                                        <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm shadow-inner">
-                                            {lead.lead_score}
-                                        </div>
-                                        <div className="flex flex-col items-end gap-1">
-                                            <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase ${info.bg} ${info.color}`}>
-                                                {info.icon} {info.name}
-                                            </span>
-                                            <StatusBadge status={lead.status || 'qualified'} />
-                                        </div>
-                                    </div>
-
-                                    <h4 className="font-extrabold text-slate-800 text-lg mb-1 capitalize">{lead.role || 'Visitante'}</h4>
-                                    <p className="text-xs text-slate-500 mb-4 flex items-center gap-1">
-                                        <span className="text-blue-500">🎯</span> {lead.service_interest}
-                                    </p>
-                                    
-                                    <div className="pt-4 border-t border-slate-50 flex flex-col gap-3">
-                                        <div className="text-[10px] text-slate-400 font-mono">ID: ...{lead.user_id?.slice(-8)}</div>
-                                        <button onClick={() => setSelectedLead(lead)} 
-                                                className="w-full py-2.5 bg-slate-50 text-slate-600 text-xs font-bold rounded-xl hover:bg-blue-600 hover:text-white transition-all transform active:scale-95">
-                                            Ver Perfil Completo
-                                        </button>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                <Card aria-labelledby="leads-title" className="overflow-hidden">
+                    <div className="flex flex-wrap items-center justify-between gap-3 px-5 border-b border-slate-200">
+                        <div className="flex items-center gap-5 self-stretch">
+                            <h2 id="leads-title" className="m-0 py-4 text-base font-bold">Leads</h2>
+                            <Tabs
+                                label="Origen"
+                                tabs={[
+                                    { value: 'web', label: `Visitantes web (${fmt(counts.web)})` },
+                                    { value: 'platforms', label: `Redes sociales (${fmt(counts.platforms)})` },
+                                ]}
+                                value={kind}
+                                onChange={changeKind}
+                            />
+                        </div>
+                        <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Buscar por rol, interés o ID" className="w-full sm:w-72 my-2.5" />
                     </div>
 
-                    {/* Mensaje de No Resultados */}
-                    {!loading && currentItems.length === 0 && (
-                        <div className="text-center py-20 text-slate-400">
-                            <p className="text-4xl mb-2">📭</p>
-                            <p>No se encontraron registros en esta sección.</p>
+                    {kind === 'platforms' && (
+                        <div className="px-5 pt-4">
+                            <Chips label="Filtrar por red" options={PLATFORM_CHIPS} value={platform} onChange={(v) => { setPlatform(v); setPage(1); }} />
                         </div>
                     )}
-                </div>
 
-                {/* Footer de Paginación */}
-                {totalItems > 0 && (
-                    <div className="p-4 border-t border-slate-100 bg-white flex justify-between items-center">
-                        <span className="text-xs text-slate-400 font-bold">Mostrando {currentItems.length} de {totalItems} registros · pág {currentPage} de {totalPages}</span>
-                        <div className="flex gap-2">
-                            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
-                                    className="px-4 py-1.5 border rounded-lg text-xs font-bold disabled:opacity-30 hover:bg-slate-50 transition-colors">
-                                Anterior
-                            </button>
-                            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}
-                                    className="px-4 py-1.5 border rounded-lg text-xs font-bold disabled:opacity-30 hover:bg-slate-50 transition-colors">
-                                Siguiente
-                            </button>
+                    {!loading && items.length === 0 && kind === 'platforms' && !q && platform === 'Todos' ? (
+                        <EmptyState
+                            title="Aún no hay leads de redes sociales"
+                            description="Aparecerán aquí cuando una campaña activa genere contactos."
+                            action={<Link href="/campaigns" className="text-blue-700 font-semibold text-[13px]">Ir a campañas →</Link>}
+                        />
+                    ) : (
+                        <div className="overflow-x-auto mt-2">
+                            <table className={cx(tableClass, 'min-w-[860px]')}>
+                                <thead>
+                                    <tr>
+                                        <th scope="col" className={thClass}>Puntaje</th>
+                                        <th scope="col" className={thClass}>Rol detectado</th>
+                                        <th scope="col" className={thClass}>Interés</th>
+                                        <th scope="col" className={thClass}>Origen</th>
+                                        <th scope="col" className={thClass}>Estado</th>
+                                        <th scope="col" className={thClass}>ID</th>
+                                        <th scope="col" className={cx(thClass, 'text-right')}><span className="sr-only">Acciones</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {items.map((lead) => {
+                                        const [originLabel, tone] = origin(lead.platform);
+                                        return (
+                                            <tr key={lead.user_id} className={trClass}>
+                                                <td className={tdClass}>
+                                                    <span className="inline-flex items-center justify-center min-w-9 h-7 px-2 rounded-full bg-blue-50 text-blue-800 font-semibold text-[13px]">{lead.lead_score ?? '—'}</span>
+                                                </td>
+                                                <th scope="row" className={cx(tdClass, 'text-left font-semibold text-slate-900 capitalize')}>{lead.role || 'Visitante'}</th>
+                                                <td className={cx(tdClass, 'max-w-[280px]')}>{lead.service_interest || '—'}</td>
+                                                <td className={tdClass}><Pill tone={tone}>{originLabel}</Pill></td>
+                                                <td className={tdClass}><StatusBadge status={lead.status} /></td>
+                                                <td className={cx(tdClass, 'font-mono text-slate-500')}>…{(lead.user_id || '').slice(-8)}</td>
+                                                <td className={cx(tdClass, 'text-right')}>
+                                                    <Button size="sm" onClick={() => setSelected(lead)}>Ver perfil</Button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {items.length === 0 && (
+                                        <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-500">{loading ? 'Cargando leads…' : 'Ningún lead coincide con la búsqueda.'}</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
-                    </div>
+                    )}
+
+                    {total > 0 && (
+                        <Pagination
+                            page={page}
+                            pages={leadsPage?.pages}
+                            onPage={setPage}
+                            pageSize={pageSize}
+                            onPageSize={(n) => { setPageSize(n); setPage(1); }}
+                            sizes={[10, 25, 50, 100]}
+                            total={total}
+                            noun="leads"
+                        />
+                    )}
+                </Card>
+            </PageBody>
+
+            <Drawer open={!!selected} onClose={() => setSelected(null)} title={selected ? `${selected.role || 'Visitante'} · …${(selected.user_id || '').slice(-8)}` : ''}>
+                {selected && (
+                    <dl className="m-0 px-6 py-2">
+                        <DetailRow label="Puntaje" value={selected.lead_score} />
+                        <DetailRow label="Interés detectado" value={selected.service_interest} />
+                        <DetailRow label="Canal de contacto" value={selected.email || 'No identificado'} />
+                        <DetailRow label="Origen" value={origin(selected.platform)[0]} />
+                        <DetailRow label="Estado" value={<StatusBadge status={selected.status} />} />
+                        <DetailRow label="Última interacción" value={when(selected.last_activity)} />
+                        <DetailRow label="ID completo" value={<span className="font-mono text-[13px]">{selected.user_id}</span>} />
+                    </dl>
                 )}
-            </div>
-
-            {/* Modal de Detalle (Se mantiene igual) */}
-            {selectedLead && (
-                <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden">
-                        <div className="bg-slate-900 p-8 text-white flex justify-between items-center">
-                            <div>
-                                <h3 className="text-2xl font-black">{selectedLead.role}</h3>
-                                <p className="text-slate-400 text-[10px] font-mono mt-1">UUID: {selectedLead.user_id}</p>
-                            </div>
-                            <button onClick={() => setSelectedLead(null)} className="text-2xl hover:text-red-400 transition-colors">✕</button>
-                        </div>
-                        <div className="p-8 space-y-6">
-                            <DetailItem icon="📧" label="Canal de Contacto" value={selectedLead.email || 'No identificado'} />
-                            <DetailItem icon="🎯" label="Interés Detectado" value={selectedLead.service_interest} />
-                            <DetailItem icon="🕒" label="Última Interacción" value={selectedLead.last_activity} />
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+            </Drawer>
+        </>
     );
-};
-
-const DetailItem = ({ icon, label, value }) => (
-    <div className="flex items-start gap-4">
-        <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-xl shadow-sm border border-slate-100">{icon}</div>
-        <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{label}</p>
-            <p className="text-slate-800 font-black text-lg">{value}</p>
-        </div>
-    </div>
-);
-
-export default CrmView;
+}
