@@ -2,11 +2,15 @@ import React, { useState, useContext, useMemo, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import { AuthContext } from '../context/AuthContext';
 import { launchService } from '../services/api';
+import { useApi } from '../hooks/useApi';
 import GlobalLauncherUI from '../components/GlobalLauncherUI';
 import IntentDashboard from '../components/IntentDashboard';
 
-const LaunchView = ({ crmData }) => {
+const LaunchView = () => {
   const { isAuthenticated } = useContext(AuthContext);
+  // Los 200 leads más recientes alimentan la detección de roles e intención
+  const { data: leadsPage } = useApi('/api/v1/crm/leads?page_size=200');
+  const crmData = leadsPage?.items;
   const [loading, setLoading] = useState(false);
   const [activeCampaigns, setActiveCampaigns] = useState([]);
 

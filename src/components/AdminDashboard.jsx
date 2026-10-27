@@ -3,6 +3,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import Swal from 'sweetalert2';
 import { AuthContext } from '../context/AuthContext';
 import { useDashboardData } from '../hooks/useDashboardData';
+import { useRevalidate } from '../hooks/useApi';
 import { campaignService } from '../services/api';
 
 // Imports de Vistas
@@ -21,6 +22,9 @@ const AdminDashboard = () => {
     const [days, setDays] = useState('30'); // Estado para filtrar por periodo (30 días por defecto)
     const { data, loading, error, refresh } = useDashboardData(days);
     const { isAuthenticated, logout } = useContext(AuthContext);
+    const revalidate = useRevalidate();
+    // Tras aprobar o crear: refresca la tabla de campañas y las cifras de la portada
+    const refreshCampaigns = () => Promise.all([revalidate('/api/v1/campaigns'), refresh()]);
 
     // Estados de UI
     const [activeView, setActiveView] = useState(() => {
@@ -70,7 +74,7 @@ const AdminDashboard = () => {
                 timer: 1500,
                 showConfirmButton: false
             });
-            await refresh();
+            await refreshCampaigns();
         } catch (err) {
             console.error(err);
             Swal.fire({
@@ -78,7 +82,7 @@ const AdminDashboard = () => {
                 text: err.message || 'No se pudo activar la campaña. Revisa los logs del servidor.',
                 icon: 'error'
             });
-            refresh();
+            refreshCampaigns();
         }
     };
 
@@ -87,7 +91,7 @@ const AdminDashboard = () => {
         try {
             await campaignService.createOnDemand(selectedService, selectedPlatform);
             Swal.fire({ title: '¡Creada!', text: 'La IA ha generado la campaña.', icon: 'success', confirmButtonColor: '#10b981' });
-            refresh();
+            refreshCampaigns();
         } catch (e) {
             Swal.fire('Error', e.message, 'error');
         } finally {
@@ -122,11 +126,11 @@ const AdminDashboard = () => {
         const config = data?.business_config || { lead_value: 15, min_daily_budget: 20000, default_budget: 50000 };
         switch (activeView) {
             case 'overview': return <OverviewView data={data} days={days} setDays={setDays} loading={loading} />;
-            case 'campaigns': return <CampaignsView campaigns={data.campaigns} isCreating={isCreating} availableServices={availableServices} selectedService={selectedService} setSelectedService={setSelectedService} selectedPlatform={selectedPlatform} setSelectedPlatform={setSelectedPlatform} handleCreateOnDemand={handleCreateOnDemand} handleApprove={handleApprove} config={config} />;
-            case 'launch': return <LaunchView crmData={data.crm_leads} />;
-            case 'seo': return <SeoView rankings={data.seo_rankings} content={data.published_content} />;
+            case 'campaigns': return <CampaignsView isCreating={isCreating} availableServices={availableServices} selectedService={selectedService} setSelectedService={setSelectedService} selectedPlatform={selectedPlatform} setSelectedPlatform={setSelectedPlatform} handleCreateOnDemand={handleCreateOnDemand} handleApprove={handleApprove} config={config} />;
+            case 'launch': return <LaunchView />;
+            case 'seo': return <SeoView />;
             case 'gallery': return <GalleryView config={config} />;
-            case 'crm': return <CrmView leads={data.crm_leads} performance={data.lead_performance} />;
+            case 'crm': return <CrmView />;
             case 'services': return <ServicesView />;
             default: return null;
         }

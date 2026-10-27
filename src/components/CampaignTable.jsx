@@ -7,6 +7,8 @@ import { AudienceBadge } from './AudienceSelect';
 import { URL_IMAGES } from '../app/config';
 import { campaignService, launchService } from '../services/api';
 import { apiFetch } from '../lib/apiClient';
+import { useApi, withQuery } from '../hooks/useApi';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 
 // =============================================================================
 // HELPER: NORMALIZADOR DE IMÁGENES (Soporta GCS y Local Windows/Linux)
@@ -392,8 +394,8 @@ const formatDate = (value) => {
     return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
-    const [localCampaigns, setLocalCampaigns] = useState(initialCampaigns || []);
+const CampaignTable = ({ onApprove, config }) => {
+    const [localCampaigns, setLocalCampaigns] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(5);
 
@@ -402,6 +404,18 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
     const [statusFilter, setStatusFilter] = useState('all');
     const [platformFilter, setPlatformFilter] = useState('all'); // Nuevo
     const [sortConfig, setSortConfig] = useState('newest');      // Nuevo (Presupuesto)
+    const debouncedSearch = useDebouncedValue(searchTerm);
+
+    // Solo la página visible, con los filtros aplicados en el servidor
+    const { data: campaignsPage, loading, refresh } = useApi(withQuery('/api/v1/campaigns', {
+        page: currentPage,
+        page_size: itemsPerPage,
+        q: debouncedSearch.trim(),
+        status: statusFilter,
+        platform: platformFilter,
+        sort: sortConfig
+    }), { refreshInterval: 30000 });
+    const initialCampaigns = campaignsPage?.items;
 
     const [selectedCampaign, setSelectedCampaign] = useState(null);
     const [selectedAudienceCampaign, setSelectedAudienceCampaign] = useState(null);
@@ -409,6 +423,12 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
     useEffect(() => {
         if (initialCampaigns) setLocalCampaigns(initialCampaigns);
     }, [initialCampaigns]);
+
+    // Si la página actual quedó vacía (p. ej. al eliminar la última campaña), volver a la última que existe
+    const serverPages = campaignsPage?.pages;
+    useEffect(() => {
+        if (serverPages && currentPage > serverPages) setCurrentPage(serverPages);
+    }, [serverPages, currentPage]);
 
     const handlePageSizeChange = (e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); };
 
@@ -499,6 +519,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
         }
     };
 
+    const visibleIdsKey = (initialCampaigns || []).map(c => c.id).join(',');
     useEffect(() => {
         const checkVisibleCampaigns = async () => {
             const campaignsToCheck = currentItems.filter(c =>
@@ -525,7 +546,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
         };
         checkVisibleCampaigns();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentPage, searchTerm, statusFilter, platformFilter, sortConfig]);
+    }, [visibleIdsKey]);
 
     // --- FUNCIÓN DE VERIFICACIÓN CON MANEJO DE ERRORES ---
     const handleVerifyMetaStatus = async (campaignId) => {
@@ -763,6 +784,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
             try {
                 const data = await campaignService.deleteCampaign(campaign.id, deleteOnPlatform);
                 setLocalCampaigns(prev => prev.filter(c => c.id !== campaign.id));
+                refresh();
                 Swal.fire({
                     title: '✅ Eliminada',
                     text: data.message || 'La campaña fue eliminada del sistema.',
@@ -777,64 +799,10 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
     };
 
 
-    // =========================================================================
-    // LÓGICA DE FILTRADO Y ORDENAMIENTO COMPLETA
-    // =========================================================================
-    const filteredCampaigns = localCampaigns.filter((campaign) => {
-        const search = searchTerm.toLowerCase();
-        const p = (campaign.platform || '').toLowerCase();
-        const s = (campaign.status || '').toLowerCase();
-        const serviceName = (campaign.service || '').toLowerCase();
-        const budgetStr = (campaign.budget || '').toString();
-
-        // 1. Buscador global
-        const matchesSearch = serviceName.includes(search) ||
-            campaign.id.toLowerCase().includes(search) ||
-            budgetStr.includes(search);
-
-        // 2. Filtro Estado (con agrupación de estados equivalentes entre plataformas)
-        // LinkedIn devuelve REJECTED y Meta DISAPPROVED para un anuncio rechazado.
-        const STATUS_GROUPS = {
-            rejected: ['rejected', 'disapproved'],
-        };
-        let matchesStatus = true;
-        if (statusFilter !== 'all') {
-            const target = statusFilter.toLowerCase();
-            const group = STATUS_GROUPS[target];
-            matchesStatus = group ? group.includes(s) : s === target;
-        }
-
-        // 3. Filtro Plataforma
-        let matchesPlatform = true;
-        if (platformFilter !== 'all') {
-            if (platformFilter === 'meta') matchesPlatform = p.includes('facebook') || p.includes('instagram');
-            else matchesPlatform = p.includes(platformFilter);
-        }
-
-        // --- NUEVA LÓGICA: FILTRAR GASTO > 0 ---
-        // Si el usuario elige ordenar por gasto, ocultamos las que están en $0
-        let hasSpend = true;
-        if (sortConfig === 'spend_desc' || sortConfig === 'spend_asc') {
-            hasSpend = (campaign.spend || 0) > 0;
-        }
-
-        return matchesSearch && matchesStatus && matchesPlatform && hasSpend;
-    })
-        .sort((a, b) => {
-            // Mantén la lógica de ordenamiento anterior
-            if (sortConfig === 'spend_desc') return (b.spend || 0) - (a.spend || 0);
-            if (sortConfig === 'spend_asc') return (a.spend || 0) - (b.spend || 0);
-            if (sortConfig === 'budget_desc') return (b.budget || 0) - (a.budget || 0);
-            if (sortConfig === 'budget_asc') return (a.budget || 0) - (b.budget || 0);
-            if (sortConfig === 'oldest') return new Date(a.created_at || 0) - new Date(b.created_at || 0);
-            // 'newest' (por defecto): más recientes primero por fecha de publicación.
-            // Antes ordenaba por b.id.localeCompare(a.id), pero el ID es un UUID aleatorio,
-            // así que el orden no tenía relación con la fecha real.
-            return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-        });
-
-    const totalPages = Math.ceil(filteredCampaigns.length / itemsPerPage);
-    const currentItems = filteredCampaigns.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    // El filtrado, el orden y la paginación los hace el servidor (ver /api/v1/campaigns)
+    const currentItems = localCampaigns;
+    const totalItems = campaignsPage?.total || 0;
+    const totalPages = Math.max(campaignsPage?.pages || 1, 1);
 
     const handleFixLinkedInBids = async () => {
         const result = await Swal.fire({
@@ -1059,7 +1027,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
             </div>
 
             <div className="md:hidden p-4 bg-slate-50">
-                {currentItems.length > 0 ? currentItems.map(c => <MobileCard key={c.id} c={c} />) : <div className="text-center text-slate-400 py-10">No hay resultados.</div>}
+                {currentItems.length > 0 ? currentItems.map(c => <MobileCard key={c.id} c={c} />) : <div className="text-center text-slate-400 py-10">{loading ? 'Cargando...' : 'No hay resultados.'}</div>}
             </div>
 
             <div className="hidden md:block overflow-x-auto">
@@ -1168,7 +1136,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                     </tbody>
                 </table>
             </div>
-            {filteredCampaigns.length > 0 && (
+            {totalItems > 0 && (
                 <div className="bg-white px-4 py-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
                         <span>Filas:</span>
@@ -1176,10 +1144,10 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                             <option value={5}>5</option><option value={10}>10</option><option value={20}>20</option>
                         </select>
                     </div>
-                    <div className="text-xs text-slate-500">{currentPage} de {totalPages} pág</div>
+                    <div className="text-xs text-slate-500">{currentPage} de {totalPages} pág · {totalItems} campañas</div>
                     <div className="flex gap-2">
                         <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1.5 border border-slate-300 rounded text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50">Anterior</button>
-                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1.5 border border-slate-300 rounded text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50">Siguiente</button>
+                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} className="px-3 py-1.5 border border-slate-300 rounded text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50">Siguiente</button>
                     </div>
                 </div>
             )}

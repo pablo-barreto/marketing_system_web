@@ -1,24 +1,31 @@
 'use client';
 import React, { useState } from 'react';
 import StatusBadge from '../components/StatusBadge';
+import { useApi, withQuery } from '../hooks/useApi';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 
-const CrmView = ({ leads, performance }) => {
+const PAGE_SIZE = 12;
+
+const CrmView = () => {
     const [viewMode, setViewMode] = useState('platforms'); 
     const [activeFilter, setActiveFilter] = useState('Todos');
     const [selectedLead, setSelectedLead] = useState(null);
     
-    // Estados para la paginación y búsqueda (Estructura de Tabla)
-    const [webCurrentPage, setWebCurrentPage] = useState(1);
-    const [webItemsPerPage, setWebItemsPerPage] = useState(12); // 8 para que queden bien en el grid
-    const [webSearchTerm, setWebSearchTerm] = useState('');
+    // Paginación y búsqueda en el servidor
+    const [currentPage, setCurrentPage] = useState(1);
+    const [searchTerm, setSearchTerm] = useState('');
+    const debouncedSearch = useDebouncedValue(searchTerm);
+
+    const { data: performance } = useApi('/api/v1/crm/performance', { refreshInterval: 60000 });
+    const { data: leadsPage, loading } = useApi(withQuery('/api/v1/crm/leads', {
+        kind: viewMode,
+        platform: viewMode === 'platforms' && activeFilter !== 'Todos' ? activeFilter : null,
+        q: debouncedSearch.trim(),
+        page: currentPage,
+        page_size: PAGE_SIZE
+    }), { refreshInterval: 60000 });
 
     const stats = performance || { total_accumulated: 0, generated_today: 0, weekly_trend: [] };
-
-    const isWebLead = (lead) => {
-        const p = (lead.platform || '').toLowerCase();
-        const s = (lead.status || '').toLowerCase();
-        return p.includes('web') || s === 'visitante_web';
-    };
 
     const getPlatformInfo = (platform) => {
         const p = (platform || 'web').toLowerCase();
@@ -28,29 +35,13 @@ const CrmView = ({ leads, performance }) => {
         return { name: 'Escucha Web', icon: '👻', color: 'text-slate-500', bg: 'bg-slate-100' };
     };
 
-    // Lógica de filtrado para Escucha Web
-    const webLeads = leads?.filter(l => isWebLead(l)) || [];
-    const filteredWebLeads = webLeads.filter(l =>
-        l.role?.toLowerCase().includes(webSearchTerm.toLowerCase()) ||
-        l.service_interest?.toLowerCase().includes(webSearchTerm.toLowerCase()) ||
-        l.user_id?.toLowerCase().includes(webSearchTerm.toLowerCase())
-    );
+    const currentItems = leadsPage?.items || [];
+    const totalItems = leadsPage?.total || 0;
+    const totalPages = Math.max(leadsPage?.pages || 1, 1);
+    const countPlatforms = leadsPage?.counts?.platforms ?? 0;
+    const countWeb = leadsPage?.counts?.web ?? 0;
 
-    // Paginación
-    const totalWebPages = Math.ceil(filteredWebLeads.length / webItemsPerPage);
-    const currentWebItems = filteredWebLeads.slice(
-        (webCurrentPage - 1) * webItemsPerPage,
-        webCurrentPage * webItemsPerPage
-    );
-
-    // Filtrado para RRSS
-    const filteredPlatformsLeads = leads?.filter(l => {
-        if (isWebLead(l)) return false;
-        return activeFilter === 'Todos' || l.platform?.toLowerCase().includes(activeFilter.toLowerCase());
-    }) || [];
-
-    const countPlatforms = leads?.filter(l => !isWebLead(l)).length || 0;
-    const countWeb = webLeads.length;
+    const changeViewMode = (mode) => { setViewMode(mode); setCurrentPage(1); };
 
     return (
         <div className="animate-fade-in-up">
@@ -78,11 +69,11 @@ const CrmView = ({ leads, performance }) => {
             
             {/* Tabs de Selección Estilo Móvil */}
             <div className="bg-slate-100 p-1 rounded-xl inline-flex mb-6 border border-slate-200">
-                <button onClick={() => setViewMode('platforms')}
+                <button onClick={() => changeViewMode('platforms')}
                     className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'platforms' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>
                     🚀 RRSS ({countPlatforms})
                 </button>
-                <button onClick={() => setViewMode('web')}
+                <button onClick={() => changeViewMode('web')}
                     className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'web' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>
                     👻 Escucha Web ({countWeb})
                 </button>
@@ -99,13 +90,13 @@ const CrmView = ({ leads, performance }) => {
                     
                     <div className="flex gap-4 w-full sm:w-auto">
                         {viewMode === 'platforms' && (
-                            <select value={activeFilter} onChange={(e) => setActiveFilter(e.target.value)}
+                            <select value={activeFilter} onChange={(e) => { setActiveFilter(e.target.value); setCurrentPage(1); }}
                                     className="px-3 py-2 bg-white border rounded-lg text-xs font-bold outline-none">
                                 {['Todos', 'Facebook', 'Instagram', 'Google'].map(f => <option key={f} value={f}>{f}</option>)}
                             </select>
                         )}
                         <input type="text" placeholder="Buscar por rol o interés..." 
-                               value={webSearchTerm} onChange={(e) => { setWebSearchTerm(e.target.value); setWebCurrentPage(1); }}
+                               value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                                className="px-4 py-2 border rounded-lg text-sm outline-none w-full sm:w-64 focus:ring-2 focus:ring-blue-500" />
                     </div>
                 </div>
@@ -113,7 +104,7 @@ const CrmView = ({ leads, performance }) => {
                 {/* Grid de Cards (Diseño Original de image_2faba1.png) */}
                 <div className="p-6 bg-slate-50/50">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {(viewMode === 'web' ? currentWebItems : filteredPlatformsLeads).map((lead) => {
+                        {currentItems.map((lead) => {
                             const info = getPlatformInfo(lead.platform);
                             return (
                                 <div key={lead.user_id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all group relative">
@@ -148,7 +139,7 @@ const CrmView = ({ leads, performance }) => {
                     </div>
 
                     {/* Mensaje de No Resultados */}
-                    {(viewMode === 'web' ? currentWebItems : filteredPlatformsLeads).length === 0 && (
+                    {!loading && currentItems.length === 0 && (
                         <div className="text-center py-20 text-slate-400">
                             <p className="text-4xl mb-2">📭</p>
                             <p>No se encontraron registros en esta sección.</p>
@@ -156,16 +147,16 @@ const CrmView = ({ leads, performance }) => {
                     )}
                 </div>
 
-                {/* Footer de Paginación (Solo para Web Mode) */}
-                {viewMode === 'web' && (
+                {/* Footer de Paginación */}
+                {totalItems > 0 && (
                     <div className="p-4 border-t border-slate-100 bg-white flex justify-between items-center">
-                        <span className="text-xs text-slate-400 font-bold">Mostrando {currentWebItems.length} de {filteredWebLeads.length} registros</span>
+                        <span className="text-xs text-slate-400 font-bold">Mostrando {currentItems.length} de {totalItems} registros · pág {currentPage} de {totalPages}</span>
                         <div className="flex gap-2">
-                            <button onClick={() => setWebCurrentPage(p => Math.max(1, p - 1))} disabled={webCurrentPage === 1}
+                            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
                                     className="px-4 py-1.5 border rounded-lg text-xs font-bold disabled:opacity-30 hover:bg-slate-50 transition-colors">
                                 Anterior
                             </button>
-                            <button onClick={() => setWebCurrentPage(p => Math.min(totalWebPages, p + 1))} disabled={webCurrentPage === totalWebPages}
+                            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}
                                     className="px-4 py-1.5 border rounded-lg text-xs font-bold disabled:opacity-30 hover:bg-slate-50 transition-colors">
                                 Siguiente
                             </button>

@@ -4,6 +4,7 @@ import Swal from 'sweetalert2';
 import CampaignTable from '../components/CampaignTable';
 import { campaignService } from '../services/api';
 import { apiFetch } from '../lib/apiClient';
+import { useRevalidate } from '../hooks/useApi';
 import AudienceSelect, { DEFAULT_AUDIENCE, skippedNotice } from '../components/AudienceSelect';
 
 const PLATFORM_NAMES = { facebook: 'Meta', linkedin: 'LinkedIn', google: 'Google Ads' };
@@ -17,6 +18,7 @@ const publishedPlatforms = (platform, skipped = []) => {
 
 // --- MODAL: CAMPAÑA MANUAL ---
 const ManualCampaignModal = ({ onClose, services = [] }) => {
+    const revalidate = useRevalidate();
     const [form, setForm] = useState({ title: '', body: '', redirect_url: '', whatsapp_number: '', service: '', platform: 'facebook', budget: 50000, end_date: '', audience_type: DEFAULT_AUDIENCE });
     const [file, setFile] = useState(null);
     const [preview, setPreview] = useState(null);
@@ -54,6 +56,7 @@ const ManualCampaignModal = ({ onClose, services = [] }) => {
             const platforms = res.created?.map(c => c.platform).join(', ') || 'plataformas';
             const notice = skippedNotice(res.skipped);
             Swal.fire({ title: '¡Campaña Creada!', text: `Publicada en: ${platforms}${notice ? `. ${notice}` : ''}`, icon: 'success' });
+            revalidate('/api/v1/campaigns');
             onClose();
         } catch (error) {
             Swal.fire('Error', error.message, 'error');
@@ -273,7 +276,6 @@ const Icons = {
 };
 
 const CampaignsView = ({
-    campaigns,
     availableServices,
     selectedService,
     setSelectedService,
@@ -284,6 +286,7 @@ const CampaignsView = ({
 }) => {
 
     // Estados Locales
+    const revalidate = useRevalidate();
     const [showManualModal, setShowManualModal] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [statusMessage, setStatusMessage] = useState("");
@@ -375,6 +378,7 @@ const CampaignsView = ({
 
             const res = await campaignService.uploadCreative(formData);
             const notice = skippedNotice(res?.skipped);
+            revalidate('/api/v1/campaigns');
 
             Swal.fire({
                 title: '¡Proceso Completo!',
@@ -576,7 +580,7 @@ const CampaignsView = ({
                     <h3 className="text-lg font-bold text-slate-800">Historial de Operaciones</h3>
                 </div>
                 <div className="p-0">
-                    <CampaignTable campaigns={campaigns} onApprove={handleApprove} config={config} />
+                    <CampaignTable onApprove={handleApprove} config={config} />
                 </div>
             </div>
         </div>

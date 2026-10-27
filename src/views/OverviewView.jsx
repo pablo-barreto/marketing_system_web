@@ -95,10 +95,10 @@ const OverviewView = ({ data, days, setDays, loading }) => {
 
     // KPIs
     const totalVisits = rawServices.reduce((a, b) => a + b.total_visits, 0) || 1;
-    const totalLeads = data.crm_leads?.length || 0;
+    const totalLeads = data.kpis?.total_leads || 0;
     const conversionRate = ((totalLeads / totalVisits) * 100).toFixed(1);
-    const activeCampaigns = data.campaigns?.filter(c => c.status?.toLowerCase() === 'active' || c.status?.toLowerCase() === 'activa').length || 0;
-    const topRankings = data.seo_rankings?.filter(r => r.ranking <= 10).length || 0;
+    const activeCampaigns = data.kpis?.active_campaigns || 0;
+    const topRankings = data.kpis?.top_rankings || 0;
     const isAdsApiConnected = data.system_status?.ads_api === 'active' || data.system_status?.ads_api === 'online';
     const today = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 

@@ -51,9 +51,8 @@ export const launchService = {
     apiFetch('/api/v1/launch/global', { method: 'POST', body: formData }),
 
   getActiveCampaigns: async () => {
-    const data = await apiFetch(ADMIN_PANEL_ENDPOINT);
-    const all = data.campaigns || data.campaigns_list || [];
-    return all.filter(c => (c.status || '').toLowerCase() === 'active');
+    const data = await apiFetch('/api/v1/campaigns?status=active&page_size=200');
+    return data.items || [];
   },
 
   syncAudienceToCampaigns: (body) =>

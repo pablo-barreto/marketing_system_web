@@ -3,17 +3,22 @@ import React from 'react';
 import SeoRankingTable from '../components/SeoRankingTable';
 import ContentTable from '../components/ContentTable';
 import { launchService } from '../services/api';
+import { useApi, useRevalidate } from '../hooks/useApi';
 import Swal from 'sweetalert2';
 
-const SeoView = ({ rankings, content }) => {
+const SeoView = () => {
+    // Los rankings cambian solo cuando corre una verificación (minutos): basta refrescar cada 2 min
+    const { data: rankingsData } = useApi('/api/v1/seo/rankings', { refreshInterval: 120000 });
+    const rankings = rankingsData?.items;
+    // Solo para saber si hay historial que limpiar; cada tabla pide su propia página
+    const { data: contentSummary } = useApi('/api/v1/seo/content?page_size=1');
+    const hasContent = (contentSummary?.total || 0) > 0;
+    const revalidate = useRevalidate();
     const [credits, setCredits] = React.useState(null);
     const [loadingCredits, setLoadingCredits] = React.useState(true);
     const [rankingStatus, setRankingStatus] = React.useState(null);
     const [activeContentTab, setActiveContentTab] = React.useState('blog');
 
-    // Filtrar contenido por tipo
-    const blogContent = (content || []).filter(item => item.type === 'BLOG');
-    const faqContent = (content || []).filter(item => item.type === 'Q&A');
 
     React.useEffect(() => {
         const fetchCredits = async () => {
@@ -135,9 +140,8 @@ const SeoView = ({ rankings, content }) => {
             if (result.isConfirmed) {
                 try {
                     await launchService.clearSeoHistory();
-                    Swal.fire('Limpiado', 'El historial ha sido eliminado.', 'success').then(() => {
-                        window.location.reload();
-                    });
+                    revalidate('/api/v1/seo/content');
+                    Swal.fire('Limpiado', 'El historial ha sido eliminado.', 'success');
                 } catch (e) {
                     Swal.fire('Error', e.message, 'error');
                 }
@@ -265,7 +269,7 @@ const SeoView = ({ rankings, content }) => {
                     </div>
 
                     <div className="flex items-center gap-4">
-                        {content && content.length > 0 && (
+                        {hasContent && (
                             <button
                                 onClick={handleClearHistory}
                                 className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors uppercase tracking-wider flex items-center gap-1"
@@ -278,9 +282,9 @@ const SeoView = ({ rankings, content }) => {
 
                 <div className="flex-1 overflow-visible">
                     {activeContentTab === 'blog' ? (
-                        <ContentTable content={blogContent} title="Entradas de Blog Publicadas" />
+                        <ContentTable type="BLOG" title="Entradas de Blog Publicadas" />
                     ) : (
-                        <ContentTable content={faqContent} title="FAQs Generadas por IA" />
+                        <ContentTable type="Q&A" title="FAQs Generadas por IA" />
                     )}
                 </div>
             </div>

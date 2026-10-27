@@ -27,6 +27,7 @@ const SystemLogs = ({ isOpen, onClose }) => {
         if (!isOpen || !isAuthenticated) return;
 
         const fetchNewLogs = async () => {
+            if (document.hidden) return;
             try {
                 const serverLogs = await apiFetch('/api/v1/admin/logs');
                 setLogs(prevLogs => {
@@ -39,7 +40,7 @@ const SystemLogs = ({ isOpen, onClose }) => {
             } catch (e) { console.error("Stream error", e); }
         };
 
-        const interval = setInterval(fetchNewLogs, 1500);
+        const interval = setInterval(fetchNewLogs, 3000);
         return () => clearInterval(interval);
     }, [isAuthenticated, isOpen]);
 

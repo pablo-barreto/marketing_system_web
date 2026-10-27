@@ -29,7 +29,7 @@ const NOTIFICATION_COLORS = {
 
 const AUTO_DISMISS_MS = 6000;
 const MAX_VISIBLE_TOASTS = 3;
-const POLL_INTERVAL_MS = 10000; // Polling cada 10 segundos
+const POLL_INTERVAL_MS = 20000; // Polling cada 20 segundos (pausado con la pestaña oculta)
 
 // ─── TOAST INDIVIDUAL ────────────────────────────────────────
 const Toast = ({ notification, onDismiss }) => {
@@ -137,6 +137,7 @@ const NotificationToast = () => {
         if (!isAuthenticated) return;
 
         const fetchNotifications = async () => {
+            if (document.hidden) return;
             try {
                 const notifications = await apiFetch(NOTIFICATIONS_ENDPOINT, {
                     headers: { 'Content-Type': 'application/json' }
@@ -170,7 +171,7 @@ const NotificationToast = () => {
         // Fetch inmediato al montar (para registrar IDs existentes)
         fetchNotifications();
 
-        // Polling cada 10 segundos
+        // Polling periódico
         const interval = setInterval(fetchNotifications, POLL_INTERVAL_MS);
 
         return () => clearInterval(interval);

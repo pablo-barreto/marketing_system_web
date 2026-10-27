@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import Swal from 'sweetalert2'; // <--- 1. IMPORTAR SWEETALERT
 import FormattedDate from './FormattedDate';
+import { useApi, withQuery } from '../hooks/useApi';
 
-const ContentTable = ({ content, title = "Contenido Publicado" }) => {
+// type: 'BLOG' o 'Q&A'. La tabla pide al servidor solo la página que muestra.
+const ContentTable = ({ type, title = "Contenido Publicado" }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(5);
 
-    const safeContent = content || [];
-    const totalPages = Math.ceil(safeContent.length / itemsPerPage);
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentItems = safeContent.slice(indexOfFirstItem, indexOfLastItem);
+    const { data } = useApi(withQuery('/api/v1/seo/content', { type, page: currentPage, page_size: itemsPerPage }));
+    const currentItems = data?.items || [];
+    const totalItems = data?.total || 0;
+    const totalPages = Math.max(data?.pages || 1, 1);
 
     const goToNextPage = () => { if (currentPage < totalPages) setCurrentPage(currentPage + 1); };
     const goToPrevPage = () => { if (currentPage > 1) setCurrentPage(currentPage - 1); };
@@ -63,7 +64,7 @@ const ContentTable = ({ content, title = "Contenido Publicado" }) => {
             {/* Header */}
             <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ margin: 0, fontSize: '1rem', color: '#0f172a', fontWeight: '700' }}>{title}</h3>
-                <span style={{ fontSize: '0.75rem', color: '#64748b', backgroundColor: '#e2e8f0', padding: '2px 8px', borderRadius: '10px' }}>Total: {safeContent.length}</span>
+                <span style={{ fontSize: '0.75rem', color: '#64748b', backgroundColor: '#e2e8f0', padding: '2px 8px', borderRadius: '10px' }}>Total: {totalItems}</span>
             </div>
 
             {/* Lista Scrollable */}
@@ -108,7 +109,7 @@ const ContentTable = ({ content, title = "Contenido Publicado" }) => {
             </div>
 
             {/* Footer */}
-            {safeContent.length > 0 && (
+            {totalItems > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderTop: '1px solid #e2e8f0', backgroundColor: '#fff' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Filas:</span>
@@ -119,7 +120,7 @@ const ContentTable = ({ content, title = "Contenido Publicado" }) => {
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         <span style={{ fontSize: '0.75rem', color: '#64748b', marginRight: '4px' }}>{currentPage} / {totalPages}</span>
                         <button onClick={goToPrevPage} disabled={currentPage === 1} style={buttonStyle(currentPage === 1)}>Anterior</button>
-                        <button onClick={goToNextPage} disabled={currentPage === totalPages} style={buttonStyle(currentPage === totalPages)}>Siguiente</button>
+                        <button onClick={goToNextPage} disabled={currentPage >= totalPages} style={buttonStyle(currentPage >= totalPages)}>Siguiente</button>
                     </div>
                 </div>
             )}
