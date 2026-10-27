@@ -1,11 +1,9 @@
 'use client';
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
-import { AuthContext } from '../context/AuthContext';
 import { servicesService } from '../services/api';
 
 const ServicesView = () => {
-    const { basicAuthHeader } = useContext(AuthContext);
     const [services, setServices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showAddForm, setShowAddForm] = useState(false);
@@ -15,7 +13,7 @@ const ServicesView = () => {
     const load = async () => {
         setLoading(true);
         try {
-            const data = await servicesService.list(basicAuthHeader);
+            const data = await servicesService.list();
             setServices(data);
         } catch (e) {
             Swal.fire('Error', e.message, 'error');
@@ -30,9 +28,9 @@ const ServicesView = () => {
         setSaving(`${name}_${field}`);
         try {
             if (field === 'is_promoted') {
-                await servicesService.setPromoted(name, !currentValue, basicAuthHeader);
+                await servicesService.setPromoted(name, !currentValue);
             } else {
-                await servicesService.setActive(name, !currentValue, basicAuthHeader);
+                await servicesService.setActive(name, !currentValue);
             }
             setServices(prev =>
                 prev.map(s => s.name === name ? { ...s, [field]: !currentValue } : s)
@@ -58,7 +56,7 @@ const ServicesView = () => {
         if (!result.isConfirmed) return;
 
         try {
-            await servicesService.remove(name, basicAuthHeader);
+            await servicesService.remove(name);
             setServices(prev => prev.filter(s => s.name !== name));
             Swal.fire({ title: 'Eliminado', icon: 'success', timer: 1200, showConfirmButton: false });
         } catch (e) {
@@ -71,7 +69,7 @@ const ServicesView = () => {
         if (!newService.name.trim()) return;
         setSaving('new');
         try {
-            await servicesService.add(newService, basicAuthHeader);
+            await servicesService.add(newService);
             await load();
             setNewService({ name: '', url: '', description: '', is_promoted: false });
             setShowAddForm(false);

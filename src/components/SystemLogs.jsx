@@ -1,10 +1,10 @@
 'use client';
 import React, { useEffect, useRef, useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { API_BASE_URL } from '../app/config';
+import { apiFetch } from '../lib/apiClient';
 
 const SystemLogs = ({ isOpen, onClose }) => {
-    const { basicAuthHeader } = useContext(AuthContext);
+    const { isAuthenticated } = useContext(AuthContext);
     const [logs, setLogs] = useState([]);
     const bottomRef = useRef(null);
 
@@ -24,29 +24,24 @@ const SystemLogs = ({ isOpen, onClose }) => {
     };
 
     useEffect(() => {
-        if (!isOpen || !basicAuthHeader) return;
+        if (!isOpen || !isAuthenticated) return;
 
         const fetchNewLogs = async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/api/v1/admin/logs`, {
-                    headers: { 'Authorization': basicAuthHeader }
+                const serverLogs = await apiFetch('/api/v1/admin/logs');
+                setLogs(prevLogs => {
+                    const latest = [...serverLogs].reverse();
+                    // Evitar duplicados usando el timestamp como ID único
+                    const existingIds = new Set(prevLogs.map(l => l.timestamp));
+                    const newEntries = latest.filter(l => !existingIds.has(l.timestamp));
+                    return [...prevLogs, ...newEntries].slice(-1000);
                 });
-                if (res.ok) {
-                    const serverLogs = await res.json();
-                    setLogs(prevLogs => {
-                        const latest = [...serverLogs].reverse();
-                        // Evitar duplicados usando el timestamp como ID único
-                        const existingIds = new Set(prevLogs.map(l => l.timestamp));
-                        const newEntries = latest.filter(l => !existingIds.has(l.timestamp));
-                        return [...prevLogs, ...newEntries].slice(-1000);
-                    });
-                }
             } catch (e) { console.error("Stream error", e); }
         };
 
         const interval = setInterval(fetchNewLogs, 1500);
         return () => clearInterval(interval);
-    }, [basicAuthHeader, isOpen]);
+    }, [isAuthenticated, isOpen]);
 
     useEffect(() => {
         if (isOpen) {

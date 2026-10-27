@@ -20,7 +20,7 @@ import ServicesView from '@/views/ServicesView';
 const AdminDashboard = () => {
     const [days, setDays] = useState('30'); // Estado para filtrar por periodo (30 días por defecto)
     const { data, loading, error, refresh } = useDashboardData(days);
-    const { basicAuthHeader, isAuthenticated, logout } = useContext(AuthContext);
+    const { isAuthenticated, logout } = useContext(AuthContext);
 
     // Estados de UI
     const [activeView, setActiveView] = useState(() => {
@@ -62,7 +62,7 @@ const AdminDashboard = () => {
         });
 
         try {
-            await campaignService.approve(campaignId, basicAuthHeader);
+            await campaignService.approve(campaignId);
             Swal.fire({
                 title: '¡Aprobada!',
                 text: 'Campaña activada correctamente.',
@@ -85,7 +85,7 @@ const AdminDashboard = () => {
     const handleCreateOnDemand = async () => {
         setIsCreating(true);
         try {
-            await campaignService.createOnDemand(selectedService, selectedPlatform, basicAuthHeader);
+            await campaignService.createOnDemand(selectedService, selectedPlatform);
             Swal.fire({ title: '¡Creada!', text: 'La IA ha generado la campaña.', icon: 'success', confirmButtonColor: '#10b981' });
             refresh();
         } catch (e) {

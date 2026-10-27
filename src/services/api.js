@@ -1,296 +1,112 @@
 // src/services/api.js
-import { API_BASE_URL, ADMIN_PANEL_ENDPOINT, MARK_READ_ENDPOINT } from '../app/config';
+// Todas las llamadas pasan por apiFetch, que agrega la sesión y maneja los errores.
+import { ADMIN_PANEL_ENDPOINT, MARK_READ_ENDPOINT } from '../app/config';
+import { apiFetch } from '../lib/apiClient';
 
-/**
- * Extrae el mensaje de error del servidor si viene en JSON,
- * y lanza un Error con status adjunto para que los componentes
- * puedan distinguir 401/403/500 si lo necesitan.
- */
-async function handleApiResponse(response) {
-  if (!response.ok) {
-    let message;
-    try {
-      const data = await response.json();
-      message = data.message || data.error || data.detail || `Error ${response.status}`;
-    } catch {
-      message = `Error ${response.status}: ${response.statusText}`;
-    }
-    const err = new Error(message);
-    err.status = response.status;
-    throw err;
-  }
-  return response.json();
-}
+// Algunos endpoints POST sin cuerpo se llamaban con Content-Type JSON; se conserva igual
+const JSON_CT = { 'Content-Type': 'application/json' };
 
 export const campaignService = {
-  approve: async (campaignId, token) => {
-    const response = await fetch(`${API_BASE_URL}${ADMIN_PANEL_ENDPOINT}`, {
-      method: 'POST',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'approve', campaign_id: campaignId })
-    });
-    return handleApiResponse(response);
-  },
+  approve: (campaignId) =>
+    apiFetch(ADMIN_PANEL_ENDPOINT, { method: 'POST', json: { action: 'approve', campaign_id: campaignId } }),
 
-  createOnDemand: async (service, platform, token) => {
-    const response = await fetch(`${API_BASE_URL}${ADMIN_PANEL_ENDPOINT}`, {
-      method: 'POST',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'create_on_demand_campaign', service, platform })
-    });
-    return handleApiResponse(response);
-  },
+  createOnDemand: (service, platform) =>
+    apiFetch(ADMIN_PANEL_ENDPOINT, { method: 'POST', json: { action: 'create_on_demand_campaign', service, platform } }),
 
-  uploadCreative: async (formData, token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/assets/upload_creative`, {
-      method: 'POST',
-      headers: { 'Authorization': token },
-      body: formData
-    });
-    return handleApiResponse(response);
-  },
+  uploadCreative: (formData) =>
+    apiFetch('/api/v1/assets/upload_creative', { method: 'POST', body: formData }),
 
-  relaunchCreative: async (creativeId, budget, platform, token, audienceType = 'empresa') => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/assets/relaunch`, {
+  relaunchCreative: (creativeId, budget, platform, audienceType = 'empresa') =>
+    apiFetch('/api/v1/assets/relaunch', {
       method: 'POST',
-      headers: {
-        'Authorization': token,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ creative_id: creativeId, budget, platform, audience_type: audienceType })
-    });
-    return handleApiResponse(response);
-  },
+      json: { creative_id: creativeId, budget, platform, audience_type: audienceType }
+    }),
 
   // Métricas comparadas por público (empresa / persona natural)
-  getAudienceStats: async (days, token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/stats/audience?days=${encodeURIComponent(days)}`, {
-      headers: { 'Authorization': token }
-    });
-    return handleApiResponse(response);
-  },
+  getAudienceStats: (days) =>
+    apiFetch(`/api/v1/stats/audience?days=${encodeURIComponent(days)}`),
 
-  getCreatives: async (token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/assets/creatives`, {
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' }
-    });
-    return handleApiResponse(response);
-  },
+  getCreatives: () => apiFetch('/api/v1/assets/creatives', { headers: JSON_CT }),
 
-  deleteCreative: async (id, token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/assets/creatives/${id}`, {
+  deleteCreative: (id) => apiFetch(`/api/v1/assets/creatives/${id}`, { method: 'DELETE' }),
+
+  resetMetrics: (campaignId) =>
+    apiFetch(`/api/v1/campaigns/${campaignId}/reset`, { method: 'POST', headers: JSON_CT }),
+
+  deleteCampaign: (campaignId, deleteOnPlatform = true) =>
+    apiFetch(`/api/v1/campaigns/${campaignId}/delete`, {
       method: 'DELETE',
-      headers: { 'Authorization': token }
-    });
-    return handleApiResponse(response);
-  },
+      json: { delete_on_platform: deleteOnPlatform }
+    }),
 
-  resetMetrics: async (campaignId, token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/reset`, {
-      method: 'POST',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' }
-    });
-    return handleApiResponse(response);
-  },
+  createManualCampaign: (formData) =>
+    apiFetch('/api/v1/campaigns/manual', { method: 'POST', body: formData }),
 
-  deleteCampaign: async (campaignId, token, deleteOnPlatform = true) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/delete`, {
-      method: 'DELETE',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ delete_on_platform: deleteOnPlatform })
-    });
-    return handleApiResponse(response);
-  },
-
-  createManualCampaign: async (formData, token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/manual`, {
-      method: 'POST',
-      headers: { 'Authorization': token },
-      body: formData
-    });
-    return handleApiResponse(response);
-  },
-
-  updateTargeting: async (campaignId, countries, token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/targeting`, {
-      method: 'PUT',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ countries })
-    });
-    return handleApiResponse(response);
-  }
-
+  updateTargeting: (campaignId, countries) =>
+    apiFetch(`/api/v1/campaigns/${campaignId}/targeting`, { method: 'PUT', json: { countries } })
 };
 
 export const launchService = {
-  executeGlobalLaunch: async (formData, token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/launch/global`, {
-      method: 'POST',
-      headers: { 'Authorization': token },
-      body: formData
-    });
-    return handleApiResponse(response);
-  },
+  executeGlobalLaunch: (formData) =>
+    apiFetch('/api/v1/launch/global', { method: 'POST', body: formData }),
 
-  getActiveCampaigns: async (token) => {
-    const response = await fetch(`${API_BASE_URL}${ADMIN_PANEL_ENDPOINT}`, {
-      method: 'GET',
-      headers: { 'Authorization': token }
-    });
-    const data = await handleApiResponse(response);
+  getActiveCampaigns: async () => {
+    const data = await apiFetch(ADMIN_PANEL_ENDPOINT);
     const all = data.campaigns || data.campaigns_list || [];
     return all.filter(c => (c.status || '').toLowerCase() === 'active');
   },
 
-  syncAudienceToCampaigns: async (body, token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/launch/sync-audience`, {
-      method: 'POST',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    return handleApiResponse(response);
-  },
+  syncAudienceToCampaigns: (body) =>
+    apiFetch('/api/v1/launch/sync-audience', { method: 'POST', json: body }),
 
-  triggerSeoBoost: async (token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/seo/force-boost`, {
-      method: 'POST',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' }
-    });
-    return handleApiResponse(response);
-  },
+  triggerSeoBoost: () => apiFetch('/api/v1/seo/force-boost', { method: 'POST', headers: JSON_CT }),
 
-  triggerRankingCheck: async (scope, token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/seo/manual-ranking-check`, {
-      method: 'POST',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scope })
-    });
-    return handleApiResponse(response);
-  },
+  triggerRankingCheck: (scope) =>
+    apiFetch('/api/v1/seo/manual-ranking-check', { method: 'POST', json: { scope } }),
 
-  triggerScraping: async (token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/manual-scraping`, {
-      method: 'POST',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' }
-    });
-    return handleApiResponse(response);
-  },
+  triggerScraping: () => apiFetch('/api/v1/admin/manual-scraping', { method: 'POST', headers: JSON_CT }),
 
-  syncLookalikes: async (token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/audiences/sync-lookalikes`, {
-      method: 'POST',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' }
-    });
-    return handleApiResponse(response);
-  },
+  syncLookalikes: () => apiFetch('/api/v1/audiences/sync-lookalikes', { method: 'POST', headers: JSON_CT }),
 
-  fixLinkedInBids: async (token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/linkedin/fix-bids`, {
-      method: 'POST',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' }
-    });
-    return handleApiResponse(response);
-  },
+  fixLinkedInBids: () => apiFetch('/api/v1/linkedin/fix-bids', { method: 'POST', headers: JSON_CT }),
 
-  fixLinkedInTargeting: async (token, countries = null) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/linkedin/fix-targeting`, {
-      method: 'POST',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ countries })
-    });
-    return handleApiResponse(response);
-  },
+  fixLinkedInTargeting: (countries = null) =>
+    apiFetch('/api/v1/linkedin/fix-targeting', { method: 'POST', json: { countries } }),
 
-  getBrokenLinks: async (token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/seo/broken-links`, {
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' }
-    });
-    return handleApiResponse(response);
-  },
+  getBrokenLinks: () => apiFetch('/api/v1/seo/broken-links', { headers: JSON_CT }),
 
-  clearSeoHistory: async (token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/clear-seo-history`, {
-      method: 'DELETE',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' }
-    });
-    return handleApiResponse(response);
-  },
+  clearSeoHistory: () => apiFetch('/api/v1/admin/clear-seo-history', { method: 'DELETE', headers: JSON_CT }),
 
-  getRankingStatus: async (token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/seo/ranking-status`, {
-      method: 'GET',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' }
-    });
-    return handleApiResponse(response);
-  },
+  getRankingStatus: () => apiFetch('/api/v1/seo/ranking-status', { headers: JSON_CT }),
 
-  getSeoCredits: async (token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/seo/credits`, {
-      method: 'GET',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' }
-    });
-    return handleApiResponse(response);
-  },
+  getSeoCredits: () => apiFetch('/api/v1/seo/credits', { headers: JSON_CT }),
 
-  triggerManualGenesis: async (token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/seo/manual-genesis`, {
-      method: 'POST',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' }
-    });
-    return handleApiResponse(response);
-  }
+  triggerManualGenesis: () => apiFetch('/api/v1/seo/manual-genesis', { method: 'POST', headers: JSON_CT })
 };
 
 export const servicesService = {
-  list: async (token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/services`, {
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' }
-    });
-    return handleApiResponse(response);
-  },
+  list: () => apiFetch('/api/v1/admin/services', { headers: JSON_CT }),
 
-  add: async (service, token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/services`, {
-      method: 'POST',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' },
-      body: JSON.stringify(service)
-    });
-    return handleApiResponse(response);
-  },
+  add: (service) => apiFetch('/api/v1/admin/services', { method: 'POST', json: service }),
 
-  setPromoted: async (name, value, token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/services/${encodeURIComponent(name)}/promoted`, {
-      method: 'PUT',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value })
-    });
-    return handleApiResponse(response);
-  },
+  setPromoted: (name, value) =>
+    apiFetch(`/api/v1/admin/services/${encodeURIComponent(name)}/promoted`, { method: 'PUT', json: { value } }),
 
-  setActive: async (name, value, token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/services/${encodeURIComponent(name)}/active`, {
-      method: 'PUT',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value })
-    });
-    return handleApiResponse(response);
-  },
+  setActive: (name, value) =>
+    apiFetch(`/api/v1/admin/services/${encodeURIComponent(name)}/active`, { method: 'PUT', json: { value } }),
 
-  remove: async (name, token) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/services/${encodeURIComponent(name)}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' }
-    });
-    return handleApiResponse(response);
-  }
+  remove: (name) =>
+    apiFetch(`/api/v1/admin/services/${encodeURIComponent(name)}`, { method: 'DELETE', headers: JSON_CT })
 };
 
 export const notificationService = {
-  markAsRead: async (notificationId, token) => {
-    const response = await fetch(`${API_BASE_URL}${MARK_READ_ENDPOINT}/${notificationId}`, {
-      method: 'POST',
-      headers: { 'Authorization': token, 'Content-Type': 'application/json' }
-    });
-    return handleApiResponse(response);
-  }
+  markAsRead: (notificationId) =>
+    apiFetch(`${MARK_READ_ENDPOINT}/${notificationId}`, { method: 'POST', headers: JSON_CT })
+};
+
+export const authService = {
+  login: (username, password) =>
+    apiFetch('/api/v1/auth/login', { method: 'POST', json: { username, password }, auth: false }),
+
+  me: () => apiFetch('/api/v1/auth/me')
 };

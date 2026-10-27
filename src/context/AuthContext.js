@@ -1,71 +1,61 @@
 'use client';
-import React, { createContext, useState } from 'react';
-import Cookies from 'js-cookie';
-import { API_BASE_URL, ADMIN_PANEL_ENDPOINT } from '../app/config';
+import React, { createContext, useCallback, useEffect, useState } from 'react';
+import { authService } from '../services/api';
+import { UNAUTHORIZED_EVENT } from '../lib/apiClient';
+import { clearSession, getSession, saveSession } from '../lib/session';
 
 const AuthContext = createContext();
 
 const AuthProvider = ({ children }) => {
-    // 1. Lazy Initialization: Leemos la cookie solo al arrancar
-    const [basicAuthHeader, setBasicAuthHeader] = useState(() => {
-        return Cookies.get('auth_token') || null;
-    });
+    // La sesión vive en localStorage: se lee después de montar para no romper la hidratación
+    const [session, setSession] = useState(null);
+    const [isAuthChecked, setIsAuthChecked] = useState(false);
 
-    const isAuthenticated = !!basicAuthHeader;
+    const isAuthenticated = !!session;
+
+    const logout = useCallback(() => {
+        clearSession();
+        setSession(null);
+    }, []);
+
+    useEffect(() => {
+        const stored = getSession();
+        if (!stored) {
+            clearSession(); // limpia también la cookie con credenciales de la versión anterior
+        }
+        setSession(stored);
+        setIsAuthChecked(true);
+
+        // Confirmar con el servidor que la sesión guardada sigue siendo válida.
+        // Si no lo es, apiFetch recibe 401 y dispara UNAUTHORIZED_EVENT.
+        if (stored) authService.me().catch(() => {});
+    }, []);
+
+    useEffect(() => {
+        window.addEventListener(UNAUTHORIZED_EVENT, logout);
+        return () => window.removeEventListener(UNAUTHORIZED_EVENT, logout);
+    }, [logout]);
+
+    useEffect(() => {
+        if (!session) return;
+        // Cerrar sesión justo cuando el token expira
+        const timeout = setTimeout(logout, Math.max(session.expiresAt - Date.now(), 0));
+        return () => clearTimeout(timeout);
+    }, [session, logout]);
 
     const login = async (username, password) => {
-        // A. Preparamos la cabecera (Igual que antes)
-        const credentials = btoa(`${username}:${password}`);
-        const header = `Basic ${credentials}`;
-
         try {
-            // B. PASO DE SEGURIDAD: Intentamos conectar al servidor
-            // Hacemos una petición ligera al panel solo para ver si nos deja entrar
-            const response = await fetch(`${API_BASE_URL}${ADMIN_PANEL_ENDPOINT}`, {
-                method: 'GET',
-                headers: { 
-                    'Authorization': header,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            // C. Si el servidor dice "401 Unauthorized" o "403 Forbidden"...
-            if (!response.ok) {
-                if (response.status === 401) {
-                    throw new Error('Usuario o contraseña incorrectos');
-                } else {
-                    throw new Error(`Error del servidor: ${response.status}`);
-                }
-            }
-
-            // D. SOLO SI EL SERVIDOR RESPONDIÓ 200 OK, GUARDAMOS
-            setBasicAuthHeader(header);
-            
-            // Seguridad de Cookies para Producción
-            Cookies.set('auth_token', header, { 
-                expires: 1, // 1 día
-                secure: window.location.protocol === 'https:', // Solo enviar por HTTPS
-                sameSite: 'strict' // Previene ataques CSRF
-            });
-
-            return true; // Éxito
-
+            const data = await authService.login(username, password);
+            setSession(saveSession(data.token, data.expires_in, data.user));
+            return true;
         } catch (error) {
-            // Si falló, no guardamos nada y lanzamos el error para que la pantalla lo muestre
             console.error("Login fallido:", error);
             throw error;
         }
     };
 
-    const logout = () => {
-        setBasicAuthHeader(null);
-        Cookies.remove('auth_token');
-        // Opcional: Redirigir o recargar para limpiar estados
-        window.location.href = '/'; 
-    };
-
     return (
-        <AuthContext.Provider value={{ isAuthenticated, basicAuthHeader, login, logout }}>
+        <AuthContext.Provider value={{ isAuthenticated, isAuthChecked, user: session?.user, login, logout }}>
             {children}
         </AuthContext.Provider>
     );

@@ -1,34 +1,15 @@
-import useSWR, { mutate } from 'swr';
+import useSWR from 'swr';
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { API_BASE_URL, ADMIN_PANEL_ENDPOINT } from '../app/config';
-
-// Función fetcher genérica
-const fetcher = async (url, token) => {
-    const res = await fetch(url, {
-        headers: {
-            'Authorization': token,
-            'Content-Type': 'application/json'
-        }
-    });
-
-    if (!res.ok) {
-        const error = new Error('Error al cargar datos');
-        error.status = res.status;
-        throw error;
-    }
-    return res.json();
-};
+import { ADMIN_PANEL_ENDPOINT } from '../app/config';
+import { apiFetch } from '../lib/apiClient';
 
 export function useDashboardData(days = null) {
-    const { basicAuthHeader } = useContext(AuthContext);
+    const { isAuthenticated } = useContext(AuthContext);
 
     const { data, error, isLoading, mutate } = useSWR(
-        basicAuthHeader ? [`${API_BASE_URL}${ADMIN_PANEL_ENDPOINT}`, basicAuthHeader, days] : null,
-        ([url, token, d]) => {
-            const finalUrl = d ? `${url}?days=${d}` : url;
-            return fetcher(finalUrl, token);
-        },
+        isAuthenticated ? [ADMIN_PANEL_ENDPOINT, days] : null,
+        ([path, d]) => apiFetch(d ? `${path}?days=${d}` : path, { headers: { 'Content-Type': 'application/json' } }),
         {
             refreshInterval: 10000,
             revalidateOnFocus: true,

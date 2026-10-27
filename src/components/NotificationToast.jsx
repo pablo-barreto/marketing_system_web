@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useRef, useCallback, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { notificationService } from '../services/api';
-import { API_BASE_URL, NOTIFICATIONS_ENDPOINT } from '../app/config';
+import { NOTIFICATIONS_ENDPOINT } from '../app/config';
+import { apiFetch } from '../lib/apiClient';
 
 // Íconos por tipo de notificación
 const NOTIFICATION_ICONS = {
@@ -126,25 +127,20 @@ const Toast = ({ notification, onDismiss }) => {
 
 // ─── CONTENEDOR AUTOCONTENIDO CON POLLING DIRECTO ────────────
 const NotificationToast = () => {
-    const { basicAuthHeader } = useContext(AuthContext);
+    const { isAuthenticated } = useContext(AuthContext);
     const [visibleToasts, setVisibleToasts] = useState([]);
     const seenIdsRef = useRef(new Set());
     const initialLoadDone = useRef(false);
 
     // Polling directo con setInterval + fetch (sin SWR, sin caching)
     useEffect(() => {
-        if (!basicAuthHeader) return;
+        if (!isAuthenticated) return;
 
         const fetchNotifications = async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}${NOTIFICATIONS_ENDPOINT}`, {
-                    headers: {
-                        'Authorization': basicAuthHeader,
-                        'Content-Type': 'application/json'
-                    }
+                const notifications = await apiFetch(NOTIFICATIONS_ENDPOINT, {
+                    headers: { 'Content-Type': 'application/json' }
                 });
-                if (!res.ok) return;
-                const notifications = await res.json();
 
                 if (!notifications || notifications.length === 0) return;
 
@@ -178,20 +174,20 @@ const NotificationToast = () => {
         const interval = setInterval(fetchNotifications, POLL_INTERVAL_MS);
 
         return () => clearInterval(interval);
-    }, [basicAuthHeader]);
+    }, [isAuthenticated]);
 
     // Dismiss: quitar del stack visual + marcar como leída en backend
     const handleDismiss = useCallback(async (notificationId) => {
         setVisibleToasts(prev => prev.filter(n => n.id !== notificationId));
 
         try {
-            if (basicAuthHeader) {
-                await notificationService.markAsRead(notificationId, basicAuthHeader);
+            if (isAuthenticated) {
+                await notificationService.markAsRead(notificationId);
             }
         } catch (err) {
             console.error('Error marcando notificación como leída:', err);
         }
-    }, [basicAuthHeader]);
+    }, [isAuthenticated]);
 
     if (visibleToasts.length === 0) return null;
 

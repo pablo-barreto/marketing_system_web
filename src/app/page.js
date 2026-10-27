@@ -1,7 +1,7 @@
 // src/app/page.js
 'use client';
 
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext } from 'react';
 import { AuthProvider, AuthContext } from '../context/AuthContext';
 import AdminDashboard from '../components/AdminDashboard';
 import LoginScreen from '../components/LoginScreen';
@@ -14,14 +14,7 @@ const LoadingSkeleton = () => (
 );
 
 const MainContent = () => {
-  const { isAuthenticated } = useContext(AuthContext);
-  const [isAuthChecked, setIsAuthChecked] = useState(false);
-
-  useEffect(() => {
-    // Verificamos la cookie/localStorage aquí
-    // El AuthContext ya hace esto, pero necesitamos saber cuándo TERMINÓ de verificar
-    setIsAuthChecked(true); 
-  }, [isAuthenticated]);
+  const { isAuthenticated, isAuthChecked } = useContext(AuthContext);
 
   // Si no hemos terminado de verificar la autenticación, mostramos Skeleton
   // Esto renderiza algo visual en lugar de nada, evitando el layout shift brusco

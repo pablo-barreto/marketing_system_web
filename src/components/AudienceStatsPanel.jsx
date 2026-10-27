@@ -23,15 +23,15 @@ const toApiDays = (days) => {
 const money = (v) => (v === null || v === undefined ? '—' : `$${Math.round(v).toLocaleString('es-CO')}`);
 
 const AudienceStatsPanel = ({ days }) => {
-    const { basicAuthHeader } = useContext(AuthContext);
+    const { isAuthenticated } = useContext(AuthContext);
     const [stats, setStats] = useState(null);
     const [error, setError] = useState('');
     const apiDays = toApiDays(days);
 
     useEffect(() => {
-        if (!basicAuthHeader) return;
+        if (!isAuthenticated) return;
         let cancelled = false;
-        campaignService.getAudienceStats(apiDays, basicAuthHeader)
+        campaignService.getAudienceStats(apiDays)
             .then(data => { if (!cancelled) { setStats(data); setError(''); } })
             .catch(err => {
                 if (cancelled) return;
@@ -39,7 +39,7 @@ const AudienceStatsPanel = ({ days }) => {
                 setError(err.message || 'No se pudieron cargar las métricas.');
             });
         return () => { cancelled = true; };
-    }, [apiDays, basicAuthHeader]);
+    }, [apiDays, isAuthenticated]);
 
     const leads = stats?.leads_by_customer_type || [];
     const campaigns = stats?.campaigns_by_audience_type || [];

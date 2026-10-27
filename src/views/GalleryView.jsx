@@ -1,14 +1,13 @@
 'use client';
-import React, { useEffect, useState, useContext, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { campaignService } from '../services/api';
-import { AuthContext } from '../context/AuthContext';
-import { API_BASE_URL, URL_IMAGES } from '../app/config';
+import { URL_IMAGES } from '../app/config';
+import { apiFetch } from '../lib/apiClient';
 import FormattedDate from '../components/FormattedDate';
 import AudienceSelect, { AUDIENCE_OPTIONS, DEFAULT_AUDIENCE, skippedNotice } from '../components/AudienceSelect';
 
 const GalleryView = ({ config }) => {
-    const { basicAuthHeader } = useContext(AuthContext);
     const [creatives, setCreatives] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -34,7 +33,7 @@ const GalleryView = ({ config }) => {
     const loadImages = async () => {
         setLoading(true);
         try {
-            const data = await campaignService.getCreatives(basicAuthHeader);
+            const data = await campaignService.getCreatives();
             setCreatives(data);
         } catch (error) {
             console.error(error);
@@ -62,18 +61,13 @@ const GalleryView = ({ config }) => {
             const formData = new FormData();
             formData.append('image', file);
 
-            const analyzeRes = await fetch(`${API_BASE_URL}/api/v1/assets/analyze`, {
-                method: 'POST',
-                headers: { 'Authorization': basicAuthHeader },
-                body: formData
-            });
+            // Si el análisis falla se usa "General", igual que antes
+            const result = await apiFetch('/api/v1/assets/analyze', { method: 'POST', body: formData })
+                .catch(err => { console.warn('Análisis IA no disponible:', err.message); return null; });
 
             let serviceName = "General";
-            if (analyzeRes.ok) {
-                const result = await analyzeRes.json();
-                if (result.data?.service) {
-                    serviceName = result.data.service;
-                }
+            if (result?.data?.service) {
+                serviceName = result.data.service;
             }
 
             // 2. ACTUALIZACIÓN VISUAL (El usuario ve el cambio aquí)
@@ -88,7 +82,7 @@ const GalleryView = ({ config }) => {
             createForm.append('platform', 'all');
             createForm.append('audience_type', audienceType);
 
-            const createRes = await campaignService.uploadCreative(createForm, basicAuthHeader);
+            const createRes = await campaignService.uploadCreative(createForm);
             const notice = skippedNotice(createRes?.skipped);
 
             Swal.fire({
@@ -166,7 +160,6 @@ const GalleryView = ({ config }) => {
                 creative.id,
                 formValues.budget,
                 formValues.platform,
-                basicAuthHeader,
                 formValues.audienceType
             );
             const notice = skippedNotice(relaunchRes?.skipped);
@@ -197,7 +190,7 @@ const GalleryView = ({ config }) => {
         });
         if (result.isConfirmed) {
             try {
-                await campaignService.deleteCreative(id, basicAuthHeader);
+                await campaignService.deleteCreative(id);
                 setCreatives(prev => prev.filter(img => img.id !== id));
                 Swal.fire({ title: 'Eliminado', icon: 'success', timer: 1000, showConfirmButton: false });
             } catch (error) {

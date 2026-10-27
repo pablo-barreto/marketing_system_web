@@ -1,24 +1,17 @@
 'use client';
-import React, { useEffect, useState, useContext } from 'react';
-import { API_BASE_URL } from '../app/config';
-import { AuthContext } from '../context/AuthContext';
+import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../lib/apiClient';
 import FormattedDate from './FormattedDate';
 
 const AudienceModal = ({ campaign, onClose }) => {
-    const { basicAuthHeader } = useContext(AuthContext);
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchAudience = async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaign.id}/audience`, {
-                    headers: { 'Authorization': basicAuthHeader }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    setUsers(data);
-                }
+                const data = await apiFetch(`/api/v1/campaigns/${campaign.id}/audience`);
+                setUsers(data);
             } catch (error) {
                 console.error("Error cargando audiencia", error);
             } finally {
@@ -26,7 +19,7 @@ const AudienceModal = ({ campaign, onClose }) => {
             }
         };
         fetchAudience();
-    }, [campaign, basicAuthHeader]);
+    }, [campaign]);
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fade-in">

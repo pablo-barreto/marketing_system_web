@@ -4,8 +4,9 @@ import StatusBadge from './StatusBadge';
 import Swal from 'sweetalert2';
 import AudienceModal from './AudienceModal';
 import { AudienceBadge } from './AudienceSelect';
-import { URL_IMAGES, API_BASE_URL } from '../app/config';
+import { URL_IMAGES } from '../app/config';
 import { campaignService, launchService } from '../services/api';
+import { apiFetch } from '../lib/apiClient';
 
 // =============================================================================
 // HELPER: NORMALIZADOR DE IMÁGENES (Soporta GCS y Local Windows/Linux)
@@ -119,13 +120,7 @@ const CampaignPreviewModal = ({ campaign, onClose, onApprove, onToggleStatus, on
         const fetchBid = async () => {
             setBidLoading(true);
             try {
-                const value = `; ${document.cookie}`;
-                const parts = value.split(`; auth_token=`);
-                const token = parts.length === 2 ? decodeURIComponent(parts.pop().split(';').shift()) : null;
-                const resp = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaign.id}/bid`, {
-                    headers: { 'Authorization': token }
-                });
-                if (resp.ok) setBidInfo(await resp.json());
+                setBidInfo(await apiFetch(`/api/v1/campaigns/${campaign.id}/bid`));
             } catch {
                 // fallo silencioso
             } finally {
@@ -417,13 +412,6 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
 
     const handlePageSizeChange = (e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); };
 
-    const getAuthToken = () => {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; auth_token=`);
-        if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
-        return null;
-    };
-
     const updateLocalCampaignData = (campaignId, newData) => {
         setLocalCampaigns(prev => prev.map(c =>
             c.id === campaignId ? { ...c, ...newData } : c
@@ -453,20 +441,13 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
         if (newBudget) {
             Swal.fire({ title: 'Actualizando...', didOpen: () => Swal.showLoading() });
             try {
-                const token = getAuthToken();
-                const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaign.id}/budget`, {
+                const data = await apiFetch(`/api/v1/campaigns/${campaign.id}/budget`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': token },
-                    body: JSON.stringify({ budget: newBudget })
+                    json: { budget: newBudget }
                 });
-                const data = await response.json();
-                if (response.ok) {
-                    const confirmedBudget = data.new_budget ? parseFloat(data.new_budget) : parseFloat(newBudget);
-                    updateLocalCampaignData(campaign.id, { budget: confirmedBudget });
-                    Swal.fire({ title: '¡Actualizado!', text: `Nuevo presupuesto: $${confirmedBudget.toLocaleString()}`, icon: 'success', timer: 2000 });
-                } else {
-                    throw new Error(data.error || 'Error al actualizar en plataforma');
-                }
+                const confirmedBudget = data.new_budget ? parseFloat(data.new_budget) : parseFloat(newBudget);
+                updateLocalCampaignData(campaign.id, { budget: confirmedBudget });
+                Swal.fire({ title: '¡Actualizado!', text: `Nuevo presupuesto: $${confirmedBudget.toLocaleString()}`, icon: 'success', timer: 2000 });
             } catch (error) {
                 Swal.fire('Error', error.message, 'error');
             }
@@ -476,20 +457,13 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
     const handleDirectBudgetUpdate = async (campaign, newBudget) => {
         Swal.fire({ title: 'Actualizando...', didOpen: () => Swal.showLoading() });
         try {
-            const token = getAuthToken();
-            const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaign.id}/budget`, {
+            const data = await apiFetch(`/api/v1/campaigns/${campaign.id}/budget`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': token },
-                body: JSON.stringify({ budget: newBudget })
+                json: { budget: newBudget }
             });
-            const data = await response.json();
-            if (response.ok) {
-                const confirmed = data.new_budget ? parseFloat(data.new_budget) : parseFloat(newBudget);
-                updateLocalCampaignData(campaign.id, { budget: confirmed });
-                Swal.fire({ title: '¡Actualizado!', text: `Nuevo presupuesto: $${confirmed.toLocaleString()}`, icon: 'success', timer: 2000 });
-            } else {
-                throw new Error(data.error || 'Error al actualizar en plataforma');
-            }
+            const confirmed = data.new_budget ? parseFloat(data.new_budget) : parseFloat(newBudget);
+            updateLocalCampaignData(campaign.id, { budget: confirmed });
+            Swal.fire({ title: '¡Actualizado!', text: `Nuevo presupuesto: $${confirmed.toLocaleString()}`, icon: 'success', timer: 2000 });
         } catch (error) {
             Swal.fire('Error', error.message, 'error');
         }
@@ -498,18 +472,11 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
     const handleDirectBidUpdate = async (campaign, newBid) => {
         Swal.fire({ title: 'Actualizando puja...', didOpen: () => Swal.showLoading() });
         try {
-            const token = getAuthToken();
-            const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaign.id}/bid`, {
+            await apiFetch(`/api/v1/campaigns/${campaign.id}/bid`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': token },
-                body: JSON.stringify({ bid: newBid })
+                json: { bid: newBid }
             });
-            const data = await response.json();
-            if (response.ok) {
-                Swal.fire({ title: '¡Puja actualizada!', text: `Nueva puja CPC: $${parseFloat(newBid).toLocaleString()} COP`, icon: 'success', timer: 2000 });
-            } else {
-                throw new Error(data.error || 'Error al actualizar la puja');
-            }
+            Swal.fire({ title: '¡Puja actualizada!', text: `Nueva puja CPC: $${parseFloat(newBid).toLocaleString()} COP`, icon: 'success', timer: 2000 });
         } catch (error) {
             Swal.fire('Error', error.message, 'error');
         }
@@ -518,22 +485,15 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
     const handleDirectEndDateUpdate = async (campaign, newEndDate) => {
         Swal.fire({ title: 'Actualizando...', didOpen: () => Swal.showLoading() });
         try {
-            const token = getAuthToken();
-            const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaign.id}/end-date`, {
+            await apiFetch(`/api/v1/campaigns/${campaign.id}/end-date`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': token },
-                body: JSON.stringify({ end_date: newEndDate })
+                json: { end_date: newEndDate }
             });
-            const data = await response.json();
-            if (response.ok) {
-                updateLocalCampaignData(campaign.id, { end_date: newEndDate });
-                const label = newEndDate
-                    ? `Fecha límite: ${new Date(newEndDate).toLocaleDateString('es-CO')}`
-                    : 'Fecha límite eliminada';
-                Swal.fire({ title: '¡Actualizado!', text: label, icon: 'success', timer: 2000 });
-            } else {
-                throw new Error(data.error || 'Error al actualizar');
-            }
+            updateLocalCampaignData(campaign.id, { end_date: newEndDate });
+            const label = newEndDate
+                ? `Fecha límite: ${new Date(newEndDate).toLocaleDateString('es-CO')}`
+                : 'Fecha límite eliminada';
+            Swal.fire({ title: '¡Actualizado!', text: label, icon: 'success', timer: 2000 });
         } catch (error) {
             Swal.fire('Error', error.message, 'error');
         }
@@ -545,28 +505,21 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
                 c.platform && (c.platform.toLowerCase().includes('facebook') || c.platform.toLowerCase().includes('instagram') || c.platform.toLowerCase().includes('linkedin'))
             );
             if (campaignsToCheck.length === 0) return;
-            const token = getAuthToken();
-            if (!token) return;
 
             campaignsToCheck.forEach(async (campaign) => {
                 try {
-                    const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaign.id}/real-status`, {
-                        headers: { 'Authorization': token }
-                    });
-                    if (response.ok) {
-                        const data = await response.json();
-                        const updates = {};
-                        let hasChanges = false;
-                        if (data.status && data.status !== campaign.status) {
-                            updates.status = data.status;
-                            hasChanges = true;
-                        }
-                        if (data.budget && Math.abs(data.budget - campaign.budget) > 1) {
-                            updates.budget = data.budget;
-                            hasChanges = true;
-                        }
-                        if (hasChanges) updateLocalCampaignData(campaign.id, updates);
+                    const data = await apiFetch(`/api/v1/campaigns/${campaign.id}/real-status`);
+                    const updates = {};
+                    let hasChanges = false;
+                    if (data.status && data.status !== campaign.status) {
+                        updates.status = data.status;
+                        hasChanges = true;
                     }
+                    if (data.budget && Math.abs(data.budget - campaign.budget) > 1) {
+                        updates.budget = data.budget;
+                        hasChanges = true;
+                    }
+                    if (hasChanges) updateLocalCampaignData(campaign.id, updates);
                 } catch (e) { console.error("Auto-check failed", e); }
             });
         };
@@ -582,40 +535,32 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
             didOpen: () => { Swal.showLoading(); }
         });
         try {
-            const token = getAuthToken();
-            const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/real-status`, {
-                headers: { 'Authorization': token }
+            const data = await apiFetch(`/api/v1/campaigns/${campaignId}/real-status`);
+
+            // AQUÍ ESTÁ LA MAGIA: Actualizamos también spend y conversions
+            updateLocalCampaignData(campaignId, {
+                status: data.status,
+                budget: data.budget,
+                spend: data.spend,           // <--- Nuevo
+                conversions: data.conversions // <--- Nuevo
             });
-            const data = await response.json();
 
-            if (response.ok) {
-                // AQUÍ ESTÁ LA MAGIA: Actualizamos también spend y conversions
-                updateLocalCampaignData(campaignId, {
-                    status: data.status,
-                    budget: data.budget,
-                    spend: data.spend,           // <--- Nuevo
-                    conversions: data.conversions // <--- Nuevo
-                });
+            const isError = ['WITH_ISSUES', 'DISAPPROVED', 'REJECTED'].includes(data.status);
 
-                const isError = ['WITH_ISSUES', 'DISAPPROVED', 'REJECTED'].includes(data.status);
-
-                Swal.fire({
-                    title: 'Datos Actualizados',
-                    html: `
-                        <div class="text-sm text-left">
-                            <p><strong>Estado:</strong> ${data.label || data.status}</p>
-                            ${isError && data.reason ? `<p><strong>Motivo:</strong> ${data.reason}</p>` : ''}
-                            <p><strong>Gasto Real:</strong> $${data.spend?.toLocaleString()}</p>
-                            <p><strong>Leads/Conv:</strong> ${data.conversions}</p>
-                        </div>
-                    `,
-                    icon: isError ? 'warning' : 'success',
-                    timer: isError ? undefined : 2000,
-                    showConfirmButton: isError
-                });
-            } else {
-                throw new Error(data.error || 'Error API');
-            }
+            Swal.fire({
+                title: 'Datos Actualizados',
+                html: `
+                    <div class="text-sm text-left">
+                        <p><strong>Estado:</strong> ${data.label || data.status}</p>
+                        ${isError && data.reason ? `<p><strong>Motivo:</strong> ${data.reason}</p>` : ''}
+                        <p><strong>Gasto Real:</strong> $${data.spend?.toLocaleString()}</p>
+                        <p><strong>Leads/Conv:</strong> ${data.conversions}</p>
+                    </div>
+                `,
+                icon: isError ? 'warning' : 'success',
+                timer: isError ? undefined : 2000,
+                showConfirmButton: isError
+            });
         } catch (error) {
             Swal.fire({ title: 'Error', text: error.message, icon: 'warning' });
         }
@@ -637,18 +582,12 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const token = getAuthToken();
-                    const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}/status`, {
+                    await apiFetch(`/api/v1/campaigns/${campaignId}/status`, {
                         method: 'PUT',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': token },
-                        body: JSON.stringify({ status: targetStatus })
+                        json: { status: targetStatus }
                     });
-                    if (response.ok) {
-                        updateLocalCampaignData(campaignId, { status: targetStatus });
-                        Swal.fire({ title: '¡Listo!', text: `Campaña ${targetStatus === 'ACTIVE' ? 'activada' : 'pausada'}.`, icon: 'success', timer: 1500, showConfirmButton: false });
-                    } else {
-                        throw new Error('Error servidor');
-                    }
+                    updateLocalCampaignData(campaignId, { status: targetStatus });
+                    Swal.fire({ title: '¡Listo!', text: `Campaña ${targetStatus === 'ACTIVE' ? 'activada' : 'pausada'}.`, icon: 'success', timer: 1500, showConfirmButton: false });
                 } catch (error) {
                     Swal.fire('Error', error.message, 'error');
                 }
@@ -697,8 +636,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
 
         if (result.isConfirmed) {
             try {
-                const token = getAuthToken();
-                await campaignService.resetMetrics(campaignId, token);
+                await campaignService.resetMetrics(campaignId);
 
                 // Actualizamos la UI localmente sin recargar toda la página 
                 updateLocalCampaignData(campaignId, {
@@ -771,8 +709,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
 
         Swal.fire({ title: 'Actualizando...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
         try {
-            const token = getAuthToken();
-            await campaignService.updateTargeting(campaign.id, result.value, token);
+            await campaignService.updateTargeting(campaign.id, result.value);
             Swal.fire({
                 title: '¡Targeting actualizado!',
                 text: `Países: ${result.value.join(', ')}`,
@@ -824,25 +761,15 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
 
             Swal.fire({ title: 'Eliminando...', didOpen: () => Swal.showLoading() });
             try {
-                const token = getAuthToken();
-                const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaign.id}/delete`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': token, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ delete_on_platform: deleteOnPlatform })
+                const data = await campaignService.deleteCampaign(campaign.id, deleteOnPlatform);
+                setLocalCampaigns(prev => prev.filter(c => c.id !== campaign.id));
+                Swal.fire({
+                    title: '✅ Eliminada',
+                    text: data.message || 'La campaña fue eliminada del sistema.',
+                    icon: 'success',
+                    timer: 2500,
+                    showConfirmButton: false
                 });
-                const data = await response.json();
-                if (response.ok) {
-                    setLocalCampaigns(prev => prev.filter(c => c.id !== campaign.id));
-                    Swal.fire({
-                        title: '✅ Eliminada',
-                        text: data.message || 'La campaña fue eliminada del sistema.',
-                        icon: 'success',
-                        timer: 2500,
-                        showConfirmButton: false
-                    });
-                } else {
-                    throw new Error(data.message || 'Error al eliminar');
-                }
             } catch (error) {
                 Swal.fire('Error', error.message, 'error');
             }
@@ -922,8 +849,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
         if (result.isConfirmed) {
             Swal.fire({ title: 'Procesando...', didOpen: () => Swal.showLoading() });
             try {
-                const token = getAuthToken();
-                const res = await launchService.fixLinkedInBids(token);
+                const res = await launchService.fixLinkedInBids();
                 Swal.fire('Completado', `Se repararon ${res.fixed || 0} campañas.`, 'success');
             } catch (error) {
                 Swal.fire('Error', error.message, 'error');
@@ -948,8 +874,7 @@ const CampaignTable = ({ campaigns: initialCampaigns, onApprove, config }) => {
         if (result.isConfirmed) {
             Swal.fire({ title: 'Actualizando targeting...', text: 'Esto puede tomar unos segundos...', didOpen: () => Swal.showLoading() });
             try {
-                const token = getAuthToken();
-                const res = await launchService.fixLinkedInTargeting(token);
+                const res = await launchService.fixLinkedInTargeting();
                 Swal.fire({
                     title: '✅ Targeting Actualizado',
                     html: `

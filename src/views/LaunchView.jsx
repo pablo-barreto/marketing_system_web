@@ -6,7 +6,7 @@ import GlobalLauncherUI from '../components/GlobalLauncherUI';
 import IntentDashboard from '../components/IntentDashboard';
 
 const LaunchView = ({ crmData }) => {
-  const { basicAuthHeader } = useContext(AuthContext);
+  const { isAuthenticated } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
   const [activeCampaigns, setActiveCampaigns] = useState([]);
 
@@ -51,10 +51,10 @@ const LaunchView = ({ crmData }) => {
   // -----------------------------------------------------------------------
 
   useEffect(() => {
-    launchService.getActiveCampaigns(basicAuthHeader)
+    launchService.getActiveCampaigns()
       .then(setActiveCampaigns)
       .catch(() => {});
-  }, [basicAuthHeader]);
+  }, [isAuthenticated]);
 
   // -----------------------------------------------------------------------
   // 3. HANDLERS DE ACCIÓN
@@ -81,7 +81,7 @@ const LaunchView = ({ crmData }) => {
         formData.append('service_interests', targetServices.join(','));
       }
 
-      const res = await launchService.executeGlobalLaunch(formData, basicAuthHeader);
+      const res = await launchService.executeGlobalLaunch(formData);
 
       let successMsg = `Se impactaron ${res.leads_impacted || 'múltiples'} leads.`;
       if (res.segment === 'top_roles') successMsg += ` Roles Top: [${res.roles_targeted?.join(', ')}]`;
@@ -109,7 +109,7 @@ const LaunchView = ({ crmData }) => {
         audience_type: audienceType
       };
 
-      await launchService.syncAudienceToCampaigns(body, basicAuthHeader);
+      await launchService.syncAudienceToCampaigns(body);
 
       Swal.fire({
         title: '¡Sincronización Encolada!',
@@ -134,7 +134,7 @@ const LaunchView = ({ crmData }) => {
     });
 
     try {
-      const res = await launchService.syncLookalikes(basicAuthHeader);
+      const res = await launchService.syncLookalikes();
 
       const detailsHtml = Object.entries(res.platforms || {})
         .map(([plat, status]) => `<li style="margin-bottom:4px; font-size: 0.85rem;"><b>${plat}:</b> <span style="color:#059669">${status}</span></li>`)

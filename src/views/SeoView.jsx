@@ -1,13 +1,11 @@
 'use client';
-import React, { useContext } from 'react';
+import React from 'react';
 import SeoRankingTable from '../components/SeoRankingTable';
 import ContentTable from '../components/ContentTable';
-import { AuthContext } from '../context/AuthContext';
 import { launchService } from '../services/api';
 import Swal from 'sweetalert2';
 
 const SeoView = ({ rankings, content }) => {
-    const { basicAuthHeader } = useContext(AuthContext);
     const [credits, setCredits] = React.useState(null);
     const [loadingCredits, setLoadingCredits] = React.useState(true);
     const [rankingStatus, setRankingStatus] = React.useState(null);
@@ -20,7 +18,7 @@ const SeoView = ({ rankings, content }) => {
     React.useEffect(() => {
         const fetchCredits = async () => {
             try {
-                const data = await launchService.getSeoCredits(basicAuthHeader);
+                const data = await launchService.getSeoCredits();
                 // SerpHouse typically returns credits in data.data.credits or similar
                 // Adjust based on the actual observed response
                 const remaining = data?.data?.credits || data?.credits || 0;
@@ -34,17 +32,17 @@ const SeoView = ({ rankings, content }) => {
         };
 
         fetchCredits();
-    }, [basicAuthHeader]);
+    }, []);
 
     // Estado de cooldown: nacional 1 vez/semana, internacional 1 vez/mes
     const fetchRankingStatus = React.useCallback(async () => {
         try {
-            const data = await launchService.getRankingStatus(basicAuthHeader);
+            const data = await launchService.getRankingStatus();
             setRankingStatus(data?.data || null);
         } catch (error) {
             console.error("Error fetching ranking status:", error);
         }
-    }, [basicAuthHeader]);
+    }, []);
 
     React.useEffect(() => {
         fetchRankingStatus();
@@ -76,7 +74,7 @@ const SeoView = ({ rankings, content }) => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    await launchService.triggerSeoBoost(basicAuthHeader);
+                    await launchService.triggerSeoBoost();
                     Swal.fire('Iniciado', 'El motor SEO está trabajando en segundo plano.', 'success');
                 } catch (e) {
                     Swal.fire('Error', e.message, 'error');
@@ -96,7 +94,7 @@ const SeoView = ({ rankings, content }) => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    await launchService.triggerScraping(basicAuthHeader);
+                    await launchService.triggerScraping();
                     Swal.fire('Iniciado', 'Sincronización de servicios en segundo plano. Recibirás una notificación al finalizar.', 'success');
                 } catch (e) {
                     Swal.fire('Error', e.message, 'error');
@@ -116,7 +114,7 @@ const SeoView = ({ rankings, content }) => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    await launchService.triggerManualGenesis(basicAuthHeader);
+                    await launchService.triggerManualGenesis();
                     Swal.fire('Iniciado', 'La IA está generando el artículo y las FAQs en segundo plano.', 'success');
                 } catch (e) {
                     Swal.fire('Error', e.message, 'error');
@@ -136,7 +134,7 @@ const SeoView = ({ rankings, content }) => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    await launchService.clearSeoHistory(basicAuthHeader);
+                    await launchService.clearSeoHistory();
                     Swal.fire('Limpiado', 'El historial ha sido eliminado.', 'success').then(() => {
                         window.location.reload();
                     });

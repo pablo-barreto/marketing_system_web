@@ -1,10 +1,9 @@
 // src/views/CampaignsView.jsx
-import React, { useState, useRef, useContext } from 'react';
+import React, { useState, useRef } from 'react';
 import Swal from 'sweetalert2';
 import CampaignTable from '../components/CampaignTable';
 import { campaignService } from '../services/api';
-import { AuthContext } from '../context/AuthContext';
-import { API_BASE_URL } from '../app/config';
+import { apiFetch } from '../lib/apiClient';
 import AudienceSelect, { DEFAULT_AUDIENCE, skippedNotice } from '../components/AudienceSelect';
 
 const PLATFORM_NAMES = { facebook: 'Meta', linkedin: 'LinkedIn', google: 'Google Ads' };
@@ -17,7 +16,7 @@ const publishedPlatforms = (platform, skipped = []) => {
 };
 
 // --- MODAL: CAMPAÑA MANUAL ---
-const ManualCampaignModal = ({ onClose, token, services = [] }) => {
+const ManualCampaignModal = ({ onClose, services = [] }) => {
     const [form, setForm] = useState({ title: '', body: '', redirect_url: '', whatsapp_number: '', service: '', platform: 'facebook', budget: 50000, end_date: '', audience_type: DEFAULT_AUDIENCE });
     const [file, setFile] = useState(null);
     const [preview, setPreview] = useState(null);
@@ -51,7 +50,7 @@ const ManualCampaignModal = ({ onClose, token, services = [] }) => {
             formData.append('audience_type', form.audience_type);
             if (form.end_date) formData.append('end_date', form.end_date);
 
-            const res = await campaignService.createManualCampaign(formData, token);
+            const res = await campaignService.createManualCampaign(formData);
             const platforms = res.created?.map(c => c.platform).join(', ') || 'plataformas';
             const notice = skippedNotice(res.skipped);
             Swal.fire({ title: '¡Campaña Creada!', text: `Publicada en: ${platforms}${notice ? `. ${notice}` : ''}`, icon: 'success' });
@@ -283,7 +282,6 @@ const CampaignsView = ({
     handleApprove,
     config
 }) => {
-    const { basicAuthHeader } = useContext(AuthContext);
 
     // Estados Locales
     const [showManualModal, setShowManualModal] = useState(false);
@@ -318,17 +316,14 @@ const CampaignsView = ({
             formData.append('image', file);
 
             // 1. ANÁLISIS IA
-            const response = await fetch(`${API_BASE_URL}/api/v1/assets/analyze`, {
-                method: 'POST',
-                headers: { 'Authorization': basicAuthHeader },
-                body: formData
-            });
+            // Si el análisis falla se sigue sin servicio detectado, igual que antes
+            const result = await apiFetch('/api/v1/assets/analyze', { method: 'POST', body: formData })
+                .catch(err => { console.warn('Análisis IA no disponible:', err.message); return null; });
 
             let detectedService = "";
             let platformToUse = selectedPlatform;
 
-            if (response.ok) {
-                const result = await response.json();
+            if (result) {
 
                 if (result.status === 'success' && result.data) {
                     const aiServiceName = result.data.service;
@@ -378,7 +373,7 @@ const CampaignsView = ({
             formData.append('platform', platformName);
             formData.append('audience_type', audienceType);
 
-            const res = await campaignService.uploadCreative(formData, basicAuthHeader);
+            const res = await campaignService.uploadCreative(formData);
             const notice = skippedNotice(res?.skipped);
 
             Swal.fire({
@@ -435,7 +430,6 @@ const CampaignsView = ({
 
             {showManualModal && (
                 <ManualCampaignModal
-                    token={basicAuthHeader}
                     services={availableServices}
                     onClose={() => setShowManualModal(false)}
                 />
