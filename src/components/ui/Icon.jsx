@@ -20,6 +20,8 @@ const PATHS = {
     check: 'M5 12l5 5 9-10',
     chevronLeft: 'M15 6l-6 6 6 6',
     chevronRight: 'M9 6l6 6-6 6',
+    mail: 'M3 5h18v14H3z M3 6l9 7 9-7',
+    clock: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M12 7v5l3 2',
     external: 'M14 4h6v6 M20 4l-9 9 M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
 };
 

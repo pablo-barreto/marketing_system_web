@@ -86,6 +86,17 @@ export const servicesService = {
     apiFetch(`/api/v1/admin/services/${encodeURIComponent(name)}`, { method: 'DELETE', headers: JSON_CT })
 };
 
+// Automatizaciones semanales (Configuración → Automatizaciones)
+export const automationService = {
+  saveLeadsReport: (changes) => apiFetch('/api/v1/automation/leads-report', { method: 'PUT', json: changes }),
+
+  previewLeadsReport: () => apiFetch('/api/v1/automation/leads-report/preview'),
+
+  sendLeadsReportNow: () => apiFetch('/api/v1/automation/leads-report/send', { method: 'POST', headers: JSON_CT }),
+
+  saveWeeklyMetaBudget: (changes) => apiFetch('/api/v1/automation/weekly-meta-budget', { method: 'PUT', json: changes })
+};
+
 export const notificationService = {
   markAsRead: (notificationId) =>
     apiFetch(`${MARK_READ_ENDPOINT}/${notificationId}`, { method: 'POST', headers: JSON_CT })

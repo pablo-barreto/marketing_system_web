@@ -20,7 +20,13 @@ export const NAV_GROUPS = [
             { href: '/launch', icon: 'launch', label: 'Lanzamiento e IA' },
         ],
     },
-    { label: 'Configuración', items: [{ href: '/services', icon: 'services', label: 'Servicios' }] },
+    {
+        label: 'Configuración',
+        items: [
+            { href: '/services', icon: 'services', label: 'Servicios' },
+            { href: '/automation', icon: 'clock', label: 'Automatizaciones' },
+        ],
+    },
 ];
 
 const isActive = (pathname, href) => (href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`));
