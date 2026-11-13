@@ -94,7 +94,10 @@ export const automationService = {
 
   sendLeadsReportNow: () => apiFetch('/api/v1/automation/leads-report/send', { method: 'POST', headers: JSON_CT }),
 
-  saveWeeklyMetaBudget: (changes) => apiFetch('/api/v1/automation/weekly-meta-budget', { method: 'PUT', json: changes })
+  saveWeeklyMetaBudget: (changes) => apiFetch('/api/v1/automation/weekly-meta-budget', { method: 'PUT', json: changes }),
+
+  deleteOlderMetaCampaigns: (deleteOnPlatform) =>
+    apiFetch('/api/v1/automation/weekly-meta-budget/cleanup', { method: 'POST', json: { delete_on_platform: deleteOnPlatform } })
 };
 
 export const notificationService = {

@@ -204,6 +204,44 @@ function WeeklyMetaBudgetCard() {
     const dirty = data && Number(amount) !== Math.round(data.weekly_budget);
     const campaigns = data?.campaigns || [];
     const excluded = data?.excluded_campaigns || 0;
+    const older = data?.older_campaigns || [];
+    const [cleaning, setCleaning] = useState(false);
+
+    const cleanup = async () => {
+        const esc = (t) => String(t).replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
+        const day = (iso) => (iso ? new Date(iso).toLocaleDateString('es-CO', { dateStyle: 'medium' }) : '—');
+        const rows = older.map((c) => `<li><strong>${esc(c.service)}</strong> · ${esc(day(c.created_at))} · <code>${esc(c.campaign_id)}</code></li>`).join('');
+        const ok = await Swal.fire({
+            title: `Eliminar ${older.length} campaña(s) anteriores`,
+            html: `<p style="margin:0 0 8px">Se conserva la más reciente de cada servicio principal. Se eliminarán:</p>
+                   <ul style="text-align:left;max-height:240px;overflow:auto;font-size:13px;margin:0;padding-left:18px">${rows}</ul>
+                   <p style="margin:12px 0 0;font-size:13px">Se borra su historial de métricas en el sistema. Los leads del CRM se conservan.</p>`,
+            input: 'checkbox',
+            inputValue: 1,
+            inputPlaceholder: 'Eliminarlas también en Meta (no se puede deshacer)',
+            icon: 'warning',
+            width: 640,
+            showCancelButton: true,
+            confirmButtonColor: '#B91C1C',
+            confirmButtonText: 'Eliminar',
+            cancelButtonText: 'Cancelar',
+        });
+        if (!ok.isConfirmed) return;
+        setCleaning(true);
+        try {
+            const r = await automationService.deleteOlderMetaCampaigns(!!ok.value);
+            refresh();
+            Swal.fire(
+                r.failed.length ? 'Limpieza con errores' : 'Lista limpia',
+                `${r.deleted.length} eliminada(s)${r.failed.length ? `, ${r.failed.length} con error` : ''}.`,
+                r.failed.length ? 'warning' : 'success'
+            );
+        } catch (e) {
+            Swal.fire('No se pudo limpiar', e.message, 'error');
+        } finally {
+            setCleaning(false);
+        }
+    };
 
     return (
         <Card aria-labelledby="weekly-budget-title" className="overflow-hidden">
@@ -258,6 +296,11 @@ function WeeklyMetaBudgetCard() {
                             <p className="m-0 px-5 py-3 text-[13px] text-slate-600">
                                 Entra en la pauta la campaña <strong>más reciente</strong> de cada servicio principal.
                                 {excluded > 0 && <> Las otras {excluded} campaña(s) anteriores de estos servicios no se activan; el viernes se pausan si alguien las activó.</>}
+                                {excluded > 0 && (
+                                    <Button variant="danger" size="sm" className="ml-2 align-middle" onClick={cleanup} disabled={cleaning}>
+                                        <Icon name="trash" size={14} /> {cleaning ? 'Eliminando…' : `Eliminar ${excluded} anteriores`}
+                                    </Button>
+                                )}
                             </p>
                             <table className={cx(tableClass, 'min-w-[600px]')}>
                                 <caption className="sr-only">Campañas incluidas en la pauta semanal</caption>
