@@ -203,13 +203,14 @@ function WeeklyMetaBudgetCard() {
     const days = data?.active_days || 5;
     const dirty = data && Number(amount) !== Math.round(data.weekly_budget);
     const campaigns = data?.campaigns || [];
+    const excluded = data?.excluded_campaigns || 0;
 
     return (
         <Card aria-labelledby="weekly-budget-title" className="overflow-hidden">
             <CardHeader
                 id="weekly-budget-title"
                 title="Pauta semanal Meta · servicios principales"
-                subtitle="Lunes 6:00 AM se activan con el presupuesto; viernes 6:00 PM se pausan (hora Colombia). LinkedIn no se toca."
+                subtitle="Lunes 6:00 AM se activa la campaña más reciente de cada servicio; viernes 6:00 PM se pausan todas (hora Colombia). LinkedIn no se toca."
                 actions={data && (
                     <label className="flex items-center gap-2.5 text-sm font-semibold text-slate-700">
                         {data.enabled ? 'Activa' : 'Pausada'}
@@ -254,12 +255,17 @@ function WeeklyMetaBudgetCard() {
                         />
                     ) : (
                         <div className="overflow-x-auto border-t border-slate-200">
-                            <table className={cx(tableClass, 'min-w-[520px]')}>
+                            <p className="m-0 px-5 py-3 text-[13px] text-slate-600">
+                                Entra en la pauta la campaña <strong>más reciente</strong> de cada servicio principal.
+                                {excluded > 0 && <> Las otras {excluded} campaña(s) anteriores de estos servicios no se activan; el viernes se pausan si alguien las activó.</>}
+                            </p>
+                            <table className={cx(tableClass, 'min-w-[600px]')}>
                                 <caption className="sr-only">Campañas incluidas en la pauta semanal</caption>
                                 <thead>
                                     <tr>
                                         <th scope="col" className={thClass}>Servicio</th>
                                         <th scope="col" className={thClass}>Campaña</th>
+                                        <th scope="col" className={thClass}>Creada</th>
                                         <th scope="col" className={thClass}>Estado</th>
                                     </tr>
                                 </thead>
@@ -270,6 +276,7 @@ function WeeklyMetaBudgetCard() {
                                             <tr key={c.campaign_id} className={trClass}>
                                                 <th scope="row" className={cx(tdClass, 'text-left font-semibold text-slate-900')}>{c.service}</th>
                                                 <td className={cx(tdClass, 'font-mono text-xs')}>{c.campaign_id}</td>
+                                                <td className={tdClass}>{c.created_at ? new Date(c.created_at).toLocaleDateString('es-CO', { dateStyle: 'medium' }) : '—'}</td>
                                                 <td className={tdClass}><Pill tone={active ? 'green' : 'neutral'}>{active ? 'Activa' : 'Pausada'}</Pill></td>
                                             </tr>
                                         );
