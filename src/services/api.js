@@ -97,7 +97,15 @@ export const automationService = {
   saveWeeklyMetaBudget: (changes) => apiFetch('/api/v1/automation/weekly-meta-budget', { method: 'PUT', json: changes }),
 
   deleteOlderMetaCampaigns: (deleteOnPlatform) =>
-    apiFetch('/api/v1/automation/weekly-meta-budget/cleanup', { method: 'POST', json: { delete_on_platform: deleteOnPlatform } })
+    apiFetch('/api/v1/automation/weekly-meta-budget/cleanup', { method: 'POST', json: { delete_on_platform: deleteOnPlatform } }),
+
+  // Publicidad a visitantes web no contadores
+  saveWebVisitors: (changes) => apiFetch('/api/v1/automation/web-visitors', { method: 'PUT', json: changes }),
+
+  syncWebVisitorsAudience: () => apiFetch('/api/v1/automation/web-visitors/audience', { method: 'POST', headers: JSON_CT }),
+
+  createWebVisitorsCampaigns: (recreate = false) =>
+    apiFetch('/api/v1/automation/web-visitors/campaigns', { method: 'POST', json: { recreate } })
 };
 
 export const notificationService = {
