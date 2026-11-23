@@ -108,6 +108,11 @@ export const automationService = {
     apiFetch('/api/v1/automation/web-visitors/campaigns', { method: 'POST', json: { recreate } })
 };
 
+// SEO del sitio: inventario y diagnóstico de WordPress
+export const seoSiteService = {
+  sync: (scope = 'all', full = false) => apiFetch('/api/v1/seo-site/sync', { method: 'POST', json: { scope, full } })
+};
+
 export const notificationService = {
   markAsRead: (notificationId) =>
     apiFetch(`${MARK_READ_ENDPOINT}/${notificationId}`, { method: 'POST', headers: JSON_CT })

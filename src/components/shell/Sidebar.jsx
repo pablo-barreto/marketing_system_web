@@ -11,6 +11,7 @@ export const NAV_GROUPS = [
             { href: '/campaigns', icon: 'ads', label: 'Campañas (Ads)' },
             { href: '/gallery', icon: 'assets', label: 'Galería de activos' },
             { href: '/seo', icon: 'seo', label: 'SEO y contenido' },
+            { href: '/seo-site', icon: 'search', label: 'SEO del sitio' },
         ],
     },
     {
