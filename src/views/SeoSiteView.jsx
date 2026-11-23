@@ -17,6 +17,7 @@ const ESTADOS = {
     critico: { label: 'Crítico', tone: 'red' },
     mejorable: { label: 'Mejorable', tone: 'amber' },
     bien: { label: 'Bien', tone: 'green' },
+    no_indexada: { label: 'No indexada', tone: 'blue' },
     error: { label: 'Error', tone: 'neutral' },
     pendiente: { label: 'Pendiente', tone: 'neutral' },
 };
@@ -69,6 +70,9 @@ function SyncCard({ sync, onStarted }) {
     const audited = sync?.audited || 0;
     const pending = sync?.pending || 0;
     const progress = audited + pending > 0 ? Math.round((audited / (audited + pending)) * 100) : 0;
+    const listing = running && listed === 0;
+    // Terminó sin revisar nada: no había cambios en WordPress desde la última vez
+    const nothingChanged = !running && !!sync?.finished_at && !sync?.last_error && listed > 0 && audited === 0;
 
     return (
         <Card aria-labelledby="sync-title">
@@ -82,11 +86,19 @@ function SyncCard({ sync, onStarted }) {
                     <>
                         <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
                             <Pill tone="blue">Actualizando</Pill>
-                            {listed === 0 ? 'Listando el contenido de WordPress…' : `${fmt(audited)} revisadas · ${fmt(pending)} pendientes de ${fmt(listed)} publicadas`}
+                            {listing
+                                ? 'Paso 1 de 2: listando el contenido de WordPress (con todas las entradas tarda unos minutos)…'
+                                : `Paso 2 de 2: ${fmt(audited)} revisadas · ${fmt(pending)} pendientes de ${fmt(listed)} publicadas`}
                         </div>
-                        <div className="h-2 rounded-full bg-slate-100 overflow-hidden" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label="Avance del inventario">
-                            <div className="h-full bg-blue-600 transition-all" style={{ width: `${progress}%` }} />
-                        </div>
+                        {listing ? (
+                            <div className="h-2 rounded-full bg-blue-100 overflow-hidden" role="progressbar" aria-label="Listando el contenido de WordPress">
+                                <div className="h-full w-full bg-blue-500 animate-pulse" />
+                            </div>
+                        ) : (
+                            <div className="h-2 rounded-full bg-slate-100 overflow-hidden" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label="Avance del inventario">
+                                <div className="h-full bg-blue-600 transition-all" style={{ width: `${progress}%` }} />
+                            </div>
+                        )}
                         <span className="text-xs text-slate-500">Puedes salir de esta página: el proceso sigue en segundo plano.</span>
                     </>
                 ) : (
@@ -109,6 +121,12 @@ function SyncCard({ sync, onStarted }) {
                     Última actualización: <strong className="text-slate-800">{when(sync?.finished_at)}</strong>
                     {sync?.errors ? <> · <span className="text-amber-800">{fmt(sync.errors)} página(s) no se pudieron descargar</span></> : null}
                 </span>
+                {nothingChanged && (
+                    <span className="text-[13px] text-slate-600 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
+                        La última actualización no encontró páginas nuevas ni modificadas, así que no revisó nada.
+                        Si cambiaste ajustes de Yoast o del tema (no cambian la fecha de las páginas), usa <strong>Revisar todo de nuevo</strong>.
+                    </span>
+                )}
                 {sync?.last_error && <span className="text-[13px] text-red-700">Error: {sync.last_error}</span>}
                 {!sync?.focus_known && sync?.finished_at && (
                     <span className="text-[13px] text-slate-500">
@@ -226,7 +244,8 @@ export default function SeoSiteView() {
     const [selected, setSelected] = useState(null);
     const q = useDebouncedValue(search).trim();
 
-    const { data: status, refresh: refreshStatus } = useApi('/api/v1/seo-site/status', { refreshInterval: 5000 });
+    // El resumen sigue la pestaña (Todo / Páginas / Entradas)
+    const { data: status, refresh: refreshStatus } = useApi(withQuery('/api/v1/seo-site/status', { type }), { refreshInterval: 5000 });
     const running = !!status?.sync?.running;
     const { data: list, loading, refresh: refreshList } = useApi(withQuery('/api/v1/seo-site/inventory', {
         type, estado, issue, service, sort, q, page, page_size: pageSize,
@@ -245,20 +264,27 @@ export default function SeoSiteView() {
                 <SyncCard sync={status?.sync} onStarted={() => { refreshStatus(); refreshList(); }} />
 
                 {summary && summary.total > 0 && (
-                    <section aria-label="Resumen" className="grid gap-4 grid-cols-2 md:grid-cols-5">
-                        <StatCard label="Publicadas" value={fmt(summary.total)}>
-                            <span className="text-xs text-slate-500">{fmt(summary.by_type.page)} páginas · {fmt(summary.by_type.post)} entradas</span>
+                    <section aria-label="Resumen" className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+                        <StatCard label={type === 'page' ? 'Páginas publicadas' : type === 'post' ? 'Entradas publicadas' : 'Publicadas'} value={fmt(summary.total)}>
+                            {type === 'all' && <span className="text-xs text-slate-500">{fmt(summary.by_type.page)} páginas · {fmt(summary.by_type.post)} entradas</span>}
                         </StatCard>
                         <StatCard label="Puntaje promedio" value={summary.avg_score ?? '—'} suffix="/ 100" />
                         <StatCard label="Críticas" value={fmt(byEstado.critico)} />
                         <StatCard label="Mejorables" value={fmt(byEstado.mejorable)} />
                         <StatCard label="Bien" value={fmt(byEstado.bien)} />
+                        <StatCard label="No indexadas" value={fmt(byEstado.no_indexada)}>
+                            <span className="text-xs text-slate-500">Ocultas de Google a propósito: no se califican</span>
+                        </StatCard>
                     </section>
                 )}
 
                 {summary?.issues?.length > 0 && (
                     <Card aria-labelledby="issues-title">
-                        <CardHeader id="issues-title" title="Problemas más frecuentes" subtitle="Haz clic en uno para ver las páginas que lo tienen." />
+                        <CardHeader
+                            id="issues-title"
+                            title={type === 'page' ? 'Problemas más frecuentes en páginas' : type === 'post' ? 'Problemas más frecuentes en entradas' : 'Problemas más frecuentes'}
+                            subtitle="Haz clic en uno para ver las páginas que lo tienen."
+                        />
                         <div className="p-5 flex flex-wrap gap-2">
                             {summary.issues.map((i) => (
                                 <button
@@ -306,6 +332,7 @@ export default function SeoSiteView() {
                                 { value: 'critico', label: `Críticos (${fmt(byEstado.critico)})` },
                                 { value: 'mejorable', label: `Mejorables (${fmt(byEstado.mejorable)})` },
                                 { value: 'bien', label: `Bien (${fmt(byEstado.bien)})` },
+                                { value: 'no_indexada', label: `No indexadas (${fmt(byEstado.no_indexada)})` },
                                 { value: 'error', label: `Con error (${fmt(byEstado.error)})` },
                             ]}
                             value={estado}
