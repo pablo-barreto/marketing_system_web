@@ -102,7 +102,7 @@ function KindCard({ k, busy, onChanged }) {
 
     return (
         <Card className="flex flex-col">
-            <CardHeader title={k.label} subtitle={`Problema en el inventario: ${k.issue === 'varios_h1' ? 'Más de un H1' : 'Imágenes sin texto alternativo'}`} />
+            <CardHeader title={k.label} subtitle={`Problema en el inventario: ${k.issue_label || k.issue}`} />
             <div className="p-5 flex flex-col gap-4 flex-1">
                 <p className="m-0 text-sm text-slate-600">{k.description}</p>
                 <dl className="m-0 grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -144,14 +144,26 @@ function KindCard({ k, busy, onChanged }) {
 
 function ChangeDetail({ c }) {
     if (c.kind === 'h1_a_h2') {
+        const actions = c.payload?.actions || [];
         return (
             <div className="flex flex-col gap-1">
                 {(c.payload?.headings || []).map((h, i) => (
                     <span key={i} className="text-[13px]">
-                        <span className="font-mono text-red-700 line-through">H1</span> → <span className="font-mono text-emerald-700">H2</span> {h}
+                        <span className="font-mono text-red-700 line-through">H1</span>
+                        {actions[i] === 'eliminar'
+                            ? <span className="text-slate-500"> vacío → se elimina</span>
+                            : <> → <span className="font-mono text-emerald-700">H2</span> {h || <em className="text-slate-500">(vacío)</em>}</>}
                     </span>
                 ))}
             </div>
+        );
+    }
+    if (c.kind === 'titulos_vacios') {
+        const levels = c.payload?.levels || [];
+        return (
+            <span className="text-[13px]">
+                Se eliminan {levels.length} título(s) vacío(s): <span className="font-mono text-red-700">{levels.join(', ')}</span>
+            </span>
         );
     }
     return (
