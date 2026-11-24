@@ -74,13 +74,17 @@ function JobBanner({ proposeJob, applyJob, kinds }) {
 
 function KindCard({ k, busy, onChanged }) {
     const [limit, setLimit] = useState('20');
+    const types = k.wp_types || ['post'];
+    const [wpType, setWpType] = useState(types[0]);
+    const candidates = k.candidates_by_type ? (k.candidates_by_type[wpType] ?? 0) : k.candidates;
+    const noun = types.length > 1 ? (wpType === 'page' ? 'páginas' : 'entradas') : 'entradas';
     const [working, setWorking] = useState(false);
     const s = k.by_status;
 
     const propose = async () => {
         setWorking(true);
         try {
-            await seoSiteService.proposeChanges(k.kind, limit ? Number(limit) : null);
+            await seoSiteService.proposeChanges(k.kind, limit ? Number(limit) : null, wpType);
             onChanged();
         } catch (e) {
             Swal.fire('No se pudo iniciar', e.message, 'error');
@@ -107,7 +111,7 @@ function KindCard({ k, busy, onChanged }) {
                 <p className="m-0 text-sm text-slate-600">{k.description}</p>
                 <dl className="m-0 grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {[
-                        ['Sin revisar', k.candidates, 'Entradas con el problema que aún no tienen propuesta'],
+                        ['Sin revisar', candidates, `${noun} con el problema que aún no tienen propuesta`],
                         ['Propuestos', s.propuesto, 'Esperando tu aprobación'],
                         ['Aplicados', s.aplicado, 'Ya cambiados en WordPress'],
                         ['Con error', s.error + s.error_revertir, 'Revisa el motivo en la tabla'],
@@ -119,13 +123,23 @@ function KindCard({ k, busy, onChanged }) {
                     ))}
                 </dl>
                 <div className="flex flex-wrap items-end gap-2 mt-auto">
+                    {types.length > 1 && (
+                        <label className="flex flex-col gap-1.5">
+                            <span className="text-[13px] font-semibold text-slate-700">Qué revisar</span>
+                            <select value={wpType} onChange={(e) => setWpType(e.target.value)} className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                                {types.map((t) => (
+                                    <option key={t} value={t}>{t === 'page' ? 'Páginas' : 'Entradas'} ({fmt(k.candidates_by_type?.[t])})</option>
+                                ))}
+                            </select>
+                        </label>
+                    )}
                     <label className="flex flex-col gap-1.5">
-                        <span className="text-[13px] font-semibold text-slate-700">Cuántas entradas</span>
+                        <span className="text-[13px] font-semibold text-slate-700">Cuántas {noun}</span>
                         <select value={limit} onChange={(e) => setLimit(e.target.value)} className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm">
                             {LIMITS.map((l) => <option key={l.label} value={l.value}>{l.label}</option>)}
                         </select>
                     </label>
-                    <Button onClick={propose} disabled={busy || working || k.candidates === 0}>
+                    <Button onClick={propose} disabled={busy || working || candidates === 0}>
                         {working ? 'Iniciando…' : 'Preparar propuestas'}
                     </Button>
                     <Button variant="primary" onClick={approveAll} disabled={!s.propuesto}>
@@ -142,7 +156,35 @@ function KindCard({ k, busy, onChanged }) {
 
 // --- Tabla de cambios -----------------------------------------------------------------------------
 
-function ChangeDetail({ c }) {
+const EDITABLE = { meta_descripcion: { label: 'Meta descripción', min: 70, max: 160 }, alt_imagen: { label: 'Texto alternativo', min: 3, max: 125 } };
+
+async function editChange(c, onDone) {
+    const cfg = EDITABLE[c.kind];
+    const r = await Swal.fire({
+        title: `Editar ${cfg.label.toLowerCase()}`,
+        input: 'textarea',
+        inputValue: c.payload?.after || '',
+        inputAttributes: { maxlength: String(cfg.max + 40), 'aria-label': cfg.label },
+        html: `<span style="font-size:13px;color:#64748b">Entre ${cfg.min} y ${cfg.max} caracteres.</span>`,
+        showCancelButton: true,
+        confirmButtonText: 'Guardar',
+        cancelButtonText: 'Cancelar',
+        inputValidator: (v) => {
+            const n = v.trim().replace(/\s+/g, ' ').length;
+            return n < cfg.min || n > cfg.max ? `Tiene ${n} caracteres: debe tener entre ${cfg.min} y ${cfg.max}.` : undefined;
+        },
+    });
+    if (!r.isConfirmed) return;
+    try {
+        await seoSiteService.editChange(c.id, r.value);
+        onDone();
+    } catch (e) {
+        Swal.fire('No se pudo guardar', e.message, 'error');
+    }
+}
+
+function ChangeDetail({ c, onEdited }) {
+    const canEdit = EDITABLE[c.kind] && ['propuesto', 'error'].includes(c.status);
     if (c.kind === 'h1_a_h2') {
         const actions = c.payload?.actions || [];
         return (
@@ -166,10 +208,17 @@ function ChangeDetail({ c }) {
             </span>
         );
     }
+    const after = c.payload?.after || '';
     return (
         <div className="flex flex-col gap-0.5 text-[13px]">
             <span className="text-slate-500">Antes: {c.payload?.before ? `"${c.payload.before}"` : <em>vacío</em>}</span>
-            <span className="text-slate-900">Ahora: {`"${c.payload?.after}"`}</span>
+            <span className="text-slate-900">Ahora: {`"${after}"`}</span>
+            <span className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                {c.kind === 'meta_descripcion' && <>{after.length} caracteres</>}
+                {c.payload?.keyword && <>· palabra clave: {c.payload.keyword}</>}
+                {c.payload?.edited && <Pill tone="neutral">Editado a mano</Pill>}
+                {canEdit && <Button size="sm" variant="ghost" onClick={() => editChange(c, onEdited)}>Editar</Button>}
+            </span>
         </div>
     );
 }
@@ -277,7 +326,7 @@ function ChangesTable({ kinds, refreshInterval, onChanged }) {
                                 <th scope="col" className={cx(thClass, 'w-10')}>
                                     <input type="checkbox" checked={allOnPage} onChange={toggleAll} aria-label="Seleccionar todos los de esta página" className="w-4 h-4 accent-blue-600" />
                                 </th>
-                                <th scope="col" className={thClass}>Entrada</th>
+                                <th scope="col" className={thClass}>Página o entrada</th>
                                 <th scope="col" className={thClass}>Cambio</th>
                                 <th scope="col" className={thClass}>Estado</th>
                                 <th scope="col" className={thClass}>Actualizado</th>
@@ -298,7 +347,7 @@ function ChangesTable({ kinds, refreshInterval, onChanged }) {
                                             <a href={c.url} target="_blank" rel="noreferrer" className="text-xs text-blue-700 truncate block font-normal">{path}</a>
                                         </th>
                                         <td className={cx(tdClass, 'max-w-[380px]')}>
-                                            <ChangeDetail c={c} />
+                                            <ChangeDetail c={c} onEdited={refresh} />
                                             {c.error && <div className="text-xs text-red-700 mt-1">{c.error}</div>}
                                         </td>
                                         <td className={tdClass}><Pill tone={st.tone}>{st.label}</Pill></td>
