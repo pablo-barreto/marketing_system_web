@@ -110,7 +110,12 @@ export const automationService = {
 
 // SEO del sitio: inventario y diagnóstico de WordPress
 export const seoSiteService = {
-  sync: (scope = 'all', full = false) => apiFetch('/api/v1/seo-site/sync', { method: 'POST', json: { scope, full } })
+  sync: (scope = 'all', full = false) => apiFetch('/api/v1/seo-site/sync', { method: 'POST', json: { scope, full } }),
+
+  // Cambios en WordPress: preparar propuestas y aprobar / descartar / revertir
+  proposeChanges: (kind, limit = null) => apiFetch('/api/v1/seo-site/changes/propose', { method: 'POST', json: { kind, limit } }),
+
+  changeAction: (action, body) => apiFetch(`/api/v1/seo-site/changes/${action}`, { method: 'POST', json: body })
 };
 
 export const notificationService = {

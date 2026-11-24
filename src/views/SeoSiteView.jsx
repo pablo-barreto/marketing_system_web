@@ -9,6 +9,7 @@ import {
 import { useApi, withQuery } from '../hooks/useApi';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { seoSiteService } from '../services/api';
+import SeoChanges from './SeoChanges';
 
 const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
 const when = (iso) => (iso ? new Date(iso).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : '—');
@@ -233,6 +234,29 @@ function ItemDetail({ wpType, wpId }) {
 // --- Vista ----------------------------------------------------------------------------------------
 
 export default function SeoSiteView() {
+    const [section, setSection] = useState('diagnostico');
+    return (
+        <>
+            <PageHeader eyebrow="Adquisición" title="SEO del sitio" />
+            <PageBody>
+                <div className="border-b border-slate-200 flex">
+                    <Tabs
+                        label="Sección"
+                        tabs={[
+                            { value: 'diagnostico', label: 'Diagnóstico' },
+                            { value: 'cambios', label: 'Cambios' },
+                        ]}
+                        value={section}
+                        onChange={setSection}
+                    />
+                </div>
+                {section === 'diagnostico' ? <Diagnostico /> : <SeoChanges />}
+            </PageBody>
+        </>
+    );
+}
+
+function Diagnostico() {
     const [type, setType] = useState('all');
     const [estado, setEstado] = useState('all');
     const [issue, setIssue] = useState('all');
@@ -259,8 +283,6 @@ export default function SeoSiteView() {
 
     return (
         <>
-            <PageHeader eyebrow="Adquisición" title="SEO del sitio" />
-            <PageBody>
                 <SyncCard sync={status?.sync} onStarted={() => { refreshStatus(); refreshList(); }} />
 
                 {summary && summary.total > 0 && (
@@ -430,7 +452,6 @@ export default function SeoSiteView() {
                         />
                     )}
                 </Card>
-            </PageBody>
 
             <Drawer open={!!selected} onClose={() => setSelected(null)} title={selected?.wp_title || 'Detalle SEO'} width="max-w-2xl">
                 {selected && <ItemDetail wpType={selected.wp_type} wpId={selected.wp_id} />}
