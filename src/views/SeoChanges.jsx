@@ -49,6 +49,7 @@ function JobBanner({ proposeJob, applyJob, kinds }) {
                         <Pill tone="blue">Preparando propuestas</Pill>
                         {label(proposeJob.kind)}: {fmt(proposeJob.reviewed)} revisadas · {fmt(proposeJob.created)} propuestas
                         {proposeJob.limit ? ` (máximo ${fmt(proposeJob.limit)})` : ''}
+                        {proposeJob.skipped ? <span className="text-amber-700"> · {fmt(proposeJob.skipped)} saltadas porque WordPress no respondió (se pueden volver a preparar)</span> : null}
                     </div>
                     <ProgressBar value={proposeJob.limit
                         ? Math.min(100, Math.round((proposeJob.created / proposeJob.limit) * 100))
@@ -156,7 +157,7 @@ function KindCard({ k, busy, onChanged }) {
 
 // --- Tabla de cambios -----------------------------------------------------------------------------
 
-const EDITABLE = { meta_descripcion: { label: 'Meta descripción', min: 70, max: 160 }, alt_imagen: { label: 'Texto alternativo', min: 3, max: 125 } };
+const EDITABLE = { meta_descripcion: { label: 'Meta descripción', min: 70, max: 160 }, titulo_seo: { label: 'Título SEO', min: 30, max: 60 }, alt_imagen: { label: 'Texto alternativo', min: 3, max: 125 } };
 
 async function editChange(c, onDone) {
     const cfg = EDITABLE[c.kind];
@@ -209,12 +210,13 @@ function ChangeDetail({ c, onEdited }) {
         );
     }
     const after = c.payload?.after || '';
+    const before = c.payload?.shown_before || c.payload?.before || '';
     return (
         <div className="flex flex-col gap-0.5 text-[13px]">
-            <span className="text-slate-500">Antes: {c.payload?.before ? `"${c.payload.before}"` : <em>vacío</em>}</span>
+            <span className="text-slate-500">Antes: {before ? `"${before}"` : <em>vacío</em>}{c.payload?.shown_before && ` (${before.length} caracteres)`}</span>
             <span className="text-slate-900">Ahora: {`"${after}"`}</span>
             <span className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                {c.kind === 'meta_descripcion' && <>{after.length} caracteres</>}
+                {['meta_descripcion', 'titulo_seo'].includes(c.kind) && <>{after.length} caracteres</>}
                 {c.payload?.keyword && <>· palabra clave: {c.payload.keyword}</>}
                 {c.payload?.edited && <Pill tone="neutral">Editado a mano</Pill>}
                 {canEdit && <Button size="sm" variant="ghost" onClick={() => editChange(c, onEdited)}>Editar</Button>}
