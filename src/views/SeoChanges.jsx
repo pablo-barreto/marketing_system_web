@@ -107,12 +107,14 @@ function KindCard({ k, busy, onChanged }) {
 
     return (
         <Card className="flex flex-col">
-            <CardHeader title={k.label} subtitle={`Problema en el inventario: ${k.issue_label || k.issue}`} />
+            <CardHeader title={k.label} subtitle={k.scan ? 'Revisa el texto de todas las entradas' : `Problema en el inventario: ${k.issue_label || k.issue}`} />
             <div className="p-5 flex flex-col gap-4 flex-1">
                 <p className="m-0 text-sm text-slate-600">{k.description}</p>
                 <dl className="m-0 grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {[
-                        ['Sin revisar', candidates, `${noun} con el problema que aún no tienen propuesta`],
+                        k.scan
+                            ? ['Por revisar', candidates, `${noun} que se revisarán; solo se proponen cambios en las que tengan el problema`]
+                            : ['Sin revisar', candidates, `${noun} con el problema que aún no tienen propuesta`],
                         ['Propuestos', s.propuesto, 'Esperando tu aprobación'],
                         ['Aplicados', s.aplicado, 'Ya cambiados en WordPress'],
                         ['Con error', s.error + s.error_revertir, 'Revisa el motivo en la tabla'],
@@ -196,6 +198,19 @@ function ChangeDetail({ c, onEdited }) {
                         {actions[i] === 'eliminar'
                             ? <span className="text-slate-500"> vacío → se elimina</span>
                             : <> → <span className="font-mono text-emerald-700">H2</span> {h || <em className="text-slate-500">(vacío)</em>}</>}
+                    </span>
+                ))}
+            </div>
+        );
+    }
+    if (c.kind === 'datos_personales') {
+        const items = c.payload?.items || [];
+        return (
+            <div className="flex flex-col gap-0.5 text-[13px]">
+                {items.map((it, i) => (
+                    <span key={i}>
+                        <span className="text-slate-500">{it.tipo}:</span> <span className="font-mono">{it.muestra}</span>
+                        {' → '}<span className="text-emerald-700">{it.tipo === 'correo' ? '[correo reservado]' : '[datos reservados]'}</span>
                     </span>
                 ))}
             </div>
