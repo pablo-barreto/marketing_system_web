@@ -113,8 +113,10 @@ export const seoSiteService = {
   sync: (scope = 'all', full = false) => apiFetch('/api/v1/seo-site/sync', { method: 'POST', json: { scope, full } }),
 
   // Cambios en WordPress: preparar propuestas y aprobar / descartar / revertir
-  proposeChanges: (kind, limit = null, wpType = null) =>
-    apiFetch('/api/v1/seo-site/changes/propose', { method: 'POST', json: { kind, limit, wp_type: wpType } }),
+  proposeChanges: (kind, limit = null, wpType = null, recheck = false) =>
+    apiFetch('/api/v1/seo-site/changes/propose', { method: 'POST', json: { kind, limit, wp_type: wpType, recheck } }),
+
+  restoreChanges: (kind) => apiFetch('/api/v1/seo-site/changes/restore', { method: 'POST', json: { kind } }),
 
   editChange: (id, after) => apiFetch(`/api/v1/seo-site/changes/${id}`, { method: 'PUT', json: { after } }),
 

@@ -46,8 +46,8 @@ function JobBanner({ proposeJob, applyJob, kinds }) {
             {proposeJob?.running && (
                 <div className="flex flex-col gap-2">
                     <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
-                        <Pill tone="blue">Preparando propuestas</Pill>
-                        {label(proposeJob.kind)}: {fmt(proposeJob.reviewed)} revisadas · {fmt(proposeJob.created)} propuestas
+                        <Pill tone="blue">{proposeJob.mode === 'recuperar' ? 'Buscando textos de la IA reemplazados' : 'Preparando propuestas'}</Pill>
+                        {label(proposeJob.kind)}: {fmt(proposeJob.reviewed)} revisadas · {fmt(proposeJob.created)} {proposeJob.mode === 'recuperar' ? 'reemplazadas, vuelven a propuestas' : 'propuestas'}
                         {proposeJob.limit ? ` (máximo ${fmt(proposeJob.limit)})` : ''}
                         {proposeJob.skipped ? <span className="text-amber-700"> · {fmt(proposeJob.skipped)} saltadas porque WordPress no respondió (se pueden volver a preparar)</span> : null}
                     </div>
@@ -78,14 +78,31 @@ function KindCard({ k, busy, onChanged }) {
     const types = k.wp_types || ['post'];
     const [wpType, setWpType] = useState(types[0]);
     const candidates = k.candidates_by_type ? (k.candidates_by_type[wpType] ?? 0) : k.candidates;
+    const checked = k.checked_by_type?.[wpType] ?? 0;
     const noun = types.length > 1 ? (wpType === 'page' ? 'páginas' : 'entradas') : 'entradas';
     const [working, setWorking] = useState(false);
     const s = k.by_status;
 
-    const propose = async () => {
+    const propose = async (recheck = false) => {
+        if (recheck && !await confirm('Volver a revisar', `Se revisarán otra vez las ${fmt(checked)} ${noun} que ya se habían revisado sin nada que proponer.`, 'Volver a revisar')) return;
         setWorking(true);
         try {
-            await seoSiteService.proposeChanges(k.kind, limit ? Number(limit) : null, wpType);
+            await seoSiteService.proposeChanges(k.kind, limit ? Number(limit) : null, wpType, recheck);
+            onChanged();
+        } catch (e) {
+            Swal.fire('No se pudo iniciar', e.message, 'error');
+        } finally {
+            setWorking(false);
+        }
+    };
+
+    const restore = async () => {
+        if (!await confirm('Recuperar los textos de la IA',
+            `Se revisarán los ${fmt(s.aplicado)} cambios aplicados de "${k.label}". Los que en WordPress ya tienen otro texto (los cambió otra herramienta o una persona) vuelven a "Propuestos" para que los apruebes de nuevo. No se escribe nada en WordPress hasta que los apruebes.`,
+            'Revisar')) return;
+        setWorking(true);
+        try {
+            await seoSiteService.restoreChanges(k.kind);
             onChanged();
         } catch (e) {
             Swal.fire('No se pudo iniciar', e.message, 'error');
@@ -142,15 +159,28 @@ function KindCard({ k, busy, onChanged }) {
                             {LIMITS.map((l) => <option key={l.label} value={l.value}>{l.label}</option>)}
                         </select>
                     </label>
-                    <Button onClick={propose} disabled={busy || working || candidates === 0}>
+                    <Button onClick={() => propose(false)} disabled={busy || working || candidates === 0}>
                         {working ? 'Iniciando…' : 'Preparar propuestas'}
                     </Button>
                     <Button variant="primary" onClick={approveAll} disabled={!s.propuesto}>
                         Aplicar los {fmt(s.propuesto)} propuestos
                     </Button>
+                    {k.restorable && s.aplicado > 0 && (
+                        <Button variant="ghost" onClick={restore} disabled={busy || working} title="Busca los textos de la IA que otra herramienta o una persona reemplazó en WordPress">
+                            Recuperar los de la IA reemplazados
+                        </Button>
+                    )}
                 </div>
                 <span className="text-xs text-slate-500">
                     Preparar propuestas no cambia nada en WordPress: solo arma la lista para que la revises.
+                    {checked > 0 && (
+                        <>
+                            {' '}{fmt(checked)} {noun} ya se revisaron sin nada que proponer y no se cuentan como pendientes (se vuelven a revisar si cambian en WordPress).{' '}
+                            <button type="button" className="underline text-slate-600 hover:text-slate-900 disabled:opacity-50" disabled={busy || working} onClick={() => propose(true)}>
+                                Volver a revisarlas
+                            </button>
+                        </>
+                    )}
                 </span>
             </div>
         </Card>
@@ -159,7 +189,7 @@ function KindCard({ k, busy, onChanged }) {
 
 // --- Tabla de cambios -----------------------------------------------------------------------------
 
-const EDITABLE = { meta_descripcion: { label: 'Meta descripción', min: 70, max: 160 }, titulo_seo: { label: 'Título SEO', min: 30, max: 60 }, alt_imagen: { label: 'Texto alternativo', min: 3, max: 125 } };
+const EDITABLE = { palabra_clave: { label: 'Introducción', min: 120, max: 320 }, meta_descripcion: { label: 'Meta descripción', min: 70, max: 160 }, titulo_seo: { label: 'Título SEO', min: 30, max: 60 }, alt_imagen: { label: 'Texto alternativo', min: 3, max: 125 } };
 
 async function editChange(c, onDone) {
     const cfg = EDITABLE[c.kind];
@@ -187,7 +217,28 @@ async function editChange(c, onDone) {
 }
 
 function ChangeDetail({ c, onEdited }) {
-    const canEdit = EDITABLE[c.kind] && ['propuesto', 'error'].includes(c.status);
+    const canEdit = EDITABLE[c.kind] && ['propuesto', 'error'].includes(c.status) && (c.kind !== 'palabra_clave' || !!c.payload?.after);
+    if (c.kind === 'palabra_clave') {
+        const p = c.payload || {};
+        return (
+            <div className="flex flex-col gap-1 text-[13px]">
+                {p.title_after !== p.title_before && (
+                    <span><span className="text-slate-500">Título (H1):</span> <span className="text-red-700 line-through">{p.title_before}</span> → <span className="text-emerald-700">{p.title_after}</span></span>
+                )}
+                {p.keyword !== p.keyword_before && (
+                    <span><span className="text-slate-500">Palabra clave:</span> <span className="text-red-700 line-through">{p.keyword_before || 'vacía'}</span> → <span className="text-emerald-700">{p.keyword}</span></span>
+                )}
+                {p.after && (
+                    <span><span className="text-slate-500">Introducción nueva ({p.after.length} caracteres):</span> <span className="text-slate-900">{`"${p.after}"`}</span></span>
+                )}
+                <span className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                    {p.keyword && <>palabra clave: {p.keyword}</>}
+                    {p.edited && <Pill tone="neutral">Editado a mano</Pill>}
+                    {canEdit && <Button size="sm" variant="ghost" onClick={() => editChange(c, onEdited)}>Editar introducción</Button>}
+                </span>
+            </div>
+        );
+    }
     if (c.kind === 'h1_a_h2') {
         const actions = c.payload?.actions || [];
         return (
@@ -233,6 +284,7 @@ function ChangeDetail({ c, onEdited }) {
             <span className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                 {['meta_descripcion', 'titulo_seo'].includes(c.kind) && <>{after.length} caracteres</>}
                 {c.payload?.keyword && <>· palabra clave: {c.payload.keyword}</>}
+                {c.payload?.recuperar && <Pill tone="blue">Recupera el texto de la IA (otra herramienta lo había cambiado)</Pill>}
                 {c.payload?.edited && <Pill tone="neutral">Editado a mano</Pill>}
                 {canEdit && <Button size="sm" variant="ghost" onClick={() => editChange(c, onEdited)}>Editar</Button>}
             </span>
