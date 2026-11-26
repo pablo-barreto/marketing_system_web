@@ -81,13 +81,19 @@ function RewriteCard({ k, busy, onChanged }) {
     const s = k.by_status;
     const chosen = wpId || (suggestions[0] ? String(suggestions[0].wp_id) : '');
     const custom = wpId && !suggestions.some((p) => String(p.wp_id) === wpId) ? wpId : '';
+    const saved = k.kind === 'version_guardada';
 
     const generate = async () => {
         if (!chosen) return;
         setWorking(true);
         try {
-            await seoSiteService.rewritePage(Number(chosen));
-            Swal.fire({ icon: 'info', title: 'Generando la página', text: 'La IA tarda uno o dos minutos. La propuesta aparecerá abajo en "Propuestos", con su vista previa.', timer: 4000, showConfirmButton: false });
+            if (saved) {
+                await seoSiteService.proposeSavedVersion(Number(chosen));
+                Swal.fire({ icon: 'success', title: 'Propuesta lista', text: 'Está abajo en "Propuestos": abra la vista previa antes de aplicarla.', timer: 3500, showConfirmButton: false });
+            } else {
+                await seoSiteService.rewritePage(Number(chosen));
+                Swal.fire({ icon: 'info', title: 'Generando la página', text: 'La IA tarda uno o dos minutos. La propuesta aparecerá abajo en "Propuestos", con su vista previa.', timer: 4000, showConfirmButton: false });
+            }
             onChanged();
         } catch (e) {
             Swal.fire('No se pudo iniciar', e.message, 'error');
@@ -98,7 +104,7 @@ function RewriteCard({ k, busy, onChanged }) {
 
     return (
         <Card className="flex flex-col lg:col-span-2">
-            <CardHeader title={k.label} subtitle="Fase 3 · Una página a la vez, con vista previa antes de publicar" />
+            <CardHeader title={k.label} subtitle={saved ? 'Páginas con la versión nueva guardada pero tapada por Elementor' : 'Fase 3 · Una página a la vez, con vista previa antes de publicar'} />
             <div className="p-5 flex flex-col gap-4 flex-1">
                 <p className="m-0 text-sm text-slate-600">{k.description}</p>
                 <dl className="m-0 grid grid-cols-3 gap-3 max-w-xl">
@@ -128,12 +134,12 @@ function RewriteCard({ k, busy, onChanged }) {
                             onChange={(e) => setWpId(e.target.value.replace(/\D/g, ''))}
                             className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm" />
                     </label>
-                    <Button onClick={generate} disabled={busy || working || !chosen}>
-                        {working ? 'Iniciando…' : 'Generar con la plantilla'}
+                    <Button onClick={generate} disabled={(busy && !saved) || working || !chosen}>
+                        {working ? 'Iniciando…' : saved ? 'Preparar propuesta' : 'Generar con la plantilla'}
                     </Button>
                 </div>
                 <span className="text-xs text-slate-500">
-                    Generar no cambia nada en WordPress. Revise la vista previa en la tabla de abajo y aplíquela solo si le gusta.
+                    {saved ? 'Preparar' : 'Generar'} no cambia nada en WordPress. Revise la vista previa en la tabla de abajo y aplíquela solo si le gusta.
                 </span>
             </div>
         </Card>
@@ -285,7 +291,7 @@ async function editChange(c, onDone) {
 
 function ChangeDetail({ c, onEdited }) {
     const canEdit = EDITABLE[c.kind] && ['propuesto', 'error'].includes(c.status) && (c.kind !== 'palabra_clave' || !!c.payload?.after);
-    if (c.kind === 'pagina_plantilla') {
+    if (c.kind === 'pagina_plantilla' || c.kind === 'version_guardada') {
         const p = c.payload || {};
         const b = p.before || {};
         const a = p.after || {};
@@ -300,17 +306,29 @@ function ChangeDetail({ c, onEdited }) {
                 Swal.fire('No se pudo abrir la vista previa', e.message, 'error');
             }
         };
+        const links = (
+            <span className="flex flex-wrap gap-2 mt-1">
+                <Button size="sm" onClick={preview}>Vista previa</Button>
+                <a className="text-xs underline text-slate-600 self-center" href={c.url} target="_blank" rel="noopener noreferrer">Ver la página actual</a>
+            </span>
+        );
+        if (c.kind === 'version_guardada') {
+            return (
+                <div className="flex flex-col gap-1 text-[13px]">
+                    <span>Se quita Elementor para mostrar la versión guardada ({fmt(p.words)} palabras). El texto no cambia.</span>
+                    {links}
+                </div>
+            );
+        }
         return (
             <div className="flex flex-col gap-1 text-[13px]">
                 <span><span className="text-slate-500">Título (H1):</span> {b.title} → <span className="text-emerald-700">{a.title}</span></span>
+                {p.directory > 0 && <span><span className="text-slate-500">Directorio:</span> {fmt(p.directory)} tarjetas, cada una con su enlace a la subpágina</span>}
                 <span><span className="text-slate-500">Título SEO:</span> {a.seo_title}</span>
                 <span><span className="text-slate-500">Meta descripción:</span> {a.meta_description}</span>
                 <span><span className="text-slate-500">Frase clave:</span> {a.keyword || '—'} · {fmt(p.words_before)} → {fmt(p.words)} palabras · {(p.sections || []).length} secciones{b.elementor === 'builder' ? ' · deja de usar Elementor' : ''}</span>
                 {(p.notes || []).length > 0 && <span className="text-amber-700">{p.notes.length} aviso(s): {p.notes.slice(0, 2).join(' ')}</span>}
-                <span className="flex flex-wrap gap-2 mt-1">
-                    <Button size="sm" onClick={preview}>Vista previa</Button>
-                    <a className="text-xs underline text-slate-600 self-center" href={c.url} target="_blank" rel="noopener noreferrer">Ver la página actual</a>
-                </span>
+                {links}
             </div>
         );
     }
