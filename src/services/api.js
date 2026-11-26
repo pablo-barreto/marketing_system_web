@@ -118,6 +118,10 @@ export const seoSiteService = {
 
   restoreChanges: (kind) => apiFetch('/api/v1/seo-site/changes/restore', { method: 'POST', json: { kind } }),
 
+  rewritePage: (wpId) => apiFetch('/api/v1/seo-site/changes/rewrite', { method: 'POST', json: { wp_id: wpId } }),
+
+  previewChange: (id) => apiFetch(`/api/v1/seo-site/changes/${id}/preview`),
+
   editChange: (id, after) => apiFetch(`/api/v1/seo-site/changes/${id}`, { method: 'PUT', json: { after } }),
 
   changeAction: (action, body) => apiFetch(`/api/v1/seo-site/changes/${action}`, { method: 'POST', json: body })

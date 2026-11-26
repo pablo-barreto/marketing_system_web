@@ -46,7 +46,7 @@ function JobBanner({ proposeJob, applyJob, kinds }) {
             {proposeJob?.running && (
                 <div className="flex flex-col gap-2">
                     <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
-                        <Pill tone="blue">{proposeJob.mode === 'recuperar' ? 'Buscando textos de la IA reemplazados' : 'Preparando propuestas'}</Pill>
+                        <Pill tone="blue">{proposeJob.mode === 'recuperar' ? 'Buscando textos de la IA reemplazados' : proposeJob.mode === 'reescribir' ? 'La IA está escribiendo la página (1–2 min)' : 'Preparando propuestas'}</Pill>
                         {label(proposeJob.kind)}: {fmt(proposeJob.reviewed)} revisadas · {fmt(proposeJob.created)} {proposeJob.mode === 'recuperar' ? 'reemplazadas, vuelven a propuestas' : 'propuestas'}
                         {proposeJob.limit ? ` (máximo ${fmt(proposeJob.limit)})` : ''}
                         {proposeJob.skipped ? <span className="text-amber-700"> · {fmt(proposeJob.skipped)} saltadas porque WordPress no respondió (se pueden volver a preparar)</span> : null}
@@ -72,6 +72,73 @@ function JobBanner({ proposeJob, applyJob, kinds }) {
 }
 
 // --- Tipos de corrección ------------------------------------------------------------------------
+
+// Página de servicio con la plantilla: se elige la página, una por una
+function RewriteCard({ k, busy, onChanged }) {
+    const suggestions = k.suggestions || [];
+    const [wpId, setWpId] = useState('');
+    const [working, setWorking] = useState(false);
+    const s = k.by_status;
+    const chosen = wpId || (suggestions[0] ? String(suggestions[0].wp_id) : '');
+    const custom = wpId && !suggestions.some((p) => String(p.wp_id) === wpId) ? wpId : '';
+
+    const generate = async () => {
+        if (!chosen) return;
+        setWorking(true);
+        try {
+            await seoSiteService.rewritePage(Number(chosen));
+            Swal.fire({ icon: 'info', title: 'Generando la página', text: 'La IA tarda uno o dos minutos. La propuesta aparecerá abajo en "Propuestos", con su vista previa.', timer: 4000, showConfirmButton: false });
+            onChanged();
+        } catch (e) {
+            Swal.fire('No se pudo iniciar', e.message, 'error');
+        } finally {
+            setWorking(false);
+        }
+    };
+
+    return (
+        <Card className="flex flex-col lg:col-span-2">
+            <CardHeader title={k.label} subtitle="Fase 3 · Una página a la vez, con vista previa antes de publicar" />
+            <div className="p-5 flex flex-col gap-4 flex-1">
+                <p className="m-0 text-sm text-slate-600">{k.description}</p>
+                <dl className="m-0 grid grid-cols-3 gap-3 max-w-xl">
+                    {[['Propuestas', s.propuesto], ['Publicadas', s.aplicado], ['Con error', s.error + s.error_revertir]].map(([label, value]) => (
+                        <div key={label} className="rounded-lg border border-slate-200 px-3 py-2">
+                            <dt className="text-xs text-slate-500">{label}</dt>
+                            <dd className="m-0 text-lg font-bold text-slate-900">{fmt(value)}</dd>
+                        </div>
+                    ))}
+                </dl>
+                <div className="flex flex-wrap items-end gap-2">
+                    <label className="flex flex-col gap-1.5 min-w-0 flex-1 max-w-xl">
+                        <span className="text-[13px] font-semibold text-slate-700">Página</span>
+                        <select value={custom ? '' : chosen} onChange={(e) => setWpId(e.target.value)} className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm min-w-0">
+                            {custom && <option value="">Otra página: {custom}</option>}
+                            {suggestions.map((p) => (
+                                <option key={p.wp_id} value={p.wp_id}>
+                                    {p.title} — {p.url.replace(/^https?:\/\/[^/]+/, '')}{p.score != null ? ` (puntaje ${p.score})` : ''}
+                                </option>
+                            ))}
+                            {suggestions.length === 0 && !custom && <option value="">No quedan páginas sugeridas</option>}
+                        </select>
+                    </label>
+                    <label className="flex flex-col gap-1.5 w-40">
+                        <span className="text-[13px] font-semibold text-slate-700">u otra (ID de WordPress)</span>
+                        <input inputMode="numeric" placeholder="Ej.: 9969" value={custom}
+                            onChange={(e) => setWpId(e.target.value.replace(/\D/g, ''))}
+                            className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm" />
+                    </label>
+                    <Button onClick={generate} disabled={busy || working || !chosen}>
+                        {working ? 'Iniciando…' : 'Generar con la plantilla'}
+                    </Button>
+                </div>
+                <span className="text-xs text-slate-500">
+                    Generar no cambia nada en WordPress. Revise la vista previa en la tabla de abajo y aplíquela solo si le gusta.
+                </span>
+            </div>
+        </Card>
+    );
+}
 
 function KindCard({ k, busy, onChanged }) {
     const [limit, setLimit] = useState('20');
@@ -218,6 +285,35 @@ async function editChange(c, onDone) {
 
 function ChangeDetail({ c, onEdited }) {
     const canEdit = EDITABLE[c.kind] && ['propuesto', 'error'].includes(c.status) && (c.kind !== 'palabra_clave' || !!c.payload?.after);
+    if (c.kind === 'pagina_plantilla') {
+        const p = c.payload || {};
+        const b = p.before || {};
+        const a = p.after || {};
+        const preview = async () => {
+            const win = window.open('', '_blank');
+            try {
+                const r = await seoSiteService.previewChange(c.id);
+                const url = URL.createObjectURL(new Blob([r.html], { type: 'text/html' }));
+                if (win) win.location.href = url; else window.open(url, '_blank');
+            } catch (e) {
+                if (win) win.close();
+                Swal.fire('No se pudo abrir la vista previa', e.message, 'error');
+            }
+        };
+        return (
+            <div className="flex flex-col gap-1 text-[13px]">
+                <span><span className="text-slate-500">Título (H1):</span> {b.title} → <span className="text-emerald-700">{a.title}</span></span>
+                <span><span className="text-slate-500">Título SEO:</span> {a.seo_title}</span>
+                <span><span className="text-slate-500">Meta descripción:</span> {a.meta_description}</span>
+                <span><span className="text-slate-500">Frase clave:</span> {a.keyword || '—'} · {fmt(p.words_before)} → {fmt(p.words)} palabras · {(p.sections || []).length} secciones{b.elementor === 'builder' ? ' · deja de usar Elementor' : ''}</span>
+                {(p.notes || []).length > 0 && <span className="text-amber-700">{p.notes.length} aviso(s): {p.notes.slice(0, 2).join(' ')}</span>}
+                <span className="flex flex-wrap gap-2 mt-1">
+                    <Button size="sm" onClick={preview}>Vista previa</Button>
+                    <a className="text-xs underline text-slate-600 self-center" href={c.url} target="_blank" rel="noopener noreferrer">Ver la página actual</a>
+                </span>
+            </div>
+        );
+    }
     if (c.kind === 'palabra_clave') {
         const p = c.payload || {};
         return (
@@ -473,7 +569,8 @@ export default function SeoChanges() {
             {data?.apply_job?.last_error && !data?.apply_job?.running && <p className="m-0 text-[13px] text-red-700">Error al aplicar: {data.apply_job.last_error}</p>}
 
             <section aria-label="Correcciones disponibles" className="grid gap-4 lg:grid-cols-2">
-                {kinds.map((k) => <KindCard key={k.kind} k={k} busy={busy} onChanged={refresh} />)}
+                {kinds.filter((k) => k.manual).map((k) => <RewriteCard key={k.kind} k={k} busy={busy} onChanged={refresh} />)}
+                {kinds.filter((k) => !k.manual).map((k) => <KindCard key={k.kind} k={k} busy={busy} onChanged={refresh} />)}
             </section>
 
             <ChangesTable kinds={kinds} refreshInterval={working ? 5000 : 0} onChanged={refresh} />
